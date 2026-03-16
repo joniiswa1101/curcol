@@ -15,12 +15,12 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  token: localStorage.getItem("corpchat_token"),
-  isAuthenticated: !!localStorage.getItem("corpchat_token"),
+  token: localStorage.getItem("curcol_token"),
+  isAuthenticated: !!localStorage.getItem("curcol_token"),
   isLoading: true,
 
   setAuth: (response: LoginResponse) => {
-    localStorage.setItem("corpchat_token", response.token);
+    localStorage.setItem("curcol_token", response.token);
     set({ user: response.user, token: response.token, isAuthenticated: true });
   },
 
@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    localStorage.removeItem("corpchat_token");
+    localStorage.removeItem("curcol_token");
     set({ user: null, token: null, isAuthenticated: false });
     window.location.href = "/login";
   },

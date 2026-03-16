@@ -80,7 +80,7 @@ export default function Login() {
                 <MessageSquare className="w-8 h-8 text-primary" />
               </div>
             </div>
-            <h2 className="text-3xl font-display font-bold text-foreground">Masuk ke Ngobrol</h2>
+            <h2 className="text-3xl font-display font-bold text-foreground">Masuk ke CurCol</h2>
             <p className="mt-2 text-muted-foreground">Gunakan kredensial CICO Anda untuk mengakses platform.</p>
           </div>
 

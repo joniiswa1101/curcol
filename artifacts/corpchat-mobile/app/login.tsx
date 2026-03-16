@@ -46,7 +46,7 @@ export default function LoginScreen() {
           <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
             <Feather name="message-square" size={28} color="#fff" />
           </View>
-          <Text style={[styles.appName, { color: colors.text }]}>Ngobrol</Text>
+          <Text style={[styles.appName, { color: colors.text }]}>CurCol</Text>
         </View>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Platform komunikasi resmi karyawan

@@ -17,7 +17,7 @@ import NotFound from "@/pages/not-found";
 const originalFetch = window.fetch;
 window.fetch = async (...args) => {
   const [resource, config] = args;
-  const token = localStorage.getItem("corpchat_token");
+  const token = localStorage.getItem("curcol_token");
   
   // If calling our /api and we have a token, inject Authorization header
   if (typeof resource === 'string' && resource.startsWith('/api') && token) {
@@ -83,7 +83,7 @@ function MainRouter() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse flex flex-col items-center">
            <div className="w-16 h-16 bg-primary/20 rounded-2xl mb-4" />
-           <p className="text-muted-foreground font-medium tracking-widest uppercase text-sm">NGOBROL</p>
+           <p className="text-muted-foreground font-medium tracking-widest uppercase text-sm">CURCOL</p>
         </div>
       </div>
     );

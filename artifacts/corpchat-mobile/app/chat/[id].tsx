@@ -35,6 +35,7 @@ interface Message {
   isEdited: boolean;
   isDeleted: boolean;
   isPinned: boolean;
+  isFromWhatsapp?: boolean;
   createdAt: string;
   sender?: { name: string; avatarUrl?: string; cicoStatus?: any };
   replyTo?: Message;
@@ -50,11 +51,24 @@ interface BubbleProps {
 
 function MessageBubble({ msg, isMine, colors, showAvatar }: BubbleProps) {
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
+  const isFromWa = msg.isFromWhatsapp;
+
+  const bubbleBg = isMine
+    ? colors.bubble.mine
+    : isFromWa
+      ? "#e8fce8"
+      : colors.bubble.other;
 
   return (
     <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine]}>
       {!isMine && showAvatar ? (
-        <UserAvatar name={msg.sender?.name || "?"} size={30} avatarUrl={msg.sender?.avatarUrl} />
+        isFromWa ? (
+          <View style={styles.waAvatarSmall}>
+            <Feather name="phone" size={14} color="#fff" />
+          </View>
+        ) : (
+          <UserAvatar name={msg.sender?.name || "?"} size={30} avatarUrl={msg.sender?.avatarUrl} />
+        )
       ) : !isMine ? (
         <View style={{ width: 30 }} />
       ) : null}
@@ -62,14 +76,21 @@ function MessageBubble({ msg, isMine, colors, showAvatar }: BubbleProps) {
       <View style={[styles.bubbleWrap, isMine && styles.bubbleWrapMine]}>
         {!isMine && showAvatar && (
           <Text style={[styles.senderName, { color: colors.textSecondary }]}>
-            {msg.sender?.name || ""}
+            {isFromWa ? `📱 ${msg.sender?.name || "WhatsApp"}` : (msg.sender?.name || "")}
           </Text>
         )}
         <View style={[
           styles.bubble,
-          { backgroundColor: isMine ? colors.bubble.mine : colors.bubble.other },
+          { backgroundColor: bubbleBg },
           isMine ? styles.bubbleMine : styles.bubbleOther,
+          isFromWa && !isMine && styles.bubbleWhatsapp,
         ]}>
+          {isFromWa && (
+            <View style={styles.waTag}>
+              <Feather name="phone" size={9} color="#25D366" />
+              <Text style={styles.waTagText}>WhatsApp</Text>
+            </View>
+          )}
           {msg.replyTo && (
             <View style={[styles.replyBar, { borderColor: isMine ? "rgba(255,255,255,0.5)" : colors.primary }]}>
               <Text style={[styles.replyText, { color: isMine ? "rgba(255,255,255,0.8)" : colors.textSecondary }]} numberOfLines={1}>
@@ -109,7 +130,7 @@ function MessageBubble({ msg, isMine, colors, showAvatar }: BubbleProps) {
 }
 
 export default function ChatScreen() {
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { id, name, type } = useLocalSearchParams<{ id: string; name: string; type?: string }>();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
   const insets = useSafeAreaInsets();
@@ -117,6 +138,7 @@ export default function ChatScreen() {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const flatRef = useRef<FlatList>(null);
+  const isWhatsapp = type === "whatsapp";
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["messages", id],
@@ -145,15 +167,23 @@ export default function ChatScreen() {
       keyboardVerticalOffset={0}
     >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: isWhatsapp ? "#075E54" : colors.surface, borderBottomColor: colors.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-          <Feather name="chevron-left" size={26} color={colors.primary} />
+          <Feather name="chevron-left" size={26} color={isWhatsapp ? "#fff" : colors.primary} />
         </Pressable>
+        {isWhatsapp && (
+          <View style={styles.waHeaderIcon}>
+            <Feather name="phone" size={16} color="#fff" />
+          </View>
+        )}
         <View style={styles.headerInfo}>
-          <Text style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>{name || "Chat"}</Text>
+          <Text style={[styles.headerName, { color: isWhatsapp ? "#fff" : colors.text }]} numberOfLines={1}>{name || "Chat"}</Text>
+          {isWhatsapp && (
+            <Text style={styles.waHeaderSub}>Balasan diteruskan ke WhatsApp</Text>
+          )}
         </View>
         <Pressable style={styles.headerAction} hitSlop={8}>
-          <Feather name="more-vertical" size={22} color={colors.textSecondary} />
+          <Feather name="more-vertical" size={22} color={isWhatsapp ? "#fff" : colors.textSecondary} />
         </Pressable>
       </View>
 
@@ -186,32 +216,40 @@ export default function ChatScreen() {
 
       {/* Input */}
       <View style={[styles.inputArea, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + 4 }]}>
-        <Pressable style={styles.attachBtn} hitSlop={6}>
-          <Feather name="paperclip" size={20} color={colors.textSecondary} />
-        </Pressable>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surfaceSecondary, color: colors.text }]}
-          placeholder="Ketik pesan..."
-          placeholderTextColor={colors.textSecondary}
-          value={text}
-          onChangeText={setText}
-          multiline
-          maxLength={2000}
-        />
-        <Pressable
-          onPress={send}
-          disabled={!text.trim() || sendMutation.isPending}
-          style={({ pressed }) => [
-            styles.sendBtn,
-            { backgroundColor: text.trim() ? colors.primary : colors.border, opacity: pressed ? 0.8 : 1 },
-          ]}
-        >
-          {sendMutation.isPending ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Feather name="send" size={16} color="#fff" />
-          )}
-        </Pressable>
+        {isWhatsapp && (
+          <View style={[styles.waInputHint, { backgroundColor: "#e8fce8" }]}>
+            <Feather name="phone" size={12} color="#25D366" />
+            <Text style={styles.waInputHintText}>Pesan akan dikirim ke WhatsApp kontak</Text>
+          </View>
+        )}
+        <View style={styles.inputRow}>
+          <Pressable style={styles.attachBtn} hitSlop={6}>
+            <Feather name="paperclip" size={20} color={colors.textSecondary} />
+          </Pressable>
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.surfaceSecondary, color: colors.text }]}
+            placeholder={isWhatsapp ? "Balas ke WhatsApp..." : "Ketik pesan..."}
+            placeholderTextColor={colors.textSecondary}
+            value={text}
+            onChangeText={setText}
+            multiline
+            maxLength={2000}
+          />
+          <Pressable
+            onPress={send}
+            disabled={!text.trim() || sendMutation.isPending}
+            style={({ pressed }) => [
+              styles.sendBtn,
+              { backgroundColor: text.trim() ? (isWhatsapp ? "#25D366" : colors.primary) : colors.border, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            {sendMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Feather name="send" size={16} color="#fff" />
+            )}
+          </Pressable>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -223,11 +261,14 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingBottom: 10, borderBottomWidth: 0.5,
   },
   backBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  waHeaderIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#25D366", alignItems: "center", justifyContent: "center", marginRight: 4 },
   headerInfo: { flex: 1, paddingHorizontal: 8 },
   headerName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  waHeaderSub: { fontSize: 11, color: "rgba(255,255,255,0.7)", fontFamily: "Inter_400Regular" },
   headerAction: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  waAvatarSmall: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#25D366", alignItems: "center", justifyContent: "center" },
   bubbleRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 4, gap: 6 },
   bubbleRowMine: { flexDirection: "row-reverse" },
   bubbleWrap: { maxWidth: "78%", gap: 2 },
@@ -236,6 +277,9 @@ const styles = StyleSheet.create({
   bubble: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, gap: 4 },
   bubbleMine: { borderBottomRightRadius: 4 },
   bubbleOther: { borderBottomLeftRadius: 4 },
+  bubbleWhatsapp: { borderWidth: 1, borderColor: "#c8f0c8" },
+  waTag: { flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 2 },
+  waTagText: { fontSize: 9, fontFamily: "Inter_600SemiBold", color: "#25D366" },
   replyBar: { borderLeftWidth: 2, paddingLeft: 6, borderRadius: 2 },
   replyText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   msgText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 21 },
@@ -246,9 +290,12 @@ const styles = StyleSheet.create({
   reactionBadge: { flexDirection: "row", alignItems: "center", gap: 2, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
   reactionEmoji: { fontSize: 13 },
   reactionCount: { fontSize: 11, fontFamily: "Inter_500Medium" },
-  inputArea: {
+  inputArea: { borderTopWidth: 0.5, paddingBottom: 4 },
+  waInputHint: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 6 },
+  waInputHintText: { fontSize: 11, color: "#25D366", fontFamily: "Inter_400Regular" },
+  inputRow: {
     flexDirection: "row", alignItems: "flex-end", gap: 10,
-    paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 0.5,
+    paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4,
   },
   attachBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   input: {

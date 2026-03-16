@@ -26,13 +26,15 @@ interface Message {
 
 interface Conversation {
   id: number;
-  type: "direct" | "group" | "announcement";
+  type: "direct" | "group" | "announcement" | "whatsapp";
   name?: string;
   members: any[];
   lastMessage?: Message;
   unreadCount: number;
   isPinned: boolean;
   updatedAt: string;
+  whatsappContactPhone?: string;
+  whatsappContactName?: string;
 }
 
 function getConvName(conv: Conversation, currentUserId?: number) {
@@ -40,6 +42,9 @@ function getConvName(conv: Conversation, currentUserId?: number) {
   if (conv.type === "direct") {
     const other = conv.members?.find((m: any) => m.userId !== currentUserId);
     return other?.user?.name || "Chat";
+  }
+  if (conv.type === "whatsapp") {
+    return conv.whatsappContactName || `+${conv.whatsappContactPhone}` || "WhatsApp";
   }
   return "Grup";
 }
@@ -56,6 +61,7 @@ function ConvItem({ conv, currentUserId, colors }: { conv: Conversation; current
   const name = getConvName(conv, currentUserId);
   const cicoStatus = getConvCico(conv, currentUserId);
   const other = conv.type === "direct" ? conv.members?.find((m: any) => m.userId !== currentUserId) : null;
+  const isWhatsapp = conv.type === "whatsapp";
 
   const lastText = conv.lastMessage
     ? (conv.lastMessage.type !== "text" ? "📎 File" : (conv.lastMessage.content || ""))
@@ -68,20 +74,27 @@ function ConvItem({ conv, currentUserId, colors }: { conv: Conversation; current
 
   return (
     <Pressable
-      onPress={() => router.push({ pathname: "/chat/[id]", params: { id: conv.id.toString(), name } })}
+      onPress={() => router.push({ pathname: "/chat/[id]", params: { id: conv.id.toString(), name, type: conv.type } })}
       style={({ pressed }) => [styles.convItem, { backgroundColor: pressed ? colors.surfaceSecondary : colors.surface }]}
     >
-      <UserAvatar
-        name={name}
-        avatarUrl={other?.user?.avatarUrl}
-        size={52}
-        cicoStatus={cicoStatus}
-        showCico={conv.type === "direct"}
-      />
+      {isWhatsapp ? (
+        <View style={[styles.waAvatar, { backgroundColor: "#25D366" }]}>
+          <Feather name="phone" size={24} color="#fff" />
+        </View>
+      ) : (
+        <UserAvatar
+          name={name}
+          avatarUrl={other?.user?.avatarUrl}
+          size={52}
+          cicoStatus={cicoStatus}
+          showCico={conv.type === "direct"}
+        />
+      )}
       <View style={styles.convMid}>
         <View style={styles.convHeader}>
           <View style={styles.convNameRow}>
             {conv.isPinned && <Feather name="bookmark" size={11} color={colors.primary} />}
+            {isWhatsapp && <Feather name="phone" size={11} color="#25D366" />}
             <Text style={[styles.convName, { color: colors.text }]} numberOfLines={1}>{name}</Text>
           </View>
           <Text style={[styles.convTime, { color: colors.textSecondary }]}>{timeStr}</Text>
@@ -212,4 +225,5 @@ const styles = StyleSheet.create({
   badge: { minWidth: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 },
   badgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
   separator: { height: 0.5, marginLeft: 80 },
+  waAvatar: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center" },
 });

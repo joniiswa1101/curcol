@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
-  useColorScheme, Alert, ActivityIndicator, Switch,
+  useColorScheme, Alert, ActivityIndicator, TextInput, Modal,
 } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
@@ -24,7 +24,7 @@ function InfoRow({ label, value, colors }: { label: string; value: string; color
   );
 }
 
-const cicoLabels = {
+const cicoLabels: Record<string, string> = {
   present: "Hadir (Kantor)",
   wfh: "Work From Home",
   break: "Istirahat",
@@ -39,6 +39,9 @@ export default function ProfileTab() {
   const tabBarHeight = useBottomTabBarHeight();
   const { user, logout, refreshUser } = useAuth();
   const queryClient = useQueryClient();
+
+  const [waModal, setWaModal] = useState(false);
+  const [waNumber, setWaNumber] = useState("");
 
   const cicoStatus = user?.cicoStatus?.status || "absent";
   const hasCheckedIn = cicoStatus !== "absent" && cicoStatus !== "off";
@@ -56,6 +59,17 @@ export default function ProfileTab() {
     onError: (e: any) => Alert.alert("Gagal", e.message),
   });
 
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: { whatsappNumber?: string | null }) =>
+      api.patch(`/users/${user?.id}`, data),
+    onSuccess: () => {
+      refreshUser();
+      setWaModal(false);
+      Alert.alert("Berhasil", "Profil berhasil diperbarui.");
+    },
+    onError: (e: any) => Alert.alert("Gagal", e.message),
+  });
+
   function handleCheckIn() {
     Alert.alert("Check In", "Pilih mode kerja", [
       { text: "Kantor", onPress: () => checkInMutation.mutate("office") },
@@ -69,6 +83,15 @@ export default function ProfileTab() {
       { text: "Batal", style: "cancel" },
       { text: "Keluar", style: "destructive", onPress: logout },
     ]);
+  }
+
+  function openWaModal() {
+    setWaNumber(user?.whatsappNumber || "");
+    setWaModal(true);
+  }
+
+  function saveWaNumber() {
+    updateProfileMutation.mutate({ whatsappNumber: waNumber.trim() || null });
   }
 
   if (!user) return null;
@@ -135,6 +158,34 @@ export default function ProfileTab() {
         </View>
       </View>
 
+      {/* WhatsApp Notification Card */}
+      <Pressable
+        onPress={openWaModal}
+        style={({ pressed }) => [
+          styles.waCard,
+          {
+            backgroundColor: user.whatsappNumber ? "#e8fce8" : colors.surface,
+            borderColor: user.whatsappNumber ? "#c8f0c8" : colors.border,
+            opacity: pressed ? 0.85 : 1,
+          }
+        ]}
+      >
+        <View style={[styles.waCardIcon, { backgroundColor: user.whatsappNumber ? "#25D366" : colors.surfaceSecondary }]}>
+          <Feather name="phone" size={20} color={user.whatsappNumber ? "#fff" : colors.textSecondary} />
+        </View>
+        <View style={styles.waCardInfo}>
+          <Text style={[styles.waCardTitle, { color: user.whatsappNumber ? "#075E54" : colors.text }]}>
+            Notifikasi WhatsApp
+          </Text>
+          <Text style={[styles.waCardDesc, { color: colors.textSecondary }]}>
+            {user.whatsappNumber
+              ? `Aktif: +${user.whatsappNumber}`
+              : "Daftarkan nomor WhatsApp untuk terima notifikasi pengumuman"}
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.textSecondary} />
+      </Pressable>
+
       {/* Info */}
       <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Informasi Karyawan</Text>
@@ -155,6 +206,58 @@ export default function ProfileTab() {
           <Text style={[styles.logoutText, { color: colors.danger }]}>Keluar</Text>
         </Pressable>
       </View>
+
+      {/* WhatsApp Number Modal */}
+      <Modal visible={waModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 12 }]}>
+            <Pressable onPress={() => setWaModal(false)}>
+              <Text style={[styles.modalCancel, { color: colors.primary }]}>Batal</Text>
+            </Pressable>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Notifikasi WhatsApp</Text>
+            <Pressable onPress={saveWaNumber} disabled={updateProfileMutation.isPending}>
+              {updateProfileMutation.isPending
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Text style={[styles.modalSave, { color: colors.primary }]}>Simpan</Text>}
+            </Pressable>
+          </View>
+
+          <View style={styles.modalBody}>
+            <View style={[styles.waIconBig, { backgroundColor: "#25D366" }]}>
+              <Feather name="phone" size={36} color="#fff" />
+            </View>
+            <Text style={[styles.modalDesc, { color: colors.text }]}>
+              Daftarkan nomor WhatsApp kamu agar bisa menerima notifikasi pengumuman penting dari perusahaan langsung di WhatsApp.
+            </Text>
+
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Nomor WhatsApp</Text>
+            <View style={[styles.waInputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.waPrefix, { color: colors.textSecondary }]}>+</Text>
+              <TextInput
+                style={[styles.waInput, { color: colors.text }]}
+                placeholder="6281234567890"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="phone-pad"
+                value={waNumber}
+                onChangeText={setWaNumber}
+              />
+            </View>
+            <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              Format: kode negara + nomor tanpa tanda +{"\n"}Contoh: 6281234567890 (Indonesia +62)
+            </Text>
+
+            {waNumber ? (
+              <Pressable
+                onPress={() => { setWaNumber(""); updateProfileMutation.mutate({ whatsappNumber: null }); }}
+                style={({ pressed }) => [styles.clearBtn, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Feather name="x-circle" size={16} color={colors.danger} />
+                <Text style={[styles.clearBtnText, { color: colors.danger }]}>Hapus nomor WhatsApp</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -176,6 +279,14 @@ const styles = StyleSheet.create({
   cicoActions: { flexDirection: "row", gap: 8 },
   cicoBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
   cicoBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  waCard: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    marginHorizontal: 16, marginBottom: 12, borderRadius: 14, padding: 14, borderWidth: 1.5,
+  },
+  waCardIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  waCardInfo: { flex: 1 },
+  waCardTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  waCardDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   section: { marginHorizontal: 16, marginBottom: 12, borderRadius: 14, padding: 4, borderWidth: 0.5 },
   sectionTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5, textTransform: "uppercase", padding: 12, paddingBottom: 4 },
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 0.5 },
@@ -183,4 +294,25 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "right", flex: 1, paddingLeft: 16 },
   logoutBtn: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
   logoutText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  modalRoot: { flex: 1 },
+  modalHeader: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 0.5,
+  },
+  modalCancel: { fontSize: 15, fontFamily: "Inter_400Regular" },
+  modalTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  modalSave: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  modalBody: { padding: 24, gap: 12, alignItems: "center" },
+  waIconBig: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  modalDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 21, marginBottom: 8 },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5, alignSelf: "flex-start" },
+  waInputWrap: {
+    flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 12, width: "100%",
+  },
+  waPrefix: { fontSize: 16, fontFamily: "Inter_500Medium", marginRight: 4 },
+  waInput: { flex: 1, fontSize: 16, fontFamily: "Inter_400Regular" },
+  fieldHint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18 },
+  clearBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+  clearBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
 });

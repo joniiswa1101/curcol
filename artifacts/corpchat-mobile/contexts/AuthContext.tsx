@@ -26,6 +26,7 @@ interface User {
   name: string;
   email: string;
   phone?: string;
+  whatsappNumber?: string;
   department?: string;
   position?: string;
   avatarUrl?: string;

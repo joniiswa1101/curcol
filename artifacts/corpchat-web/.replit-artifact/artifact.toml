@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "CorpChat Web"
+version = "1.0.0"
+id = "artifacts/corpchat-web"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 24909
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/corpchat-web run dev"
+
+[services.env]
+PORT = "24909"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/corpchat-web", "run", "build"]
+publicDir = "artifacts/corpchat-web/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

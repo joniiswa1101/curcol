@@ -1,0 +1,21 @@
+packages:
+  "date-fns": "For formatting dates and timestamps"
+  "framer-motion": "For smooth UI animations, layout transitions, and presence"
+  "recharts": "For the admin dashboard statistics and charts"
+  "clsx": "For conditional class joining"
+  "tailwind-merge": "For merging tailwind classes safely"
+  "react-hook-form": "For form state management"
+  "@hookform/resolvers": "For zod validation integration"
+  "zod": "For schema validation"
+
+images:
+  - path: "artifacts/corpchat-web/public/images/logo.png"
+    description: "Minimalist modern abstract geometric logo for a corporate chat application, using deep slate blue and vibrant emerald green on transparent background"
+    aspect_ratio: "1:1"
+  - path: "artifacts/corpchat-web/public/images/login-bg.png"
+    description: "Premium abstract dark corporate background with subtle glowing green and blue nodes connected by thin lines, representing secure enterprise communication and network"
+    aspect_ratio: "16:9"
+
+notes:
+  - "JWT token is stored in localStorage and injected globally via a fetch interceptor in App.tsx to ensure all generated API client requests include the Authorization header"
+  - "Real-time updates handled via native WebSocket connection to /ws"

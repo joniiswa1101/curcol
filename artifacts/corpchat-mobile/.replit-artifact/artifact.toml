@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "CorpChat Mobile"
+version = "1.0.0"
+id = "artifacts/corpchat-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+localPort = 22053
+name = "expo"
+paths = ["/mobile/"]
+
+[services.development]
+run = "pnpm --filter @workspace/corpchat-mobile run dev"
+
+[services.env]
+PORT = "22053"
+BASE_PATH = "/mobile/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/corpchat-mobile", "run", "build"]
+run = ["pnpm", "--filter", "@workspace/corpchat-mobile", "run", "serve"]

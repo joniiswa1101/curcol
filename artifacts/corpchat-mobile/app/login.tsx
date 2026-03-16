@@ -21,7 +21,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!employeeId.trim() || !password.trim()) {
-      Alert.alert("Perhatian", "Isi Employee ID dan Password");
+      Alert.alert("Perhatian", "Isi Employee ID / Email dan Password");
       return;
     }
     setLoading(true);
@@ -58,7 +58,7 @@ export default function LoginScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.ssoTitle, { color: colors.primary }]}>SSO Terintegrasi CICO</Text>
             <Text style={[styles.ssoDesc, { color: colors.textSecondary }]}>
-              Gunakan password CICO Anda. Password awal = Employee ID
+              Gunakan Employee ID (contoh: EMP001) atau email kantor. Password awal = Employee ID.
             </Text>
           </View>
         </View>
@@ -66,17 +66,18 @@ export default function LoginScreen() {
         <View style={styles.form}>
           {/* Employee ID */}
           <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Employee ID</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Employee ID atau Email</Text>
             <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Feather name="user" size={16} color={colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
-                placeholder="Contoh: EMP001"
+                placeholder="EMP001 atau joni@rpk.com"
                 placeholderTextColor={colors.textSecondary}
                 value={employeeId}
                 onChangeText={setEmployeeId}
-                autoCapitalize="characters"
+                autoCapitalize="none"
                 autoCorrect={false}
+                keyboardType="email-address"
               />
             </View>
           </View>

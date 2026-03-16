@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, cicoStatusTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { createSession, requireAuth } from "../lib/auth.js";
 import { verifyPassword, hashPassword } from "../lib/password.js";
 import { logAudit } from "../lib/audit.js";
@@ -16,11 +16,17 @@ const router = Router();
 router.post("/login", async (req, res) => {
   const { employeeId, password } = req.body;
   if (!employeeId || !password) {
-    res.status(400).json({ error: "bad_request", message: "employeeId dan password wajib diisi" });
+    res.status(400).json({ error: "bad_request", message: "Employee ID/email dan password wajib diisi" });
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.employeeId, employeeId));
+  // Support login dengan Employee ID (EMP001) ATAU email (joni@rpk.com)
+  const [user] = await db.select().from(usersTable).where(
+    or(
+      eq(usersTable.employeeId, employeeId),
+      eq(usersTable.email, employeeId.toLowerCase())
+    )
+  );
 
   if (!user) {
     res.status(401).json({ error: "unauthorized", message: "Employee ID atau password salah" });

@@ -90,7 +90,7 @@ export default function Login() {
             <div>
               <p className="font-semibold text-foreground">SSO terintegrasi dengan CICO</p>
               <p className="text-muted-foreground text-xs mt-0.5">
-                Gunakan Employee ID dan password CICO Anda. Password awal = Employee ID (contoh: <span className="font-mono font-medium text-foreground">EMP001</span>).
+                Gunakan Employee ID (contoh: <span className="font-mono font-medium text-foreground">EMP001</span>) atau email kantor. Password awal = Employee ID.
               </p>
             </div>
           </div>
@@ -98,12 +98,13 @@ export default function Login() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-2">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">Employee ID</label>
+                <label className="text-sm font-semibold text-foreground">Employee ID atau Email</label>
                 <Input 
                   {...form.register("employeeId")} 
-                  placeholder="Contoh: EMP001" 
+                  placeholder="Contoh: EMP001 atau joni@rpk.com" 
                   className="h-12 text-base"
-                  autoCapitalize="characters"
+                  autoCapitalize="none"
+                  autoCorrect="off"
                 />
                 {form.formState.errors.employeeId && (
                   <p className="text-sm text-destructive">{form.formState.errors.employeeId.message}</p>

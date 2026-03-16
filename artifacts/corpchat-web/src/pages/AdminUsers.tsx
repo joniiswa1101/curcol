@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { useListUsers } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { 
   UserPlus, Search, MoreHorizontal, ShieldCheck, 
-  Shield, User, CheckCircle, XCircle, KeyRound
+  Shield, User, CheckCircle, XCircle, KeyRound,
+  Upload, FileSpreadsheet, AlertCircle, Download
 } from "lucide-react"
 import {
   Dialog,
@@ -21,6 +22,38 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 const API_BASE = "/api"
+
+// Parse CSV — toleran terhadap berbagai format CICO export
+function parseCSV(text: string): Array<Record<string, string>> {
+  const lines = text.trim().split(/\r?\n/)
+  if (lines.length < 2) return []
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase())
+  return lines.slice(1).map(line => {
+    const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
+    const row: Record<string, string> = {}
+    headers.forEach((h, i) => { row[h] = cols[i] || "" })
+    return row
+  }).filter(r => Object.values(r).some(v => v))
+}
+
+// Map kolom CSV ke format CurCol (toleran terhadap nama kolom berbeda)
+function mapRow(row: Record<string, string>) {
+  const get = (...keys: string[]) => {
+    for (const k of keys) {
+      const val = row[k] || row[k.toLowerCase()] || row[k.toUpperCase()]
+      if (val) return val
+    }
+    return ""
+  }
+  return {
+    employeeId: get("employee_id", "employeeid", "emp_id", "empid", "nik", "id karyawan", "no karyawan"),
+    name:       get("name", "nama", "full_name", "fullname", "nama lengkap", "nama_lengkap"),
+    email:      get("email", "e-mail", "email address", "email_address"),
+    department: get("department", "departemen", "dept", "divisi", "division"),
+    position:   get("position", "jabatan", "posisi", "job_title", "jobtitle"),
+    role:       get("role", "peran", "tipe"),
+  }
+}
 
 interface UserFormData {
   employeeId: string
@@ -52,6 +85,14 @@ export default function AdminUsers() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
+  // Import CSV state
+  const [importOpen, setImportOpen] = useState(false)
+  const [csvRows, setCsvRows] = useState<ReturnType<typeof mapRow>[]>([])
+  const [csvError, setCsvError] = useState("")
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ created: number; skipped: number; errors: string[] } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const { data, refetch } = useListUsers({ search: search || undefined, limit: 100 })
   const users = data?.users || []
 
@@ -65,6 +106,53 @@ export default function AdminUsers() {
     position: "",
     phone: "",
   })
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCsvError("")
+    setCsvRows([])
+    setImportResult(null)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const parsed = parseCSV(text).map(mapRow)
+      const valid = parsed.filter(r => r.employeeId && r.name && r.email)
+      if (valid.length === 0) {
+        setCsvError("Tidak ada data valid ditemukan. Pastikan CSV punya kolom: employee_id/NIK, nama, email.")
+        return
+      }
+      setCsvRows(valid)
+    }
+    reader.readAsText(file)
+  }
+
+  async function handleImport() {
+    if (csvRows.length === 0) return
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const res = await fetch(`${API_BASE}/users/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ users: csvRows }),
+      })
+      const result = await res.json()
+      setImportResult(result)
+      if (result.created > 0) refetch()
+    } catch {
+      setCsvError("Terjadi kesalahan jaringan.")
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  function downloadTemplate() {
+    const csv = "employee_id,nama,email,departemen,jabatan\nEMP007,Nama Karyawan,email@perusahaan.com,Engineering,Staff IT"
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a"); a.href = url; a.download = "template_import_karyawan.csv"; a.click()
+  }
 
   function resetForm() {
     setForm({ employeeId: "", name: "", email: "", password: "", role: "employee", department: "", position: "", phone: "" })
@@ -146,10 +234,16 @@ export default function AdminUsers() {
               <h1 className="text-3xl font-display font-bold text-foreground">Manajemen User</h1>
               <p className="text-muted-foreground mt-1">{users.length} karyawan terdaftar</p>
             </div>
-            <Button onClick={() => { resetForm(); setAddOpen(true) }} className="gap-2">
-              <UserPlus className="w-4 h-4" />
-              Tambah User
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setCsvRows([]); setCsvError(""); setImportResult(null); setImportOpen(true) }} className="gap-2">
+                <Upload className="w-4 h-4" />
+                Import CSV
+              </Button>
+              <Button onClick={() => { resetForm(); setAddOpen(true) }} className="gap-2">
+                <UserPlus className="w-4 h-4" />
+                Tambah Manual
+              </Button>
+            </div>
           </div>
 
           {/* Success Banner */}
@@ -259,6 +353,116 @@ export default function AdminUsers() {
           </div>
         </div>
       </div>
+
+      {/* Import CSV Dialog */}
+      <Dialog open={importOpen} onOpenChange={v => { setImportOpen(v); if (!v) { setCsvRows([]); setCsvError(""); setImportResult(null); if (fileInputRef.current) fileInputRef.current.value = "" } }}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-primary" />
+            Import Karyawan dari CSV
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-2">
+          {/* Template download + format info */}
+          {!importResult && (
+            <div className="bg-muted/50 rounded-xl p-4 text-sm space-y-2">
+              <p className="font-semibold text-foreground">Format CSV yang diperlukan:</p>
+              <p className="font-mono text-xs text-muted-foreground bg-background rounded p-2 border">
+                employee_id, nama, email, departemen, jabatan
+              </p>
+              <p className="text-muted-foreground text-xs">Nama kolom fleksibel — sistem otomatis mengenali NIK, emp_id, nama_lengkap, dll. Password awal setiap karyawan = Employee ID mereka.</p>
+              <button onClick={downloadTemplate} className="flex items-center gap-1.5 text-primary text-xs font-semibold hover:underline mt-1">
+                <Download className="w-3.5 h-3.5" /> Download template CSV
+              </button>
+            </div>
+          )}
+
+          {/* File upload */}
+          {!importResult && (
+            <div
+              className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <p className="font-semibold text-sm">Klik untuk pilih file CSV</p>
+              <p className="text-xs text-muted-foreground mt-1">Atau drag & drop file di sini</p>
+              <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFileChange} />
+            </div>
+          )}
+
+          {/* Error */}
+          {csvError && (
+            <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{csvError}</span>
+            </div>
+          )}
+
+          {/* Preview parsed rows */}
+          {csvRows.length > 0 && !importResult && (
+            <div>
+              <p className="text-sm font-semibold mb-2 text-foreground">{csvRows.length} karyawan siap diimport:</p>
+              <div className="max-h-48 overflow-y-auto rounded-xl border border-border text-xs">
+                <table className="w-full">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold">Employee ID</th>
+                      <th className="px-3 py-2 text-left font-semibold">Nama</th>
+                      <th className="px-3 py-2 text-left font-semibold">Email</th>
+                      <th className="px-3 py-2 text-left font-semibold">Dept</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {csvRows.map((r, i) => (
+                      <tr key={i} className="hover:bg-muted/30">
+                        <td className="px-3 py-1.5 font-mono">{r.employeeId}</td>
+                        <td className="px-3 py-1.5">{r.name}</td>
+                        <td className="px-3 py-1.5 text-muted-foreground">{r.email}</td>
+                        <td className="px-3 py-1.5 text-muted-foreground">{r.department || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Import result */}
+          {importResult && (
+            <div className="rounded-xl border p-5 space-y-3">
+              <p className="font-bold text-foreground text-base">Import selesai!</p>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2 text-emerald-600 font-semibold">
+                  <CheckCircle className="w-5 h-5" />
+                  <span>{importResult.created} akun dibuat</span>
+                </div>
+                {importResult.skipped > 0 && (
+                  <div className="flex items-center gap-2 text-amber-600 font-semibold">
+                    <AlertCircle className="w-5 h-5" />
+                    <span>{importResult.skipped} sudah ada, dilewati</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">Password awal setiap karyawan = Employee ID masing-masing.</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="mt-2">
+          {!importResult ? (
+            <>
+              <Button variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
+              <Button onClick={handleImport} disabled={csvRows.length === 0 || importing} className="gap-2">
+                <Upload className="w-4 h-4" />
+                {importing ? "Mengimport..." : `Import ${csvRows.length > 0 ? csvRows.length + " Karyawan" : ""}`}
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setImportOpen(false)}>Selesai</Button>
+          )}
+        </DialogFooter>
+      </Dialog>
 
       {/* Add User Dialog */}
       <Dialog open={addOpen} onOpenChange={v => { setAddOpen(v); if (!v) resetForm() }}>

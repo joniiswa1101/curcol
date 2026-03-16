@@ -51,6 +51,45 @@ router.get("/:userId", requireAuth as any, async (req, res) => {
   res.json({ ...user, password: undefined, cicoStatus: cicoStatus || null });
 });
 
+// Bulk import dari CSV — hanya admin
+router.post("/import", requireAdmin as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const { users: rows } = req.body as { users: Array<{ employeeId: string; name: string; email: string; role?: string; department?: string; position?: string }> };
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    res.status(400).json({ error: "bad_request", message: "Data kosong" });
+    return;
+  }
+
+  const results = { created: 0, skipped: 0, errors: [] as string[] };
+
+  for (const row of rows) {
+    if (!row.employeeId || !row.name || !row.email) {
+      results.errors.push(`Baris tidak lengkap: ${JSON.stringify(row)}`);
+      continue;
+    }
+    const [existing] = await db.select().from(usersTable).where(
+      or(eq(usersTable.employeeId, row.employeeId.trim()), eq(usersTable.email, row.email.trim().toLowerCase()))
+    );
+    if (existing) { results.skipped++; continue; }
+
+    await db.insert(usersTable).values({
+      employeeId: row.employeeId.trim(),
+      name: row.name.trim(),
+      email: row.email.trim().toLowerCase(),
+      password: hashPassword(row.employeeId.trim()),
+      role: (row.role as any) || "employee",
+      department: row.department?.trim() || null,
+      position: row.position?.trim() || null,
+      isActive: true,
+    });
+    results.created++;
+  }
+
+  await logAudit({ userId: currentUser.id, action: "bulk_import_users", entityType: "user", entityId: null, req });
+  res.json(results);
+});
+
 // Buat user baru — hanya admin
 router.post("/", requireAdmin as any, async (req, res) => {
   const currentUser = (req as any).user;

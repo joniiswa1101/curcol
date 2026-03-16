@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter"
-import { MessageSquare, Users, Megaphone, ShieldAlert, LogOut, Settings, Clock, Phone, X } from "lucide-react"
+import { MessageSquare, Users, Megaphone, ShieldAlert, LogOut, Settings, Clock, Phone, X, UserCog } from "lucide-react"
 import { useAuthStore } from "@/hooks/use-auth"
 import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -44,7 +44,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { icon: MessageSquare, label: "Chat", path: "/chat" },
     { icon: Users, label: "Directory", path: "/directory" },
     { icon: Megaphone, label: "Announcements", path: "/announcements" },
-    ...(user?.role === "admin" ? [{ icon: ShieldAlert, label: "Admin", path: "/admin" }] : [])
+    ...(user?.role === "admin" ? [
+      { icon: ShieldAlert, label: "Admin", path: "/admin" },
+      { icon: UserCog, label: "Kelola User", path: "/admin/users" },
+    ] : [])
   ]
 
   const handleCicoToggle = () => {

@@ -10,6 +10,7 @@ import Login from "@/pages/Login";
 import Chat from "@/pages/Chat";
 import Directory from "@/pages/Directory";
 import AdminDashboard from "@/pages/Admin";
+import AdminUsers from "@/pages/AdminUsers";
 import Announcements from "@/pages/Announcements";
 import NotFound from "@/pages/not-found";
 
@@ -96,6 +97,7 @@ function MainRouter() {
       <Route path="/chat/:id" component={() => <ProtectedRoute component={Chat} />} />
       <Route path="/directory" component={() => <ProtectedRoute component={Directory} />} />
       <Route path="/admin" component={() => <ProtectedRoute component={AdminDashboard} />} />
+      <Route path="/admin/users" component={() => <ProtectedRoute component={AdminUsers} />} />
       <Route path="/announcements" component={() => <ProtectedRoute component={Announcements} />} />
       {location !== "/" && <Route component={NotFound} />}
     </Switch>

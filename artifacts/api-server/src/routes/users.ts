@@ -3,6 +3,7 @@ import { db, usersTable, cicoStatusTable } from "@workspace/db";
 import { eq, ilike, and, or, sql } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
+import { hashPassword } from "../lib/password.js";
 
 const router = Router();
 
@@ -48,6 +49,45 @@ router.get("/:userId", requireAuth as any, async (req, res) => {
   if (!user) { res.status(404).json({ error: "not_found", message: "User not found" }); return; }
   const [cicoStatus] = await db.select().from(cicoStatusTable).where(eq(cicoStatusTable.employeeId, user.employeeId));
   res.json({ ...user, password: undefined, cicoStatus: cicoStatus || null });
+});
+
+// Buat user baru — hanya admin
+router.post("/", requireAdmin as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const { employeeId, name, email, password, role, department, position, phone } = req.body;
+
+  if (!employeeId || !name || !email) {
+    res.status(400).json({ error: "bad_request", message: "employeeId, name, dan email wajib diisi" });
+    return;
+  }
+
+  // Cek duplikat
+  const [existing] = await db.select().from(usersTable).where(
+    or(eq(usersTable.employeeId, employeeId), eq(usersTable.email, email.toLowerCase()))
+  );
+  if (existing) {
+    res.status(409).json({ error: "conflict", message: "Employee ID atau email sudah terdaftar" });
+    return;
+  }
+
+  // Default password = Employee ID jika tidak disediakan
+  const rawPassword = password || employeeId;
+  const hashedPassword = hashPassword(rawPassword);
+
+  const [newUser] = await db.insert(usersTable).values({
+    employeeId,
+    name,
+    email: email.toLowerCase(),
+    password: hashedPassword,
+    role: role || "employee",
+    department: department || null,
+    position: position || null,
+    phone: phone || null,
+    isActive: true,
+  }).returning();
+
+  await logAudit({ userId: currentUser.id, action: "create_user", entityType: "user", entityId: newUser.id, req });
+  res.status(201).json({ ...newUser, password: undefined });
 });
 
 router.patch("/:userId", requireAuth as any, async (req, res) => {

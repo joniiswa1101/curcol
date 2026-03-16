@@ -18,7 +18,7 @@ async function seed() {
     {
       employeeId: "EMP001",
       name: "Admin Sistem",
-      email: "admin@corpchat.id",
+      email: "admin@ngobrol.id",
       password: hashPassword("EMP001"),
       department: "IT",
       position: "System Administrator",
@@ -28,7 +28,7 @@ async function seed() {
     {
       employeeId: "EMP002",
       name: "Budi Santoso",
-      email: "budi@corpchat.id",
+      email: "budi@ngobrol.id",
       password: hashPassword("EMP002"),
       department: "HR",
       position: "HR Manager",
@@ -38,7 +38,7 @@ async function seed() {
     {
       employeeId: "EMP003",
       name: "Siti Rahayu",
-      email: "siti@corpchat.id",
+      email: "siti@ngobrol.id",
       password: hashPassword("EMP003"),
       department: "Finance",
       position: "Financial Analyst",
@@ -48,7 +48,7 @@ async function seed() {
     {
       employeeId: "EMP004",
       name: "Andi Wijaya",
-      email: "andi@corpchat.id",
+      email: "andi@ngobrol.id",
       password: hashPassword("EMP004"),
       department: "IT",
       position: "Software Developer",
@@ -58,7 +58,7 @@ async function seed() {
     {
       employeeId: "EMP005",
       name: "Dewi Kusuma",
-      email: "dewi@corpchat.id",
+      email: "dewi@ngobrol.id",
       password: hashPassword("EMP005"),
       department: "Marketing",
       position: "Marketing Specialist",
@@ -68,7 +68,7 @@ async function seed() {
     {
       employeeId: "EMP006",
       name: "Riko Pratama",
-      email: "riko@corpchat.id",
+      email: "riko@ngobrol.id",
       password: hashPassword("EMP006"),
       department: "Operations",
       position: "Operations Lead",
@@ -143,7 +143,7 @@ async function seed() {
 
   // Seed messages in General channel
   const generalMessages = [
-    { senderId: users[0].id, content: "Selamat datang di CorpChat! Platform komunikasi resmi karyawan kita. 🎉" },
+    { senderId: users[0].id, content: "Selamat datang di Ngobrol! Platform komunikasi resmi karyawan kita. 🎉" },
     { senderId: users[1].id, content: "Terima kasih! Akhirnya ada platform chat yang terintegrasi CICO. Sangat membantu!" },
     { senderId: users[3].id, content: "Bagus sekali! Mudah-mudahan produktivitas tim kita semakin meningkat 💪" },
     { senderId: users[2].id, content: "Saya suka fitur status kehadiran-nya. Langsung tahu siapa yang sedang online atau tidak." },
@@ -194,22 +194,22 @@ async function seed() {
   // Announcements
   await db.insert(announcementsTable).values([
     {
-      title: "Selamat Datang di CorpChat!",
-      content: "Dengan bangga kami memperkenalkan CorpChat - platform komunikasi resmi karyawan yang terintegrasi dengan sistem CICO. Semua percakapan tercatat dan dapat diaudit sesuai kebijakan perusahaan.",
+      title: "Selamat Datang di Ngobrol!",
+      content: "Dengan bangga kami memperkenalkan Ngobrol - platform komunikasi resmi karyawan yang terintegrasi dengan sistem CICO. Semua percakapan tercatat dan dapat diaudit sesuai kebijakan perusahaan.",
       authorId: users[1].id,
       isPinned: true,
       updatedAt: now,
     },
     {
       title: "Kebijakan Penggunaan Platform",
-      content: "Harap diperhatikan bahwa semua percakapan di CorpChat bersifat resmi dan dapat diaudit. Gunakan platform ini untuk keperluan pekerjaan. Dilarang menyebarkan informasi rahasia perusahaan kepada pihak yang tidak berwenang.",
+      content: "Harap diperhatikan bahwa semua percakapan di Ngobrol bersifat resmi dan dapat diaudit. Gunakan platform ini untuk keperluan pekerjaan. Dilarang menyebarkan informasi rahasia perusahaan kepada pihak yang tidak berwenang.",
       authorId: users[1].id,
       isPinned: false,
       updatedAt: now,
     },
     {
       title: "Meeting Town Hall Q1 2026",
-      content: "Town Hall meeting akan dilaksanakan pada Jumat, 20 Maret 2026 pukul 14:00 WIB melalui CorpChat Group 'All Hands'. Mohon kehadiran seluruh karyawan.",
+      content: "Town Hall meeting akan dilaksanakan pada Jumat, 20 Maret 2026 pukul 14:00 WIB melalui Ngobrol Group 'All Hands'. Mohon kehadiran seluruh karyawan.",
       authorId: users[5].id,
       isPinned: false,
       updatedAt: now,

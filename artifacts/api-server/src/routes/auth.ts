@@ -9,7 +9,7 @@ const router = Router();
 
 /**
  * SSO dengan CICO:
- * Password CorpChat disinkronkan dengan PIN/password sistem CICO karyawan.
+ * Password Ngobrol disinkronkan dengan PIN/password sistem CICO karyawan.
  * Password awal = Employee ID (misalnya EMP001 → password: EMP001).
  * Admin dapat mereset password via endpoint /auth/reset-password.
  */

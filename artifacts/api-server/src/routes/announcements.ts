@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, announcementsTable, usersTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth, requireAdminOrManager } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
 
@@ -18,7 +18,7 @@ router.get("/", requireAuth as any, async (req, res) => {
 
   const authorIds = [...new Set(announcements.map(a => a.authorId))];
   const authors = authorIds.length > 0
-    ? await db.select().from(usersTable).where(sql`id = ANY(${authorIds})`)
+    ? await db.select().from(usersTable).where(inArray(usersTable.id, authorIds))
     : [];
   const authorMap = new Map(authors.map(u => [u.id, { ...u, password: undefined }]));
 

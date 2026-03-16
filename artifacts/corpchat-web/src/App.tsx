@@ -83,7 +83,7 @@ function MainRouter() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse flex flex-col items-center">
            <div className="w-16 h-16 bg-primary/20 rounded-2xl mb-4" />
-           <p className="text-muted-foreground font-medium tracking-widest uppercase text-sm">CORPCHAT</p>
+           <p className="text-muted-foreground font-medium tracking-widest uppercase text-sm">NGOBROL</p>
         </div>
       </div>
     );

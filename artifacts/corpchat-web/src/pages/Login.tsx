@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useLocation } from "wouter"
 import { useAuthStore } from "@/hooks/use-auth"
 import { useLogin } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,7 @@ type LoginForm = z.infer<typeof loginSchema>
 export default function Login() {
   const setAuth = useAuthStore(state => state.setAuth)
   const { toast } = useToast()
+  const [, setLocation] = useLocation()
   
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -30,6 +32,7 @@ export default function Login() {
       onSuccess: (data) => {
         setAuth(data)
         toast({ title: "Welcome back!", description: "Successfully logged in." })
+        setLocation("/chat")
       },
       onError: (error) => {
         toast({ 

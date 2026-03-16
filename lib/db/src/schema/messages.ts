@@ -17,6 +17,8 @@ export const messagesTable = pgTable("messages", {
   deletedAt: timestamp("deleted_at"),
   editedAt: timestamp("edited_at"),
   originalContent: text("original_content"),
+  waMessageId: text("wa_message_id"),
+  isFromWhatsapp: boolean("is_from_whatsapp").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db, announcementsTable, usersTable } from "@workspace/db";
-import { eq, desc, sql, inArray } from "drizzle-orm";
+import { eq, desc, sql, inArray, isNotNull } from "drizzle-orm";
 import { requireAuth, requireAdminOrManager } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
+import { sendWhatsAppToMultiple } from "../lib/whatsapp.js";
 
 const router = Router();
 
@@ -32,7 +33,7 @@ router.get("/", requireAuth as any, async (req, res) => {
 
 router.post("/", requireAdminOrManager as any, async (req, res) => {
   const currentUser = (req as any).user;
-  const { title, content, isPinned = false } = req.body;
+  const { title, content, isPinned = false, notifyWhatsapp = false } = req.body;
 
   const [announcement] = await db.insert(announcementsTable).values({
     title,
@@ -43,6 +44,29 @@ router.post("/", requireAdminOrManager as any, async (req, res) => {
   }).returning();
 
   await logAudit({ userId: currentUser.id, action: "create_announcement", entityType: "announcement", entityId: announcement.id, req });
+
+  if (notifyWhatsapp) {
+    const employees = await db.select({
+      id: usersTable.id,
+      whatsappNumber: usersTable.whatsappNumber,
+    }).from(usersTable).where(
+      isNotNull(usersTable.whatsappNumber)
+    );
+
+    const phoneNumbers = employees
+      .map(e => e.whatsappNumber)
+      .filter(Boolean) as string[];
+
+    if (phoneNumbers.length > 0) {
+      const sent = await sendWhatsAppToMultiple(
+        phoneNumbers,
+        `📢 Pengumuman: ${title}`,
+        content
+      );
+      console.log(`✅ WhatsApp notification sent to ${sent}/${phoneNumbers.length} employees`);
+    }
+  }
+
   res.status(201).json({ ...announcement, author: { ...currentUser, password: undefined } });
 });
 

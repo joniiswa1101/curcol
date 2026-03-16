@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Avatar } from "@/components/ui/avatar"
-import { Megaphone, Pin, Plus } from "lucide-react"
+import { Megaphone, Pin, Plus, Phone } from "lucide-react"
 import { format } from "date-fns"
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
@@ -18,6 +18,7 @@ export default function Announcements() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
+  const [notifyWhatsapp, setNotifyWhatsapp] = useState(false)
   const queryClient = useQueryClient()
 
   const createMutation = useCreateAnnouncement({
@@ -27,13 +28,14 @@ export default function Announcements() {
         setIsDialogOpen(false)
         setTitle("")
         setContent("")
+        setNotifyWhatsapp(false)
       }
     }
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    createMutation.mutate({ data: { title, content, isPinned: false } })
+    createMutation.mutate({ data: { title, content, isPinned: false, notifyWhatsapp } as any })
   }
 
   return (
@@ -116,6 +118,31 @@ export default function Announcements() {
               placeholder="Write your announcement here..."
             />
           </div>
+
+          <div
+            onClick={() => setNotifyWhatsapp(!notifyWhatsapp)}
+            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              notifyWhatsapp
+                ? "border-green-500 bg-green-50 dark:bg-green-950/30"
+                : "border-border bg-background hover:border-green-300"
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${notifyWhatsapp ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}>
+              <Phone className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <p className={`text-sm font-semibold ${notifyWhatsapp ? "text-green-700 dark:text-green-400" : "text-foreground"}`}>
+                Kirim Notifikasi WhatsApp
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Pengumuman ini akan dikirim ke WhatsApp pribadi semua karyawan yang sudah mendaftarkan nomor mereka.
+              </p>
+            </div>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${notifyWhatsapp ? "border-green-500 bg-green-500" : "border-muted-foreground"}`}>
+              {notifyWhatsapp && <div className="w-2 h-2 rounded-full bg-white" />}
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={createMutation.isPending || !title || !content}>

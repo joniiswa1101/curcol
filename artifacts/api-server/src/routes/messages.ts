@@ -7,6 +7,7 @@ import { eq, and, lt, desc, ilike, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
 import { broadcastToConversation } from "../lib/websocket.js";
+import { sendWhatsAppMessage } from "../lib/whatsapp.js";
 
 const router = Router();
 
@@ -76,6 +77,8 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
     .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
   if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
 
+  const [conversation] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId));
+
   const [msg] = await db.insert(messagesTable).values({
     conversationId: convId,
     senderId: currentUser.id,
@@ -89,8 +92,14 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
     await db.update(attachmentsTable).set({ messageId: msg.id }).where(inArray(attachmentsTable.id, attachmentIds));
   }
 
-  // Update conversation timestamp
   await db.update(conversationsTable).set({ updatedAt: new Date() }).where(eq(conversationsTable.id, convId));
+
+  if (conversation?.type === "whatsapp" && conversation.whatsappContactPhone && content) {
+    const senderName = currentUser.name || "Tim CurCol";
+    const whatsappMessage = `*${senderName}:*\n${content}`;
+    await sendWhatsAppMessage(conversation.whatsappContactPhone, whatsappMessage);
+    console.log(`📤 Reply forwarded to WhatsApp contact ${conversation.whatsappContactPhone}`);
+  }
 
   await logAudit({ userId: currentUser.id, action: "send_message", entityType: "message", entityId: msg.id, req });
 

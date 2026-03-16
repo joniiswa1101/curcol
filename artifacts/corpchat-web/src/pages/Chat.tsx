@@ -14,7 +14,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn, formatMessageTime, formatTimeAgo, getStatusLabel } from "@/lib/utils"
-import { Search, Send, Paperclip, Smile, MoreVertical, Hash, Info, MessageSquare } from "lucide-react"
+import { Search, Send, Paperclip, Smile, MoreVertical, Hash, Info, MessageSquare, Phone } from "lucide-react"
 
 export default function Chat() {
   const [match, params] = useRoute("/chat/:id")
@@ -127,6 +127,10 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">
             <Hash className="w-6 h-6" />
           </div>
+        ) : conversation.type === "whatsapp" ? (
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold shadow-md">
+            <Phone className="w-6 h-6" />
+          </div>
         ) : (
           <Avatar 
             src={displayAvatar} 
@@ -218,11 +222,20 @@ function ChatThread({ conversationId }: { conversationId: number }) {
              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-sm">
              <Hash className="w-5 h-5" />
            </div>
+          ) : convData.type === "whatsapp" ? (
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold shadow-sm">
+              <Phone className="w-5 h-5" />
+            </div>
           ) : (
             <Avatar src={headerAvatar} fallback={headerName || "U"} size="md" status={cicoStatusStr as any} />
           )}
           <div>
-            <h3 className="font-bold text-foreground leading-tight">{headerName || "Chat"}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-foreground leading-tight">{headerName || "Chat"}</h3>
+              {convData.type === "whatsapp" && (
+                <span className="text-[10px] bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-semibold">WhatsApp</span>
+              )}
+            </div>
             {headerStatus && (
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                 <span className={cn("w-2 h-2 rounded-full", cicoStatusStr === 'present' ? 'bg-status-present' : 'bg-muted-foreground')} />
@@ -231,6 +244,9 @@ function ChatThread({ conversationId }: { conversationId: number }) {
             )}
             {convData.type === 'group' && (
               <p className="text-xs text-muted-foreground mt-0.5">{convData.memberCount} members</p>
+            )}
+            {convData.type === 'whatsapp' && (convData as any).whatsappContactPhone && (
+              <p className="text-xs text-muted-foreground mt-0.5">+{(convData as any).whatsappContactPhone}</p>
             )}
           </div>
         </div>
@@ -278,8 +294,15 @@ function ChatThread({ conversationId }: { conversationId: number }) {
                     "px-4 py-2.5 rounded-2xl relative group shadow-sm text-sm",
                     isMe 
                       ? "bg-primary text-primary-foreground rounded-br-sm" 
-                      : "bg-card border border-border/50 text-foreground rounded-bl-sm"
+                      : (msg as any).isFromWhatsapp
+                        ? "bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/50 text-foreground rounded-bl-sm"
+                        : "bg-card border border-border/50 text-foreground rounded-bl-sm"
                   )}>
+                    {(msg as any).isFromWhatsapp && (
+                      <span className="text-[9px] text-green-600 dark:text-green-400 font-semibold flex items-center gap-1 mb-1">
+                        <Phone className="w-2.5 h-2.5" /> WhatsApp
+                      </span>
+                    )}
                     <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                     
                     {/* Timestamp */}

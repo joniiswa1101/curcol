@@ -57,10 +57,11 @@ router.patch("/:userId", requireAuth as any, async (req, res) => {
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
-  const { name, phone, department, position, avatarUrl, role, isActive } = req.body;
+  const { name, phone, whatsappNumber, department, position, avatarUrl, role, isActive } = req.body;
   const update: any = { updatedAt: new Date() };
   if (name) update.name = name;
   if (phone !== undefined) update.phone = phone;
+  if (whatsappNumber !== undefined) update.whatsappNumber = whatsappNumber;
   if (department !== undefined) update.department = department;
   if (position !== undefined) update.position = position;
   if (avatarUrl !== undefined) update.avatarUrl = avatarUrl;

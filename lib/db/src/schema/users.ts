@@ -11,6 +11,7 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   phone: text("phone"),
+  whatsappNumber: text("whatsapp_number"),
   department: text("department"),
   position: text("position"),
   avatarUrl: text("avatar_url"),

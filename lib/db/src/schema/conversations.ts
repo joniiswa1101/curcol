@@ -1,7 +1,7 @@
 import { pgTable, serial, text, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
-export const conversationTypeEnum = pgEnum("conversation_type", ["direct", "group", "announcement"]);
+export const conversationTypeEnum = pgEnum("conversation_type", ["direct", "group", "announcement", "whatsapp"]);
 export const memberRoleEnum = pgEnum("member_role", ["admin", "member"]);
 
 export const conversationsTable = pgTable("conversations", {
@@ -11,6 +11,8 @@ export const conversationsTable = pgTable("conversations", {
   description: text("description"),
   avatarUrl: text("avatar_url"),
   createdById: integer("created_by_id").references(() => usersTable.id),
+  whatsappContactPhone: text("whatsapp_contact_phone"),
+  whatsappContactName: text("whatsapp_contact_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

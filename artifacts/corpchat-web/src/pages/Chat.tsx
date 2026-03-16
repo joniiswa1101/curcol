@@ -14,7 +14,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn, formatMessageTime, formatTimeAgo, getStatusLabel } from "@/lib/utils"
-import { Search, Send, Paperclip, Smile, MoreVertical, Hash, Info } from "lucide-react"
+import { Search, Send, Paperclip, Smile, MoreVertical, Hash, Info, MessageSquare } from "lucide-react"
 
 export default function Chat() {
   const [match, params] = useRoute("/chat/:id")

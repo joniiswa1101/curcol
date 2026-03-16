@@ -10,6 +10,7 @@ import announcementsRouter from "./announcements.js";
 import auditRouter from "./audit.js";
 import searchRouter from "./search.js";
 import filesRouter from "./files.js";
+import webhooksRouter from "./webhooks.js";
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use("/announcements", announcementsRouter);
 router.use("/audit", auditRouter);
 router.use("/messages/search", searchRouter);
 router.use("/files", filesRouter);
+router.use("/webhooks", webhooksRouter);
 
 export default router;

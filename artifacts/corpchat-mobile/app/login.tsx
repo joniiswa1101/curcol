@@ -52,6 +52,17 @@ export default function LoginScreen() {
           Platform komunikasi resmi karyawan
         </Text>
 
+        {/* SSO Info */}
+        <View style={[styles.ssoBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
+          <Feather name="shield" size={14} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.ssoTitle, { color: colors.primary }]}>SSO Terintegrasi CICO</Text>
+            <Text style={[styles.ssoDesc, { color: colors.textSecondary }]}>
+              Gunakan password CICO Anda. Password awal = Employee ID
+            </Text>
+          </View>
+        </View>
+
         <View style={styles.form}>
           {/* Employee ID */}
           <View style={styles.fieldGroup}>
@@ -72,12 +83,12 @@ export default function LoginScreen() {
 
           {/* Password */}
           <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Password</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Password CICO</Text>
             <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Feather name="lock" size={16} color={colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
-                placeholder="Password"
+                placeholder="Password sama dengan sistem CICO"
                 placeholderTextColor={colors.textSecondary}
                 value={password}
                 onChangeText={setPassword}
@@ -108,7 +119,7 @@ export default function LoginScreen() {
         <View style={styles.footer}>
           <Feather name="shield" size={12} color={colors.textSecondary} />
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            Koneksi terenkripsi & teraudit
+            Koneksi terenkripsi & seluruh aktivitas diaudit
           </Text>
         </View>
       </View>
@@ -122,7 +133,14 @@ const styles = StyleSheet.create({
   logoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
   logoBox: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   appName: { fontSize: 28, fontFamily: "Inter_700Bold" },
-  subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 32 },
+  subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 12 },
+  ssoBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+    marginBottom: 16,
+  },
+  ssoTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  ssoDesc: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 15 },
   form: { gap: 16 },
   fieldGroup: { gap: 6 },
   label: { fontSize: 13, fontFamily: "Inter_500Medium" },

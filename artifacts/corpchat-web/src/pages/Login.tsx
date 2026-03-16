@@ -77,18 +77,30 @@ export default function Login() {
                 <MessageSquare className="w-8 h-8 text-primary" />
               </div>
             </div>
-            <h2 className="text-3xl font-display font-bold text-foreground">Sign in to CorpChat</h2>
-            <p className="mt-2 text-muted-foreground">Enter your employee credentials to access your workspace.</p>
+            <h2 className="text-3xl font-display font-bold text-foreground">Masuk ke CorpChat</h2>
+            <p className="mt-2 text-muted-foreground">Gunakan kredensial CICO Anda untuk mengakses platform.</p>
           </div>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-8">
+          {/* SSO Info Banner */}
+          <div className="flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 text-sm">
+            <ShieldCheck className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold text-foreground">SSO terintegrasi dengan CICO</p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                Gunakan Employee ID dan password CICO Anda. Password awal = Employee ID (contoh: <span className="font-mono font-medium text-foreground">EMP001</span>).
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-2">
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground">Employee ID</label>
                 <Input 
                   {...form.register("employeeId")} 
-                  placeholder="e.g. EMP-001" 
+                  placeholder="Contoh: EMP001" 
                   className="h-12 text-base"
+                  autoCapitalize="characters"
                 />
                 {form.formState.errors.employeeId && (
                   <p className="text-sm text-destructive">{form.formState.errors.employeeId.message}</p>
@@ -96,11 +108,11 @@ export default function Login() {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">Password</label>
+                <label className="text-sm font-semibold text-foreground">Password CICO</label>
                 <Input 
                   {...form.register("password")} 
                   type="password" 
-                  placeholder="••••••••" 
+                  placeholder="Password sama dengan sistem CICO" 
                   className="h-12 text-base"
                 />
                 {form.formState.errors.password && (
@@ -114,13 +126,13 @@ export default function Login() {
               className="w-full h-12 text-lg" 
               disabled={loginMutation.isPending}
             >
-              {loginMutation.isPending ? "Authenticating..." : "Sign In"}
+              {loginMutation.isPending ? "Memverifikasi..." : "Masuk"}
             </Button>
           </form>
 
-          <div className="pt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <div className="pt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <ShieldCheck className="w-4 h-4" />
-            <span>Secure Enterprise Connection</span>
+            <span>Koneksi terenkripsi & seluruh aktivitas diaudit</span>
           </div>
         </div>
       </div>

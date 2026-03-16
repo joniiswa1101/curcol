@@ -19,7 +19,7 @@ async function seed() {
       employeeId: "EMP001",
       name: "Admin Sistem",
       email: "admin@corpchat.id",
-      password: hashPassword("admin123"),
+      password: hashPassword("EMP001"),
       department: "IT",
       position: "System Administrator",
       role: "admin",
@@ -29,7 +29,7 @@ async function seed() {
       employeeId: "EMP002",
       name: "Budi Santoso",
       email: "budi@corpchat.id",
-      password: hashPassword("admin123"),
+      password: hashPassword("EMP002"),
       department: "HR",
       position: "HR Manager",
       role: "manager",
@@ -39,7 +39,7 @@ async function seed() {
       employeeId: "EMP003",
       name: "Siti Rahayu",
       email: "siti@corpchat.id",
-      password: hashPassword("admin123"),
+      password: hashPassword("EMP003"),
       department: "Finance",
       position: "Financial Analyst",
       role: "employee",
@@ -49,7 +49,7 @@ async function seed() {
       employeeId: "EMP004",
       name: "Andi Wijaya",
       email: "andi@corpchat.id",
-      password: hashPassword("admin123"),
+      password: hashPassword("EMP004"),
       department: "IT",
       position: "Software Developer",
       role: "employee",
@@ -59,7 +59,7 @@ async function seed() {
       employeeId: "EMP005",
       name: "Dewi Kusuma",
       email: "dewi@corpchat.id",
-      password: hashPassword("admin123"),
+      password: hashPassword("EMP005"),
       department: "Marketing",
       position: "Marketing Specialist",
       role: "employee",
@@ -69,7 +69,7 @@ async function seed() {
       employeeId: "EMP006",
       name: "Riko Pratama",
       email: "riko@corpchat.id",
-      password: hashPassword("admin123"),
+      password: hashPassword("EMP006"),
       department: "Operations",
       position: "Operations Lead",
       role: "manager",
@@ -228,10 +228,10 @@ async function seed() {
   }
 
   console.log("Created announcements and audit logs");
-  console.log("\nSeed complete! Login credentials:");
-  console.log("  Admin:   EMP001 / admin123");
-  console.log("  Manager: EMP002 / admin123");
-  console.log("  Employee: EMP003 / admin123");
+  console.log("\nSeed complete! Login credentials (SSO — password = Employee ID):");
+  console.log("  Admin:    EMP001 / EMP001");
+  console.log("  Manager:  EMP002 / EMP002");
+  console.log("  Employee: EMP003 / EMP003");
   process.exit(0);
 }
 

@@ -4,8 +4,72 @@ import { eq, or } from "drizzle-orm";
 import { createSession, requireAuth } from "../lib/auth.js";
 import { verifyPassword, hashPassword } from "../lib/password.js";
 import { logAudit } from "../lib/audit.js";
+import { loginWithCICO } from "../lib/cico.js";
 
 const router = Router();
+
+/**
+ * SSO Login via CICO
+ */
+router.post("/sso/login", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    res.status(400).json({ error: "bad_request", message: "Username dan password wajib diisi" });
+    return;
+  }
+
+  try {
+    // Call CICO SSO endpoint
+    const cicoData = await loginWithCICO(username, password);
+
+    // Cari atau buat user di CurCol dari data CICO
+    let [user] = await db.select().from(usersTable).where(
+      or(
+        eq(usersTable.email, cicoData.user.email),
+        eq(usersTable.employeeId, cicoData.user.id)
+      )
+    );
+
+    if (!user) {
+      // Auto-create user dari CICO data
+      const [newUser] = await db.insert(usersTable).values({
+        employeeId: cicoData.user.id,
+        name: cicoData.user.fullName,
+        email: cicoData.user.email,
+        password: hashPassword(cicoData.user.id), // Set dummy password (auth via CICO)
+        department: cicoData.user.department,
+        role: cicoData.user.role === "admin" ? "admin" : cicoData.user.role === "manager" ? "manager" : "employee",
+        isActive: true,
+      }).returning();
+      user = newUser;
+    }
+
+    // Create CurCol session
+    const token = await createSession(user.id);
+    await logAudit({ userId: user.id, action: "login_via_cico", entityType: "session", req });
+
+    const cicoRecord = await db.select().from(cicoStatusTable).where(eq(cicoStatusTable.employeeId, user.employeeId));
+
+    res.json({
+      token,
+      user: {
+        ...user,
+        password: undefined,
+        cicoStatus: cicoRecord[0] || null,
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "CICO login failed";
+    await logAudit({
+      userId: null,
+      action: "login_failed_cico",
+      entityType: "session",
+      details: { error: message } as any,
+      req,
+    });
+    res.status(401).json({ error: "unauthorized", message });
+  }
+});
 
 /**
  * SSO dengan CICO:
@@ -131,6 +195,34 @@ router.post("/reset-password", requireAuth as any, async (req, res) => {
 
   await logAudit({ userId: requestingUser.id, action: "reset_password", entityType: "user", entityId: target.id, req });
   res.json({ success: true, message: `Password ${targetEmployeeId} berhasil direset ke Employee ID` });
+});
+
+/**
+ * Test CICO connectivity (diagnostic endpoint)
+ */
+router.get("/test-cico-health", async (req, res) => {
+  try {
+    const response = await fetch("https://workspace.joniiswa1101.repl.co/api/auth/sso/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "test-health-check", password: "test" }),
+    });
+    
+    const data = await response.json();
+    res.json({
+      status: "connected",
+      cicoUrl: "https://workspace.joniiswa1101.repl.co",
+      httpStatus: response.status,
+      responsePreview: typeof data === 'object' ? { ...data, token: data.token ? '[JWT]' : undefined } : data,
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: "disconnected",
+      error: err instanceof Error ? err.message : "Unknown error",
+      cicoUrl: "https://workspace.joniiswa1101.repl.co",
+      message: "Cannot reach CICO. Check URL and network connectivity.",
+    });
+  }
 });
 
 export default router;

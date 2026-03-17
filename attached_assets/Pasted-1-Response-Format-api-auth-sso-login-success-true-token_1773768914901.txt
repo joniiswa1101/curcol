@@ -1,0 +1,124 @@
+1. Response Format /api/auth/sso/login
+{
+  "success": true,
+  "token": "eyJhbGc...",
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "email": "john@company.com",
+    "username": "john.doe",
+    "fullName": "John Doe",
+    "department": "IT",
+    "role": "employee",
+    "companyId": "507f1f77bcf86cd799439010"
+  }
+}
+User object fields exactly:
+
+✅ id (MongoDB ObjectId as string)
+✅ email
+✅ username
+✅ fullName (bukan "name", pakai "fullName")
+✅ department
+✅ role (employee, manager, supervisor, admin)
+✅ companyId
+2. Response Format /api/sync/employees
+BUKAN { employees: [...], total?, page?, limit? }
+
+Format yang benar:
+
+{
+  "success": true,
+  "source": "sso:john.doe",
+  "sync_time": "2026-03-17T17:03:18.963Z",
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total_count": 100,
+    "total_pages": 2,
+    "has_next": true,
+    "has_prev": false
+  },
+  "filters": {
+    "active_only": true,
+    "department": null,
+    "role": null,
+    "location": null
+  },
+  "employees": [
+    {
+      "employee_id": "EMP001",
+      "user_id": "507f1f77bcf86cd799439011",
+      "name": "John Doe",
+      "email": "john@company.com",
+      "username": "john.doe",
+      "department": "IT",
+      "role": "employee",
+      "is_active": true,
+      "assigned_locations": [...],
+      "shift_profile": {...},
+      "supervisor": {...},
+      "timezone": "Asia/Jakarta",
+      "hire_date": "2023-01-15T00:00:00.000Z",
+      "last_updated": "2026-03-17T17:03:18.963Z"
+    }
+  ]
+}
+Jadi response punya:
+
+✅ success
+✅ source (siapa yang request: sso:username atau api-key:companyname)
+✅ sync_time
+✅ pagination (page, limit, total_count, total_pages, has_next, has_prev)
+✅ filters
+✅ employees (array)
+3. CICO URL Status
+✅ SUDAH LIVE & BISA DIAKSES!
+
+https://workspace.joniiswa1101.repl.co/api/auth/sso/login
+https://workspace.joniiswa1101.repl.co/api/sync/employees
+Sudah published dan siap pakai.
+
+4. CORS Status
+⚠️ CORS BELUM EXPLICITLY ENABLED di server
+
+Solusi:
+
+Opsi A (Recommended): CurCol backend call ke CICO backend (server-to-server) - TIDAK perlu CORS
+Opsi B (Jika frontend mau call langsung): Hubungi CICO untuk enable CORS headers
+Cara CurCol setup CORS-free (Opsi A):
+
+// Di CurCol BACKEND (Node.js/Express)
+app.post("/api/curcol/sso/login", async (req, res) => {
+  const { username, password } = req.body;
+  
+  // Call CICO backend langsung dari server
+  const response = await fetch(
+    "https://workspace.joniiswa1101.repl.co/api/auth/sso/login",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    }
+  );
+  
+  const data = await response.json();
+  
+  // Return ke CurCol frontend
+  res.json(data);
+});
+5. Token Validity (TTL)
+✅ 24 Jam (24h)
+
+// Token CICO generated dengan TTL:
+jwt.sign(payload, secret, { expiresIn: "24h" })
+Berarti:
+
+Token valid selama 24 jam dari waktu dibuat
+Setelah 24 jam, token expired & harus refresh pakai /api/auth/sso/refresh
+📋 QUICK CHECKLIST untuk CurCol
+Pertanyaan	Jawaban
+User object fields?	id, email, username, fullName, department, role, companyId ✅
+Response format /api/sync/employees?	{ success, source, sync_time, pagination, filters, employees } ✅
+URL sudah live?	YA - https://workspace.joniiswa1101.repl.co ✅
+CORS enabled?	TIDAK - pakai server-to-server call ✅
+Token TTL?	24 Jam ✅

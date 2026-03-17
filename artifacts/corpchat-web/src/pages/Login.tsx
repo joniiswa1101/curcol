@@ -5,7 +5,7 @@ import { useLogin } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { MessageSquare, ShieldCheck } from "lucide-react"
+import { MessageSquare, ShieldCheck, Loader } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -17,14 +17,27 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
+const cicoLoginSchema = z.object({
+  username: z.string().min(1, "Username/Email required"),
+  password: z.string().min(1, "Password required"),
+})
+
+type CICOLoginForm = z.infer<typeof cicoLoginSchema>
+
 export default function Login() {
   const setAuth = useAuthStore(state => state.setAuth)
   const { toast } = useToast()
   const [, setLocation] = useLocation()
+  const [cicoLoading, setCICOLoading] = useState(false)
   
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { employeeId: "", password: "" }
+  })
+
+  const cicoForm = useForm<CICOLoginForm>({
+    resolver: zodResolver(cicoLoginSchema),
+    defaultValues: { username: "", password: "" }
   })
 
   const loginMutation = useLogin({
@@ -46,6 +59,29 @@ export default function Login() {
 
   const onSubmit = (data: LoginForm) => {
     loginMutation.mutate({ data })
+  }
+
+  const onCICOSubmit = async (data: CICOLoginForm) => {
+    setCICOLoading(true)
+    try {
+      const response = await fetch("/api/auth/sso/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        toast({ variant: "destructive", title: "CICO Login failed", description: result.message || "Invalid credentials" })
+        return
+      }
+      setAuth(result)
+      toast({ title: "Welcome!", description: "Successfully logged in via CICO." })
+      setLocation("/chat")
+    } catch (err) {
+      toast({ variant: "destructive", title: "Error", description: "Network error during CICO login" })
+    } finally {
+      setCICOLoading(false)
+    }
   }
 
   return (
@@ -90,37 +126,38 @@ export default function Login() {
             <div>
               <p className="font-semibold text-foreground">SSO terintegrasi dengan CICO</p>
               <p className="text-muted-foreground text-xs mt-0.5">
-                Gunakan Employee ID (contoh: <span className="font-mono font-medium text-foreground">EMP001</span>) atau email kantor. Password awal = Employee ID.
+                Login via CICO menggunakan username/email dan password CICO Anda.
               </p>
             </div>
           </div>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-2">
+          {/* CICO SSO Form */}
+          <form onSubmit={cicoForm.handleSubmit(onCICOSubmit)} className="space-y-6 mt-2">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">Employee ID atau Email</label>
+                <label className="text-sm font-semibold text-foreground">Username atau Email CICO</label>
                 <Input 
-                  {...form.register("employeeId")} 
-                  placeholder="Contoh: EMP001 atau joni@rpk.com" 
+                  {...cicoForm.register("username")} 
+                  placeholder="Contoh: john.doe atau john@company.com" 
                   className="h-12 text-base"
                   autoCapitalize="none"
                   autoCorrect="off"
                 />
-                {form.formState.errors.employeeId && (
-                  <p className="text-sm text-destructive">{form.formState.errors.employeeId.message}</p>
+                {cicoForm.formState.errors.username && (
+                  <p className="text-sm text-destructive">{cicoForm.formState.errors.username.message}</p>
                 )}
               </div>
               
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground">Password CICO</label>
                 <Input 
-                  {...form.register("password")} 
+                  {...cicoForm.register("password")} 
                   type="password" 
-                  placeholder="Password sama dengan sistem CICO" 
+                  placeholder="Password dari sistem CICO" 
                   className="h-12 text-base"
                 />
-                {form.formState.errors.password && (
-                  <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                {cicoForm.formState.errors.password && (
+                  <p className="text-sm text-destructive">{cicoForm.formState.errors.password.message}</p>
                 )}
               </div>
             </div>
@@ -128,9 +165,10 @@ export default function Login() {
             <Button 
               type="submit" 
               className="w-full h-12 text-lg" 
-              disabled={loginMutation.isPending}
+              disabled={cicoLoading}
             >
-              {loginMutation.isPending ? "Memverifikasi..." : "Masuk"}
+              {cicoLoading ? <Loader className="w-5 h-5 animate-spin mr-2" /> : null}
+              {cicoLoading ? "Masuk via CICO..." : "Masuk via CICO"}
             </Button>
           </form>
 

@@ -5,7 +5,7 @@ import { useLogin } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { MessageSquare, ShieldCheck, Loader } from "lucide-react"
+import { MessageSquare, ShieldCheck, Loader, ChevronRight } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -29,6 +29,7 @@ export default function Login() {
   const { toast } = useToast()
   const [, setLocation] = useLocation()
   const [cicoLoading, setCICOLoading] = useState(false)
+  const [loginMode, setLoginMode] = useState<"cico" | "local">("cico") // Toggle between login methods
   
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -120,57 +121,140 @@ export default function Login() {
             <p className="mt-2 text-muted-foreground">Gunakan kredensial CICO Anda untuk mengakses platform.</p>
           </div>
 
-          {/* SSO Info Banner */}
-          <div className="flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 text-sm">
-            <ShieldCheck className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-            <div>
-              <p className="font-semibold text-foreground">SSO terintegrasi dengan CICO</p>
-              <p className="text-muted-foreground text-xs mt-0.5">
-                Login via CICO menggunakan username/email dan password CICO Anda.
-              </p>
-            </div>
+          {/* Login Mode Toggle */}
+          <div className="flex gap-2 border border-border rounded-lg p-1 bg-secondary/50">
+            <button
+              type="button"
+              onClick={() => setLoginMode("cico")}
+              className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm ${
+                loginMode === "cico" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              CICO SSO
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginMode("local")}
+              className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm ${
+                loginMode === "local" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Lokal
+            </button>
           </div>
 
-          {/* CICO SSO Form */}
-          <form onSubmit={cicoForm.handleSubmit(onCICOSubmit)} className="space-y-6 mt-2">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">Username atau Email CICO</label>
-                <Input 
-                  {...cicoForm.register("username")} 
-                  placeholder="Contoh: john.doe atau john@company.com" 
-                  className="h-12 text-base"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                />
-                {cicoForm.formState.errors.username && (
-                  <p className="text-sm text-destructive">{cicoForm.formState.errors.username.message}</p>
-                )}
+          {/* CICO SSO Mode */}
+          {loginMode === "cico" && (
+            <>
+              <div className="flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 text-sm">
+                <ShieldCheck className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground">Login via CICO SSO</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    Gunakan username/email dan password CICO Anda.
+                  </p>
+                </div>
               </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">Password CICO</label>
-                <Input 
-                  {...cicoForm.register("password")} 
-                  type="password" 
-                  placeholder="Password dari sistem CICO" 
-                  className="h-12 text-base"
-                />
-                {cicoForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">{cicoForm.formState.errors.password.message}</p>
-                )}
-              </div>
-            </div>
 
-            <Button 
-              type="submit" 
-              className="w-full h-12 text-lg" 
-              disabled={cicoLoading}
-            >
-              {cicoLoading ? <Loader className="w-5 h-5 animate-spin mr-2" /> : null}
-              {cicoLoading ? "Masuk via CICO..." : "Masuk via CICO"}
-            </Button>
-          </form>
+              <form onSubmit={cicoForm.handleSubmit(onCICOSubmit)} className="space-y-6 mt-2">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">Username atau Email CICO</label>
+                    <Input 
+                      {...cicoForm.register("username")} 
+                      placeholder="Contoh: john.doe atau john@company.com" 
+                      className="h-12 text-base"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                    />
+                    {cicoForm.formState.errors.username && (
+                      <p className="text-sm text-destructive">{cicoForm.formState.errors.username.message}</p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">Password CICO</label>
+                    <Input 
+                      {...cicoForm.register("password")} 
+                      type="password" 
+                      placeholder="Password dari sistem CICO" 
+                      className="h-12 text-base"
+                    />
+                    {cicoForm.formState.errors.password && (
+                      <p className="text-sm text-destructive">{cicoForm.formState.errors.password.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 text-lg" 
+                  disabled={cicoLoading}
+                >
+                  {cicoLoading ? <Loader className="w-5 h-5 animate-spin mr-2" /> : null}
+                  {cicoLoading ? "Memverifikasi..." : "Masuk via CICO"}
+                </Button>
+              </form>
+            </>
+          )}
+
+          {/* Lokal Login Mode */}
+          {loginMode === "local" && (
+            <>
+              <div className="flex items-start gap-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900 rounded-xl px-4 py-3 text-sm">
+                <ShieldCheck className="w-4 h-4 text-yellow-600 dark:text-yellow-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-yellow-900 dark:text-yellow-200">Login Lokal (Fallback)</p>
+                  <p className="text-yellow-700 dark:text-yellow-300 text-xs mt-0.5">
+                    Gunakan Employee ID dan password untuk login lokal.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-2">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">Employee ID atau Email</label>
+                    <Input 
+                      {...form.register("employeeId")} 
+                      placeholder="Contoh: EMP001 atau joni@rpk.com" 
+                      className="h-12 text-base"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                    />
+                    {form.formState.errors.employeeId && (
+                      <p className="text-sm text-destructive">{form.formState.errors.employeeId.message}</p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">Password</label>
+                    <Input 
+                      {...form.register("password")} 
+                      type="password" 
+                      placeholder="Password lokal" 
+                      className="h-12 text-base"
+                    />
+                    {form.formState.errors.password && (
+                      <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 text-lg" 
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? "Memverifikasi..." : "Masuk"}
+                </Button>
+              </form>
+            </>
+          )}
 
           <div className="pt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <ShieldCheck className="w-4 h-4" />

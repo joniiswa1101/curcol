@@ -142,31 +142,34 @@ CurCol expects CICO at: `https://workspace.joniiswa1101.repl.co`
 
 ### ⚠️ CICO Connectivity Issue
 
-Currently, CICO API is not reachable from CurCol backend. Possible causes:
-- URL is incorrect or CICO is down
-- Network connectivity issue (firewall, VPN)
-- CICO not running
+**Status**: CICO API is not reachable from CurCol backend (error: "fetch failed")
 
-**How to test:**
+**Possible causes:**
+- URL `https://workspace.joniiswa1101.repl.co` is incorrect or has changed
+- CICO is down or offline
+- Network connectivity issue (firewall, VPN, Replit outbound restrictions)
+
+**Workaround**: Use **Local Login** mode (tab in login page)
+- Switch to "Lokal" tab on login page
+- Use Employee ID: `EMP001`, Password: `EMP001` (or any seeded employee)
+- Local login works immediately without depending on CICO
+
+**How to test CICO connectivity:**
 ```bash
 curl http://localhost:8080/api/auth/test-cico-health
 ```
 
-Expected response when connected:
-```json
-{ "status": "connected", "cicoUrl": "...", "httpStatus": 200, ... }
-```
-
-Current response:
+Current response (disconnected):
 ```json
 { "status": "disconnected", "error": "fetch failed", "message": "Cannot reach CICO. Check URL and network connectivity." }
 ```
 
-**Next steps:**
-1. Verify CICO URL is correct and CICO is running
-2. Test CICO endpoint directly: `curl -X POST https://workspace.joniiswa1101.repl.co/api/auth/sso/login`
-3. If CICO is behind a firewall, ensure Replit outbound connections are allowed
-4. Update CICO URL in `lib/cico.ts` if different
+**To fix CICO SSO:**
+1. **Verify CICO URL** — confirm if URL is still `https://workspace.joniiswa1101.repl.co` or if it has changed
+2. **Test CICO directly** — `curl -X POST https://workspace.joniiswa1101.repl.co/api/auth/sso/login -H "Content-Type: application/json" -d '{"username":"test","password":"test"}'`
+3. **Check network** — if CICO is behind firewall/VPN, ensure Replit can reach it (outbound HTTPS allowed)
+4. **Update URL** — if CICO URL changed, update `CICO_API_URL` in `lib/api-server/src/lib/cico.ts`
+5. **Once fixed**, restart API server: `restart_workflow artifacts/api-server: API Server`
 
 ### How SSO Works (Once CICO Connected)
 

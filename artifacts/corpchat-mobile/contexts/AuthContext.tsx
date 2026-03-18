@@ -40,6 +40,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (employeeId: string, password: string) => Promise<void>;
+  loginViaCICO: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -84,8 +85,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ employeeId, password }),
     });
     if (!res.ok) {
-      const err = await res.json();
+      let err: any;
+      try {
+        err = await res.json();
+      } catch {
+        throw new Error("Login gagal - server error");
+      }
       throw new Error(err.message || "Login gagal");
+    }
+    const data = await res.json();
+    await AsyncStorage.setItem("auth_token", data.token);
+    setToken(data.token);
+    setUser(data.user);
+  }
+
+  async function loginViaCICO(username: string, password: string) {
+    const res = await fetch(`${BASE_URL}/api/auth/sso/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      let err: any;
+      try {
+        err = await res.json();
+      } catch {
+        throw new Error("CICO login gagal - server error");
+      }
+      throw new Error(err.message || "CICO login gagal");
     }
     const data = await res.json();
     await AsyncStorage.setItem("auth_token", data.token);
@@ -118,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, loginViaCICO, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

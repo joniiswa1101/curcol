@@ -13,13 +13,17 @@ export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { login, loginViaCICO } = useAuth();
+  const [mode, setMode] = useState<"cico" | "local">("cico"); // CICO is primary
+  const [cicoUsername, setCICOUsername] = useState("");
+  const [cicoPassword, setCICOPassword] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [showCICOPass, setShowCICOPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
+  async function handleLocalLogin() {
     if (!employeeId.trim() || !password.trim()) {
       Alert.alert("Perhatian", "Isi Employee ID / Email dan Password");
       return;
@@ -30,6 +34,22 @@ export default function LoginScreen() {
       router.replace("/(tabs)");
     } catch (e: any) {
       Alert.alert("Login Gagal", e.message || "Cek kembali kredensial Anda");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCICOLogin() {
+    if (!cicoUsername.trim() || !cicoPassword.trim()) {
+      Alert.alert("Perhatian", "Isi Username/Email dan Password CICO");
+      return;
+    }
+    setLoading(true);
+    try {
+      await loginViaCICO(cicoUsername.trim(), cicoPassword);
+      router.replace("/(tabs)");
+    } catch (e: any) {
+      Alert.alert("CICO Login Gagal", e.message || "Cek kembali kredensial CICO Anda");
     } finally {
       setLoading(false);
     }
@@ -52,69 +72,148 @@ export default function LoginScreen() {
           Platform komunikasi resmi karyawan
         </Text>
 
-        {/* SSO Info */}
-        <View style={[styles.ssoBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
-          <Feather name="shield" size={14} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.ssoTitle, { color: colors.primary }]}>SSO Terintegrasi CICO</Text>
-            <Text style={[styles.ssoDesc, { color: colors.textSecondary }]}>
-              Gunakan Employee ID (contoh: EMP001) atau email kantor. Password awal = Employee ID.
+        {/* Tabs */}
+        <View style={styles.tabs}>
+          <Pressable
+            onPress={() => setMode("cico")}
+            style={[styles.tab, mode === "cico" && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          >
+            <Text style={[styles.tabText, { color: mode === "cico" ? colors.primary : colors.textSecondary }]}>
+              CICO SSO
             </Text>
-          </View>
+          </Pressable>
+          <Pressable
+            onPress={() => setMode("local")}
+            style={[styles.tab, mode === "local" && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          >
+            <Text style={[styles.tabText, { color: mode === "local" ? colors.primary : colors.textSecondary }]}>
+              Lokal
+            </Text>
+          </Pressable>
         </View>
 
         <View style={styles.form}>
-          {/* Employee ID */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Employee ID atau Email</Text>
-            <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Feather name="user" size={16} color={colors.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="EMP001 atau joni@rpk.com"
-                placeholderTextColor={colors.textSecondary}
-                value={employeeId}
-                onChangeText={setEmployeeId}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-              />
-            </View>
-          </View>
+          {mode === "cico" ? (
+            <>
+              {/* CICO SSO Form */}
+              <View style={[styles.infoBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
+                <Feather name="shield" size={14} color={colors.primary} />
+                <Text style={[styles.infoText, { color: colors.primary }]}>
+                  Login menggunakan akun CICO Anda
+                </Text>
+              </View>
 
-          {/* Password */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Password CICO</Text>
-            <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Feather name="lock" size={16} color={colors.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Password sama dengan sistem CICO"
-                placeholderTextColor={colors.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPass}
-              />
-              <Pressable onPress={() => setShowPass(!showPass)} hitSlop={8}>
-                <Feather name={showPass ? "eye-off" : "eye"} size={16} color={colors.textSecondary} />
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Username/Email CICO</Text>
+                <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Feather name="user" size={16} color={colors.textSecondary} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="joni@rpk.com atau username CICO"
+                    placeholderTextColor={colors.textSecondary}
+                    value={cicoUsername}
+                    onChangeText={setCICOUsername}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Password CICO</Text>
+                <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Feather name="lock" size={16} color={colors.textSecondary} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="Password CICO"
+                    placeholderTextColor={colors.textSecondary}
+                    value={cicoPassword}
+                    onChangeText={setCICOPassword}
+                    secureTextEntry={!showCICOPass}
+                  />
+                  <Pressable onPress={() => setShowCICOPass(!showCICOPass)} hitSlop={8}>
+                    <Feather name={showCICOPass ? "eye-off" : "eye"} size={16} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+              </View>
+
+              <Pressable
+                onPress={handleCICOLogin}
+                disabled={loading}
+                style={({ pressed }) => [
+                  styles.btn,
+                  { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.btnText}>Login via CICO</Text>
+                )}
               </Pressable>
-            </View>
-          </View>
+            </>
+          ) : (
+            <>
+              {/* Local Login Form */}
+              <View style={[styles.infoBanner, { backgroundColor: "#FEF08A", borderColor: "#FBBF24" }]}>
+                <Feather name="alert-circle" size={14} color="#D97706" />
+                <Text style={[styles.infoText, { color: "#D97706" }]}>
+                  Fallback login. Gunakan CICO SSO jika tersedia.
+                </Text>
+              </View>
 
-          <Pressable
-            onPress={handleLogin}
-            disabled={loading}
-            style={({ pressed }) => [
-              styles.btn,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.btnText}>Masuk</Text>
-            )}
-          </Pressable>
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Employee ID atau Email</Text>
+                <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Feather name="user" size={16} color={colors.textSecondary} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="EMP001 atau joni@rpk.com"
+                    placeholderTextColor={colors.textSecondary}
+                    value={employeeId}
+                    onChangeText={setEmployeeId}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Password</Text>
+                <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Feather name="lock" size={16} color={colors.textSecondary} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="Password awal = Employee ID"
+                    placeholderTextColor={colors.textSecondary}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPass}
+                  />
+                  <Pressable onPress={() => setShowPass(!showPass)} hitSlop={8}>
+                    <Feather name={showPass ? "eye-off" : "eye"} size={16} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+              </View>
+
+              <Pressable
+                onPress={handleLocalLogin}
+                disabled={loading}
+                style={({ pressed }) => [
+                  styles.btn,
+                  { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.btnText}>Masuk</Text>
+                )}
+              </Pressable>
+            </>
+          )}
         </View>
 
         <View style={styles.footer}>
@@ -135,6 +234,17 @@ const styles = StyleSheet.create({
   logoBox: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   appName: { fontSize: 28, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 12 },
+  tabs: {
+    flexDirection: "row", gap: 0, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB",
+  },
+  tab: { flex: 1, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  tabText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  infoBanner: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+    marginBottom: 12,
+  },
+  infoText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   ssoBanner: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,

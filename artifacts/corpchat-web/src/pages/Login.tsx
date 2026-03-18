@@ -70,7 +70,16 @@ export default function Login() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
-      const result = await response.json()
+      
+      let result: any
+      try {
+        result = await response.json()
+      } catch (e) {
+        // Failed to parse response
+        toast({ variant: "destructive", title: "CICO Login failed", description: "Server error - invalid response format" })
+        return
+      }
+
       if (!response.ok) {
         toast({ variant: "destructive", title: "CICO Login failed", description: result.message || "Invalid credentials" })
         return

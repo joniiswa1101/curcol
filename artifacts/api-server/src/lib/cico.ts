@@ -72,7 +72,13 @@ export async function loginWithCICO(username: string, password: string): Promise
 
     clearTimeout(timeoutId);
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      // Response is not valid JSON (likely error page)
+      throw new Error(`CICO returned invalid response (status ${response.status}): ${response.statusText}`);
+    }
 
     // Handle different error responses per spec
     if (!response.ok) {

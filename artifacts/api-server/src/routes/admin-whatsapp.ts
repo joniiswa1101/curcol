@@ -68,6 +68,18 @@ router.post("/test", requireAdmin as any, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/whatsapp/config
+ * Kembalikan nilai konfigurasi yang dibutuhkan untuk setup Meta webhook (admin only)
+ */
+router.get("/config", requireAdmin as any, async (req, res) => {
+  res.json({
+    verifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || null,
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || null,
+    configured: !!process.env.WHATSAPP_API_TOKEN,
+  });
+});
+
+/**
  * GET /api/admin/whatsapp/conversations
  * Daftar konversasi WhatsApp dari kontak eksternal
  */

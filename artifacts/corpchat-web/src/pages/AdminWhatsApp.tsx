@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import {
   CheckCircle, XCircle, MessageCircle, Send, Copy,
-  ExternalLink, Users, Hash, Info, Phone, Settings, RefreshCw
+  ExternalLink, Phone, Settings, RefreshCw, Eye, EyeOff, ClipboardCheck
 } from "lucide-react"
 
 interface WAStatus {
@@ -21,6 +21,12 @@ interface WAStatus {
   webhookPath: string
 }
 
+interface WAConfig {
+  verifyToken: string | null
+  phoneNumberId: string | null
+  configured: boolean
+}
+
 interface WAConversation {
   id: number
   name: string
@@ -32,25 +38,39 @@ interface WAConversation {
 export default function AdminWhatsApp() {
   const { toast } = useToast()
   const [status, setStatus] = useState<WAStatus | null>(null)
+  const [config, setConfig] = useState<WAConfig | null>(null)
   const [conversations, setConversations] = useState<WAConversation[]>([])
   const [loading, setLoading] = useState(true)
   const [testPhone, setTestPhone] = useState("")
   const [testMessage, setTestMessage] = useState("✅ Halo! Ini adalah pesan test dari CurCol. WhatsApp integration berhasil terhubung.")
   const [sending, setSending] = useState(false)
+  const [showToken, setShowToken] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
 
   const webhookUrl = `${window.location.origin.replace(/:\d+/, "")}/api/webhooks/whatsapp`
 
   useEffect(() => {
-    loadStatus()
-    loadConversations()
+    loadAll()
   }, [])
+
+  async function loadAll() {
+    setLoading(true)
+    await Promise.all([loadStatus(), loadConfig(), loadConversations()])
+    setLoading(false)
+  }
 
   async function loadStatus() {
     try {
       const res = await fetch("/api/admin/whatsapp/status")
       if (res.ok) setStatus(await res.json())
     } catch {}
-    setLoading(false)
+  }
+
+  async function loadConfig() {
+    try {
+      const res = await fetch("/api/admin/whatsapp/config")
+      if (res.ok) setConfig(await res.json())
+    } catch {}
   }
 
   async function loadConversations() {
@@ -88,10 +108,24 @@ export default function AdminWhatsApp() {
     }
   }
 
-  function copyToClipboard(text: string, label: string) {
+  function copyText(text: string, key: string, label: string) {
     navigator.clipboard.writeText(text)
-    toast({ title: `${label} disalin ke clipboard` })
+    setCopied(key)
+    toast({ title: `${label} disalin!` })
+    setTimeout(() => setCopied(null), 2000)
   }
+
+  const CopyButton = ({ text, id, label }: { text: string; id: string; label: string }) => (
+    <Button
+      variant="outline"
+      size="sm"
+      className="flex-shrink-0 gap-1.5"
+      onClick={() => copyText(text, id, label)}
+    >
+      {copied === id ? <ClipboardCheck className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+      {copied === id ? "Disalin!" : "Salin"}
+    </Button>
+  )
 
   return (
     <AppLayout>
@@ -107,7 +141,7 @@ export default function AdminWhatsApp() {
               </h1>
               <p className="text-muted-foreground mt-1">Konfigurasi dan monitoring WhatsApp Business API</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => { loadStatus(); loadConversations() }} className="gap-2">
+            <Button variant="outline" size="sm" onClick={loadAll} className="gap-2">
               <RefreshCw className="w-4 h-4" />
               Refresh
             </Button>
@@ -121,14 +155,14 @@ export default function AdminWhatsApp() {
             </h2>
             {loading ? (
               <div className="animate-pulse space-y-3">
-                {[1,2,3].map(i => <div key={i} className="h-8 bg-muted rounded" />)}
+                {[1, 2, 3].map(i => <div key={i} className="h-8 bg-muted rounded" />)}
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                   <span className="text-sm font-medium">API Connection</span>
                   {status?.configured ? (
-                    <Badge className="bg-green-100 text-green-700 gap-1">
+                    <Badge className="bg-green-100 text-green-700 gap-1 dark:bg-green-900/30 dark:text-green-400">
                       <CheckCircle className="w-3 h-3" /> Terhubung
                     </Badge>
                   ) : (
@@ -140,19 +174,11 @@ export default function AdminWhatsApp() {
 
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                   <span className="text-sm font-medium">Phone Number ID</span>
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs bg-muted px-2 py-1 rounded">
-                      {status?.phoneNumberId || "Belum dikonfigurasi"}
-                    </code>
-                    {status?.phoneNumberId && (
-                      <button onClick={() => copyToClipboard(status.phoneNumberId!, "Phone Number ID")} className="text-muted-foreground hover:text-foreground">
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+                  <code className="text-xs bg-muted px-2 py-1 rounded">
+                    {status?.phoneNumberId || "Belum dikonfigurasi"}
+                  </code>
                 </div>
 
-                {/* Stats */}
                 <div className="grid grid-cols-3 gap-4 mt-2">
                   <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                     <div className="text-2xl font-bold text-green-700">{status?.stats.usersWithWhatsapp || 0}</div>
@@ -171,58 +197,91 @@ export default function AdminWhatsApp() {
             )}
           </Card>
 
-          {/* Webhook Setup Guide */}
-          <Card className="p-6 border-border/50">
-            <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-              <Info className="w-5 h-5 text-blue-500" />
-              Panduan Setup Webhook Meta
+          {/* === META WEBHOOK SETUP — nilai siap salin === */}
+          <Card className="p-6 border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10">
+            <h2 className="font-semibold text-lg mb-1 flex items-center gap-2">
+              <span className="text-xl">📋</span>
+              Nilai untuk Diisi di Meta Developer Console
             </h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Salin dua nilai di bawah ini ke form Webhook di Meta → Use cases → Customize → Configuration
+            </p>
+
             <div className="space-y-4">
-
-              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
-                Konfigurasi webhook di Meta Developer Console agar WhatsApp dapat menerima pesan masuk.
-              </div>
-
-              <div className="space-y-3">
-                {[
-                  { step: 1, text: "Buka", link: "https://developers.facebook.com/apps", linkText: "Meta Developer Console" },
-                  { step: 2, text: "Pilih App → WhatsApp → Configuration" },
-                  { step: 3, text: "Klik Edit di bagian Webhook" },
-                  { step: 4, text: "Masukkan Callback URL berikut:" },
-                  { step: 5, text: "Masukkan Verify Token dari secret WHATSAPP_WEBHOOK_VERIFY_TOKEN" },
-                  { step: 6, text: "Subscribe field: messages, message_deliveries, message_reads" },
-                  { step: 7, text: "Klik Verify and Save" },
-                ].map(item => (
-                  <div key={item.step} className="flex gap-3 text-sm">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
-                      {item.step}
-                    </span>
-                    <span className="text-muted-foreground pt-0.5">
-                      {item.text}
-                      {item.link && (
-                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1 inline-flex items-center gap-1">
-                          {item.linkText} <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Webhook URL */}
-              <div className="mt-4">
-                <label className="text-sm font-medium text-muted-foreground block mb-2">Callback URL (Webhook):</label>
-                <div className="flex gap-2">
-                  <code className="flex-1 text-xs bg-muted p-3 rounded-lg break-all border border-border">
+              {/* Callback URL */}
+              <div>
+                <label className="text-sm font-semibold block mb-2">
+                  1. Callback URL
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">(tempel ke field "Callback URL" di Meta)</span>
+                </label>
+                <div className="flex gap-2 items-stretch">
+                  <code className="flex-1 text-xs bg-white dark:bg-background border border-border px-3 py-3 rounded-lg break-all leading-relaxed">
                     {webhookUrl}
                   </code>
-                  <Button variant="outline" size="sm" onClick={() => copyToClipboard(webhookUrl, "Webhook URL")} className="flex-shrink-0 gap-1">
-                    <Copy className="w-4 h-4" />
-                    Salin
-                  </Button>
+                  <CopyButton text={webhookUrl} id="callback" label="Callback URL" />
                 </div>
               </div>
+
+              {/* Verify Token */}
+              <div>
+                <label className="text-sm font-semibold block mb-2">
+                  2. Verify Token
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">(tempel ke field "Verify token" di Meta)</span>
+                </label>
+                {config?.verifyToken ? (
+                  <div className="flex gap-2 items-stretch">
+                    <div className="flex-1 flex items-center bg-white dark:bg-background border border-border px-3 py-3 rounded-lg">
+                      <code className="text-xs break-all flex-1">
+                        {showToken ? config.verifyToken : "•".repeat(config.verifyToken.length)}
+                      </code>
+                      <button
+                        onClick={() => setShowToken(v => !v)}
+                        className="ml-2 text-muted-foreground hover:text-foreground flex-shrink-0"
+                        title={showToken ? "Sembunyikan" : "Tampilkan"}
+                      >
+                        {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <CopyButton text={config.verifyToken} id="token" label="Verify Token" />
+                  </div>
+                ) : (
+                  <p className="text-sm text-destructive">Verify token belum dikonfigurasi di environment secrets.</p>
+                )}
+              </div>
+
+              <div className="mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300 flex gap-2">
+                <span className="flex-shrink-0">⚠️</span>
+                <span>
+                  App Meta Anda masih mode <strong>development</strong> — webhook hanya menerima pesan dari akun admin/developer/tester yang terdaftar. Untuk pesan dari kontak umum, app perlu di-<strong>publish</strong> lebih dulu di Meta.
+                </span>
+              </div>
             </div>
+          </Card>
+
+          {/* Step guide ringkas */}
+          <Card className="p-6 border-border/50">
+            <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
+              <span className="text-xl">🔧</span>
+              Cara Setup di Meta Developer Console
+            </h2>
+            <ol className="space-y-2">
+              {[
+                <>Buka <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">Meta Developer Console <ExternalLink className="w-3 h-3" /></a></>,
+                <>Klik <strong>CurCol-Enterprise</strong></>,
+                <>Sidebar kiri → <strong>Use cases</strong> → klik <strong>Customize</strong></>,
+                <>Pilih <strong>Configuration</strong> di submenu kiri</>,
+                <>Scroll ke bagian <strong>Webhook</strong></>,
+                <>Isi <strong>Callback URL</strong> dan <strong>Verify token</strong> dari nilai di atas</>,
+                <>Klik <strong>Verify and Save</strong></>,
+              ].map((step, i) => (
+                <li key={i} className="flex gap-3 text-sm">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
+                    {i + 1}
+                  </span>
+                  <span className="text-muted-foreground pt-0.5">{step}</span>
+                </li>
+              ))}
+            </ol>
           </Card>
 
           {/* Test Send */}
@@ -264,23 +323,23 @@ export default function AdminWhatsApp() {
                 {sending ? "Mengirim..." : "Kirim Test"}
               </Button>
               {!status?.configured && (
-                <p className="text-sm text-destructive">API token belum dikonfigurasi. Set WHATSAPP_API_TOKEN di environment secrets.</p>
+                <p className="text-sm text-destructive">API token belum dikonfigurasi.</p>
               )}
             </div>
           </Card>
 
-          {/* External WhatsApp Conversations */}
+          {/* External Conversations */}
           <Card className="p-6 border-border/50">
             <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
-              Konversasi WhatsApp Eksternal
+              Konversasi WhatsApp Masuk
               <Badge variant="secondary">{conversations.length}</Badge>
             </h2>
             {conversations.length === 0 ? (
               <div className="text-center p-8 text-muted-foreground">
                 <Phone className="w-8 h-8 mx-auto mb-2 opacity-40" />
                 <p className="text-sm">Belum ada pesan masuk dari WhatsApp.</p>
-                <p className="text-xs mt-1">Pesan dari kontak eksternal via WhatsApp akan muncul di sini.</p>
+                <p className="text-xs mt-1">Setelah webhook dikonfigurasi, pesan dari kontak eksternal akan muncul di sini.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -295,54 +354,13 @@ export default function AdminWhatsApp() {
                         <p className="text-xs text-muted-foreground">+{conv.whatsappContactPhone}</p>
                       </div>
                     </div>
-                    <a
-                      href={`/chat/${conv.id}`}
-                      className="text-xs text-primary hover:underline flex items-center gap-1"
-                    >
+                    <a href={`/chat/${conv.id}`} className="text-xs text-primary hover:underline flex items-center gap-1">
                       Buka Chat <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 ))}
               </div>
             )}
-          </Card>
-
-          {/* How it works */}
-          <Card className="p-6 border-border/50">
-            <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-              <Hash className="w-5 h-5" />
-              Cara Kerja Integrasi
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              {[
-                {
-                  icon: "📨",
-                  title: "Pesan Masuk (External → CurCol)",
-                  desc: "Kontak eksternal WhatsApp kirim pesan → masuk sebagai konversasi WhatsApp di CurCol → admin/manager bisa balas langsung dari CurCol",
-                },
-                {
-                  icon: "📤",
-                  title: "Balasan (CurCol → External)",
-                  desc: "Tim CurCol membalas konversasi WhatsApp → pesan dikirim otomatis ke nomor WhatsApp kontak eksternal",
-                },
-                {
-                  icon: "📢",
-                  title: "Broadcast Pengumuman",
-                  desc: "Admin buat pengumuman + pilih kirim via WhatsApp → semua karyawan yang punya nomor WA di profil mereka menerima notifikasi",
-                },
-                {
-                  icon: "💬",
-                  title: "Notifikasi DM",
-                  desc: "User kirim pesan langsung (DM) → jika penerima punya nomor WA di profil, mereka dapat notifikasi WhatsApp secara otomatis",
-                },
-              ].map(item => (
-                <div key={item.title} className="p-4 rounded-lg border border-border/50 bg-muted/20">
-                  <div className="text-2xl mb-2">{item.icon}</div>
-                  <h3 className="font-medium text-sm mb-1">{item.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
-                </div>
-              ))}
-            </div>
           </Card>
 
         </div>

@@ -172,10 +172,31 @@ If CICO is temporarily unavailable:
 - Works immediately without CICO dependency
 
 **Known Issue**: DNS resolution in Replit environment
-- Currently, Replit container cannot resolve `workspace.joniiswa1101.repl.co` domain
-- This may be a Replit network isolation issue
-- **Workaround**: Users can switch to Local login tab
-- **To fix**: Check with Replit support for outbound DNS/HTTPS access to `workspace.joniiswa1101.repl.co`
+- **Problem**: Replit container cannot resolve `workspace.joniiswa1101.repl.co` (DNS fails)
+- **Root cause**: Replit network isolation / firewall rules
+- **CICO API Status**: ✅ ONLINE, ACCESSIBLE, WORKING (confirmed by CICO team)
+- **Current workaround**: Switch to "Lokal" tab for immediate login (EMP001:EMP001)
+- **To fix permanently**: Contact Replit support for outbound HTTPS/DNS access to `workspace.joniiswa1101.repl.co`
+
+**Diagnostic commands (for IT team):**
+```bash
+# Test DNS
+nslookup workspace.joniiswa1101.repl.co
+curl -v https://workspace.joniiswa1101.repl.co/api/server-time
+
+# Test from CurCol server
+curl -X POST https://workspace.joniiswa1101.repl.co/api/auth/sso/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","password":"test"}'
+```
+
+**CICO API Confirmed Working** (per technical specification from CICO team):
+- ✅ Endpoint: `POST /api/auth/sso/login` 
+- ✅ Token validation: `POST /api/auth/sso/validate`
+- ✅ Employee sync: `GET /api/sync/employees`
+- ✅ Request/response format matches spec exactly
+- ✅ No firewall / IP whitelist on CICO side
+- ✅ Available from public internet (just DNS resolution issue)
 
 ### How SSO Works (Active Now)
 

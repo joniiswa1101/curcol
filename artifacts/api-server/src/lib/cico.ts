@@ -50,26 +50,62 @@ export interface CICOEmployeesResponse {
 
 /**
  * Login via CICO SSO
+ * Spec: POST /api/auth/sso/login
+ * Request: { username, password }
+ * Response: { success, token, user: { id, email, username, fullName, department, role, companyId } }
  */
 export async function loginWithCICO(username: string, password: string): Promise<CICOLoginResponse> {
+  if (!username || !password) {
+    throw new Error("Username and password required");
+  }
+
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const response = await fetch(`${CICO_API_URL}/api/auth/sso/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
-      timeout: 5000,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
 
+    // Handle different error responses per spec
     if (!response.ok) {
-      throw new Error(data.error || data.message || "CICO login failed");
+      if (response.status === 401) {
+        throw new Error(data.error || "Invalid credentials");
+      } else if (response.status === 403) {
+        throw new Error(data.error || "User account is inactive");
+      } else if (response.status === 400) {
+        throw new Error(data.error || "Invalid request format");
+      } else {
+        throw new Error(data.error || `CICO returned ${response.status}`);
+      }
+    }
+
+    // Validate response format per spec
+    if (!data.success || !data.token || !data.user) {
+      throw new Error("Invalid CICO response format");
+    }
+
+    if (!data.user.id || !data.user.email || !data.user.fullName) {
+      throw new Error("Missing required user fields from CICO");
     }
 
     return data;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Network error connecting to CICO";
-    throw new Error(`CICO connection failed: ${msg}`);
+    // Network/timeout errors
+    if (error instanceof Error) {
+      if (error.message.includes("abort")) {
+        throw new Error("CICO request timeout - server not responding");
+      }
+      throw error;
+    }
+    throw new Error("Unknown error connecting to CICO");
   }
 }
 

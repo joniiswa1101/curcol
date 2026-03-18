@@ -3,7 +3,7 @@
  * Handle login dan sync dengan CICO system
  */
 
-const CICO_API_URL = "https://workspace.joniiswa1101.repl.co";
+const CICO_API_URL = "https://b94c6433-7331-426c-a115-107e9533ff8f-00-1z1tf5d323gi6.worf.replit.dev";
 
 export interface CICOLoginResponse {
   success: boolean;

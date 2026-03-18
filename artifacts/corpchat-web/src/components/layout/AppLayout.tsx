@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter"
-import { MessageSquare, Users, Megaphone, ShieldAlert, LogOut, Settings, Clock, Phone, X, UserCog } from "lucide-react"
+import { MessageSquare, Users, Megaphone, ShieldAlert, LogOut, Settings, Clock, Phone, X, UserCog, MessageCircle } from "lucide-react"
 import { useAuthStore } from "@/hooks/use-auth"
 import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -47,6 +47,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     ...(user?.role === "admin" ? [
       { icon: ShieldAlert, label: "Admin", path: "/admin" },
       { icon: UserCog, label: "Kelola User", path: "/admin/users" },
+      { icon: MessageCircle, label: "WhatsApp", path: "/admin/whatsapp" },
     ] : [])
   ]
 

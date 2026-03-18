@@ -95,10 +95,30 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
   await db.update(conversationsTable).set({ updatedAt: new Date() }).where(eq(conversationsTable.id, convId));
 
   if (conversation?.type === "whatsapp" && conversation.whatsappContactPhone && content) {
+    // Reply to external WhatsApp contact
     const senderName = currentUser.name || "Tim CurCol";
     const whatsappMessage = `*${senderName}:*\n${content}`;
     await sendWhatsAppMessage(conversation.whatsappContactPhone, whatsappMessage);
     console.log(`📤 Reply forwarded to WhatsApp contact ${conversation.whatsappContactPhone}`);
+  } else if (conversation?.type === "direct" && content) {
+    // DM notification: notify the OTHER member via WhatsApp if they have a number
+    try {
+      const members = await db.select({ userId: conversationMembersTable.userId })
+        .from(conversationMembersTable)
+        .where(eq(conversationMembersTable.conversationId, convId));
+      const recipientId = members.find(m => m.userId !== currentUser.id)?.userId;
+      if (recipientId) {
+        const [recipient] = await db.select().from(usersTable).where(eq(usersTable.id, recipientId));
+        if (recipient?.whatsappNumber) {
+          const preview = content.length > 100 ? content.substring(0, 100) + "..." : content;
+          const waMsg = `💬 *Pesan baru dari ${currentUser.name}*\n\n${preview}\n\n_Balas di CurCol_`;
+          await sendWhatsAppMessage(recipient.whatsappNumber, waMsg);
+          console.log(`📲 DM notification sent to ${recipient.name} via WhatsApp`);
+        }
+      }
+    } catch (notifErr) {
+      console.warn("⚠️ Failed to send WhatsApp DM notification:", notifErr);
+    }
   }
 
   await logAudit({ userId: currentUser.id, action: "send_message", entityType: "message", entityId: msg.id, req });

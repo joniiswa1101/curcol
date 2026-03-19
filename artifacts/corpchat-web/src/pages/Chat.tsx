@@ -298,6 +298,14 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
     textareaRef.current?.focus()
   }, [conversationId])
 
+  // Polling fallback - refetch messages every 3 seconds as backup to WebSocket
+  useEffect(() => {
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: messagesQueryKey })
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [conversationId, messagesQueryKey, queryClient])
+
   // ── File upload handler ────────────────────────────────────────────────────
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

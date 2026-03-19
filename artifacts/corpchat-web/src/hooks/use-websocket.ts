@@ -20,15 +20,30 @@ export function useWebSocket() {
     const connect = () => {
       if (isDestroyed) return;
 
+      console.log('[WebSocket] Connecting to:', wsUrl);
       ws.current = new WebSocket(wsUrl);
+
+      let pingTimer: ReturnType<typeof setInterval>;
+
+      ws.current.onopen = () => {
+        console.log('[WebSocket] ✅ Connected');
+        // Send ping every 15 seconds to keep connection alive
+        pingTimer = setInterval(() => {
+          if (ws.current?.readyState === WebSocket.OPEN) {
+            ws.current.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 15000);
+      };
 
       ws.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log('[WebSocket] Message received:', data.type);
 
           if (data.type === 'new_message' && data.conversationId && data.data) {
             const newMsg = data.data;
             const qKey = getListMessagesQueryKey(data.conversationId);
+            console.log('[WebSocket] Updating cache with new message:', newMsg.id);
 
             // Directly inject message into cache — no refetch needed
             queryClient.setQueryData(qKey, (old: any) => {
@@ -63,17 +78,21 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
           }
         } catch (err) {
-          console.error('WebSocket message parse error', err);
+          console.error('[WebSocket] Message parse error', err);
         }
       };
 
       ws.current.onclose = () => {
+        clearInterval(pingTimer);
+        console.log('[WebSocket] ❌ Disconnected, reconnecting in 3s...');
         if (!isDestroyed) {
           reconnectTimer = setTimeout(connect, 3000);
         }
       };
 
-      ws.current.onerror = () => {
+      ws.current.onerror = (err) => {
+        clearInterval(pingTimer);
+        console.error('[WebSocket] Error:', err);
         ws.current?.close();
       };
     };

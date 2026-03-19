@@ -7,6 +7,7 @@ import { eq, and, lt, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
 import { broadcastToConversation } from "../lib/websocket.js";
+import { sendWhatsAppMessage } from "../lib/whatsapp.js";
 
 const router = Router();
 
@@ -135,6 +136,15 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
     .where(eq(conversationsTable.id, convId)).catch(() => {});
 
   await logAudit({ userId: currentUser.id, action: "send_message", entityType: "message", entityId: msg.id, req });
+
+  // Send via WhatsApp if this is a WhatsApp conversation
+  const [conversation] = await db.select().from(conversationsTable)
+    .where(eq(conversationsTable.id, convId));
+  if (conversation?.type === "whatsapp" && conversation?.whatsappContactPhone && content) {
+    sendWhatsAppMessage(conversation.whatsappContactPhone, content).catch(err => {
+      console.error(`⚠️ Failed to send WhatsApp message for msg ${msg.id}:`, err);
+    });
+  }
 
   const [enriched] = await enrichMessages([msg]);
   const memberIds = await getConversationMemberIds(convId);

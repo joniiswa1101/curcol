@@ -80,7 +80,8 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
 - **Typing Indicators**: Implemented `POST /api/messages/:conversationId/typing` and `POST /api/messages/:conversationId/typing/stop` endpoints, with frontend integration and WebSocket broadcasting.
 - **Enhanced Message Display**: Includes unread badges, formatted timestamps, edited message indicators, and styled message bubbles.
 - **Key Functionalities**: Direct/group chat, directory/search, announcements, admin panel, message reactions, pinned messages, muted conversations, editing/deletion, file attachments, and a mobile app.
-- **Dark/Light Mode**: Web app supports theme toggle via `useTheme` hook (`artifacts/corpchat-web/src/hooks/use-theme.ts`). Toggle button (Sun/Moon icons) in sidebar footer. Preference stored in `localStorage` key `curcol_theme` with OS preference fallback. CSS variables switch via `.dark` class on `<html>`.
+- **Dark/Light Mode**: Web app supports theme toggle via `useTheme` hook (`artifacts/corpchat-web/src/hooks/use-theme.ts`). Toggle button (Sun/Moon icons) in sidebar footer. Preference stored in `localStorage` key `curcol_theme` with OS preference fallback. CSS variables switch via `.dark` class on `<html>`. Mobile uses system preference.
+- **Emoji Picker**: Mobile app (Expo) includes emoji picker modal (`artifacts/corpchat-mobile/components/EmojiPicker.tsx`) with 4 categories (Smileys, Gestures, Objects, Nature). Smile icon button in chat input row toggles picker, selecting emoji appends to text.
 - **Performance Optimization**: Fast channel switching achieved with a single database query.
 - **Security Hardening**: Rate limiting (10 auth/15min, 200 API/min), CORS whitelist, file upload filter (MIME whitelist + blocked extensions).
 - **Current Version**: v1.1.0 (displayed in sidebar)

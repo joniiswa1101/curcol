@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar } from "@/components/UserAvatar";
 import { CicoStatusBadge } from "@/components/CicoStatusBadge";
+import { EmojiPicker } from "@/components/EmojiPicker";
 
 function formatMsgTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -137,6 +138,7 @@ export default function ChatScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const flatRef = useRef<FlatList>(null);
   const isWhatsapp = type === "whatsapp";
 
@@ -226,6 +228,13 @@ export default function ChatScreen() {
           <Pressable style={styles.attachBtn} hitSlop={6}>
             <Feather name="paperclip" size={20} color={colors.textSecondary} />
           </Pressable>
+          <Pressable
+            onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+            style={styles.attachBtn}
+            hitSlop={6}
+          >
+            <Feather name="smile" size={20} color={colors.textSecondary} />
+          </Pressable>
           <TextInput
             style={[styles.input, { backgroundColor: colors.surfaceSecondary, color: colors.text }]}
             placeholder={isWhatsapp ? "Balas ke WhatsApp..." : "Ketik pesan..."}
@@ -250,6 +259,12 @@ export default function ChatScreen() {
             )}
           </Pressable>
         </View>
+
+        <EmojiPicker
+          visible={showEmojiPicker}
+          onSelect={(emoji) => setText(prev => prev + emoji)}
+          onClose={() => setShowEmojiPicker(false)}
+        />
       </View>
     </KeyboardAvoidingView>
   );

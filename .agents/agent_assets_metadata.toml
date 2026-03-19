@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "bbhoBgurXC5MkSYYLX2M1"
+uri = "file://.local/curcol-audit-report.md"
+type = "text"
+title = "CurCol Audit & Strategic Recommendations Report"

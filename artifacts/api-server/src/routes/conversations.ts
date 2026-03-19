@@ -167,12 +167,28 @@ router.post("/", requireAuth as any, async (req, res) => {
 router.get("/:conversationId", requireAuth as any, async (req, res) => {
   const convId = parseInt(req.params.conversationId);
   const currentUser = (req as any).user;
+
   const [member] = await db.select().from(conversationMembersTable)
     .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
   if (!member) { res.status(403).json({ error: "forbidden" }); return; }
+
   const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId));
   if (!conv) { res.status(404).json({ error: "not_found" }); return; }
-  res.json({ ...conv, memberCount: 0, unreadCount: 0, isPinned: member.isPinned, isMuted: member.isMuted });
+
+  const allMembers = await db.select().from(conversationMembersTable)
+    .where(eq(conversationMembersTable.conversationId, convId));
+  const userIds = allMembers.map(m => m.userId);
+  const users = await getUsersForConversation(userIds);
+  const userMap = new Map(users.map(u => [u.id, u]));
+
+  res.json({
+    ...conv,
+    memberCount: allMembers.length,
+    unreadCount: 0,
+    isPinned: member.isPinned,
+    isMuted: member.isMuted,
+    members: allMembers.map(m => ({ ...m, user: userMap.get(m.userId) || null })),
+  });
 });
 
 router.patch("/:conversationId", requireAuth as any, async (req, res) => {

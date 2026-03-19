@@ -1,22 +1,21 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { format } from "date-fns"
-import { useRoute } from "wouter"
+import { useRoute, useLocation } from "wouter"
 import { useQueryClient } from "@tanstack/react-query"
-import { keepPreviousData } from "@tanstack/react-query"
 import { AppLayout } from "@/components/layout/AppLayout"
-import { 
-  useListConversations, 
-  useGetConversation, 
-  useListMessages, 
+import {
+  useListConversations,
+  useListMessages,
   useSendMessage,
-  useAuth,
+  getListMessagesQueryKey,
+  getListConversationsQueryKey,
   Conversation
 } from "@workspace/api-client-react"
 import { useAuthStore } from "@/hooks/use-auth"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { cn, formatMessageTime, formatTimeAgo, getStatusLabel } from "@/lib/utils"
+import { cn, formatMessageTime, getStatusLabel } from "@/lib/utils"
 import { Search, Send, Paperclip, Smile, MoreVertical, Hash, Info, MessageSquare, Phone } from "lucide-react"
 
 export default function Chat() {
@@ -24,24 +23,25 @@ export default function Chat() {
   const activeId = match ? parseInt(params.id) : null
   const { user } = useAuthStore()
 
-  // Data fetching
   const { data: convData, isLoading: convLoading } = useListConversations()
   const conversations = convData?.conversations || []
+
+  // Find active conversation from already-loaded list (no extra network request)
+  const activeConversation = activeId
+    ? conversations.find(c => c.id === activeId) ?? null
+    : null
 
   return (
     <AppLayout>
       <div className="flex h-full w-full bg-background">
-        {/* Conversations Sidebar */}
+        {/* Sidebar */}
         <div className={cn(
-          "w-full md:w-80 lg:w-96 border-r border-border bg-card/30 flex flex-col transition-all duration-300",
+          "w-full md:w-80 lg:w-96 border-r border-border bg-card/30 flex flex-col",
           match ? "hidden md:flex" : "flex"
         )}>
           <div className="p-4 border-b border-border/50">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-display font-bold">Messages</h2>
-              <Button variant="ghost" size="icon" className="rounded-full bg-primary/5 text-primary">
-                <Search className="w-4 h-4" />
-              </Button>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -66,10 +66,10 @@ export default function Chat() {
               </div>
             ) : (
               conversations.map(conv => (
-                <ConversationItem 
-                  key={conv.id} 
-                  conversation={conv} 
-                  isActive={activeId === conv.id} 
+                <ConversationItem
+                  key={conv.id}
+                  conversation={conv}
+                  isActive={activeId === conv.id}
                 />
               ))
             )}
@@ -82,7 +82,10 @@ export default function Chat() {
           !match && "hidden md:flex"
         )}>
           {activeId ? (
-            <ChatThread conversationId={activeId} />
+            <ChatThread
+              conversationId={activeId}
+              conversation={activeConversation}
+            />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground bg-muted/10">
               <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 shadow-inner">
@@ -100,8 +103,8 @@ export default function Chat() {
 
 function ConversationItem({ conversation, isActive }: { conversation: Conversation, isActive: boolean }) {
   const { user } = useAuthStore()
-  
-  // Logic to get correct display name/avatar for direct chats
+  const [, navigate] = useLocation()
+
   let displayName = conversation.name
   let displayAvatar = conversation.avatarUrl
   let cicoStatus = null
@@ -116,34 +119,30 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
   }
 
   return (
-    <a 
-      href={`/chat/${conversation.id}`}
+    <button
+      onClick={() => navigate(`/chat/${conversation.id}`)}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer",
-        isActive 
-          ? "bg-primary/10 shadow-sm" 
+        "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-150 cursor-pointer text-left",
+        isActive
+          ? "bg-primary/10 shadow-sm"
           : "hover:bg-muted/50"
       )}
     >
-      <div className="relative">
+      <div className="relative shrink-0">
         {conversation.type === "group" ? (
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">
             <Hash className="w-6 h-6" />
           </div>
-        ) : conversation.type === "whatsapp" ? (
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold shadow-md">
-            <Phone className="w-6 h-6" />
-          </div>
         ) : (
-          <Avatar 
-            src={displayAvatar} 
-            fallback={displayName || "U"} 
-            size="lg" 
-            status={cicoStatus as any} 
+          <Avatar
+            src={displayAvatar}
+            fallback={displayName || "U"}
+            size="lg"
+            status={cicoStatus as any}
           />
         )}
       </div>
-      
+
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <div className="flex justify-between items-baseline mb-0.5">
           <h4 className={cn("text-sm font-semibold truncate", isActive ? "text-primary" : "text-foreground")}>
@@ -166,126 +165,139 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
           )}
         </div>
       </div>
-    </a>
+    </button>
   )
 }
 
-function ChatThread({ conversationId }: { conversationId: number }) {
+function ChatThread({
+  conversationId,
+  conversation
+}: {
+  conversationId: number
+  conversation: Conversation | null
+}) {
   const queryClient = useQueryClient()
-  const { data: convData } = useGetConversation(conversationId, {
-    query: { placeholderData: keepPreviousData }
-  })
-  const { data: msgData, isLoading } = useListMessages(conversationId, {
-    query: { placeholderData: keepPreviousData }
-  })
-  const sendMutation = useSendMessage()
   const { user } = useAuthStore()
-  
   const [inputText, setInputText] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Correct query key from generated API client
+  const messagesQueryKey = getListMessagesQueryKey(conversationId)
+
+  const { data: msgData, isLoading: messagesLoading } = useListMessages(conversationId)
+  const sendMutation = useSendMessage()
 
   const messages = msgData?.messages || []
 
-  // Auto scroll to bottom
+  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [messages.length])
 
-  const handleSend = (e: React.FormEvent) => {
+  // Reset input when switching conversations
+  useEffect(() => {
+    setInputText("")
+    textareaRef.current?.focus()
+  }, [conversationId])
+
+  const handleSend = useCallback((e: React.FormEvent) => {
     e.preventDefault()
-    if (!inputText.trim() || sendMutation.isPending) return
+    const text = inputText.trim()
+    if (!text || sendMutation.isPending) return
 
+    // Clear input immediately for instant feedback
+    setInputText("")
+
+    const tempId = Date.now()
     const optimisticMessage = {
-      id: Date.now(),
+      id: tempId,
       conversationId,
       senderId: user?.id || 0,
-      content: inputText,
+      content: text,
       type: "text" as const,
       createdAt: new Date().toISOString(),
       editedAt: null,
       isEdited: false,
-      sender: user,
+      isPinned: false,
+      replyToId: null,
+      attachments: [],
+      reactions: [],
+      sender: user ? { ...user, cicoStatus: null } : null,
     }
 
-    // Optimistically update cache
-    queryClient.setQueryData(["listMessages", conversationId], (old: any) => {
-      if (!old) return { messages: [optimisticMessage] }
+    // Optimistic update with CORRECT query key
+    queryClient.setQueryData(messagesQueryKey, (old: any) => {
+      if (!old) return { messages: [optimisticMessage], hasMore: false }
       return { ...old, messages: [...old.messages, optimisticMessage] }
     })
 
-    sendMutation.mutate({
-      conversationId,
-      data: { content: inputText, type: "text" }
-    }, {
-      onSuccess: () => {
-        setInputText("")
-        // Refetch to get the real message with ID
-        queryClient.invalidateQueries({ queryKey: ["listMessages", conversationId] })
-        queryClient.invalidateQueries({ queryKey: ["listConversations"] })
-      },
-      onError: (error) => {
-        console.error("Send message error:", error)
-        // Revert optimistic update on error
-        queryClient.setQueryData(["listMessages", conversationId], (old: any) => {
-          if (!old) return old
-          return { ...old, messages: old.messages.filter((m: any) => m.id !== optimisticMessage.id) }
-        })
+    sendMutation.mutate(
+      { conversationId, data: { content: text, type: "text" } },
+      {
+        onSuccess: (newMsg) => {
+          // Replace optimistic message with real one
+          queryClient.setQueryData(messagesQueryKey, (old: any) => {
+            if (!old) return { messages: [newMsg], hasMore: false }
+            return {
+              ...old,
+              messages: old.messages.map((m: any) => m.id === tempId ? newMsg : m)
+            }
+          })
+          // Refresh conversation list for last message update
+          queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+        },
+        onError: () => {
+          // Remove optimistic message on error
+          queryClient.setQueryData(messagesQueryKey, (old: any) => {
+            if (!old) return old
+            return { ...old, messages: old.messages.filter((m: any) => m.id !== tempId) }
+          })
+          // Restore text
+          setInputText(text)
+        }
       }
-    })
-  }
+    )
+  }, [inputText, conversationId, user, sendMutation, queryClient, messagesQueryKey])
 
-  if (!convData) return null
+  // Determine header info from conversation (already loaded in sidebar)
+  let headerName = conversation?.name || "Chat"
+  let headerAvatar = conversation?.avatarUrl
+  let cicoStatusStr: string | null = null
+  let headerStatus: string | null = null
 
-  // Determine header info
-  let headerName = convData.name
-  let headerAvatar = convData.avatarUrl
-  let headerStatus = null
-  let cicoStatusStr = null
-
-  if (convData.type === "direct" && convData.members) {
-    const otherMember = convData.members.find(m => m.userId !== user?.id)
+  if (conversation?.type === "direct" && conversation.members) {
+    const otherMember = conversation.members.find(m => m.userId !== user?.id)
     if (otherMember?.user) {
-      headerName = otherMember.user.name
+      headerName = otherMember.user.name || "Chat"
       headerAvatar = otherMember.user.avatarUrl
-      cicoStatusStr = otherMember.user.cicoStatus?.status
+      cicoStatusStr = otherMember.user.cicoStatus?.status || null
       headerStatus = getStatusLabel(cicoStatusStr)
     }
   }
 
   return (
     <>
-      {/* Thread Header */}
+      {/* Header */}
       <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-card/50 backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-4">
-          {convData.type === "group" ? (
-             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-sm">
-             <Hash className="w-5 h-5" />
-           </div>
-          ) : convData.type === "whatsapp" ? (
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold shadow-sm">
-              <Phone className="w-5 h-5" />
+          {conversation?.type === "group" ? (
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-sm">
+              <Hash className="w-5 h-5" />
             </div>
           ) : (
-            <Avatar src={headerAvatar} fallback={headerName || "U"} size="md" status={cicoStatusStr as any} />
+            <Avatar src={headerAvatar} fallback={headerName} size="md" status={cicoStatusStr as any} />
           )}
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-foreground leading-tight">{headerName || "Chat"}</h3>
-              {convData.type === "whatsapp" && (
-                <span className="text-[10px] bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-semibold">WhatsApp</span>
-              )}
-            </div>
+            <h3 className="font-bold text-foreground leading-tight">{headerName}</h3>
             {headerStatus && (
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                <span className={cn("w-2 h-2 rounded-full", cicoStatusStr === 'present' ? 'bg-status-present' : 'bg-muted-foreground')} />
+                <span className={cn("w-2 h-2 rounded-full", cicoStatusStr === "present" ? "bg-status-present" : "bg-muted-foreground")} />
                 {headerStatus}
               </p>
             )}
-            {convData.type === 'group' && (
-              <p className="text-xs text-muted-foreground mt-0.5">{convData.memberCount} members</p>
-            )}
-            {convData.type === 'whatsapp' && (convData as any).whatsappContactPhone && (
-              <p className="text-xs text-muted-foreground mt-0.5">+{(convData as any).whatsappContactPhone}</p>
+            {conversation?.type === "group" && (
+              <p className="text-xs text-muted-foreground mt-0.5">{conversation.memberCount} members</p>
             )}
           </div>
         </div>
@@ -299,20 +311,33 @@ function ChatThread({ conversationId }: { conversationId: number }) {
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gradient-to-b from-background to-muted/20">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-full">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gradient-to-b from-background to-muted/20">
+        {messagesLoading ? (
+          <div className="space-y-4">
+            {[1,2,3,4].map(i => (
+              <div key={i} className={cn("flex gap-3 animate-pulse", i % 2 === 0 ? "flex-row-reverse" : "")}>
+                <div className="w-8 h-8 rounded-full bg-muted shrink-0" />
+                <div className={cn("space-y-1", i % 2 === 0 ? "items-end flex flex-col" : "")}>
+                  <div className="h-3 bg-muted rounded w-16" />
+                  <div className="h-10 bg-muted rounded-2xl w-48" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <p className="text-sm">No messages yet. Say hello!</p>
           </div>
         ) : (
-          messages.slice().reverse().map((msg, i, arr) => {
-            const isMe = msg.senderId === user?.id;
-            const showAvatar = !isMe && (i === 0 || arr[i-1].senderId !== msg.senderId);
-            
+          messages.map((msg, i, arr) => {
+            const isMe = msg.senderId === user?.id
+            const prevMsg = arr[i - 1]
+            const showAvatar = !isMe && (i === 0 || prevMsg?.senderId !== msg.senderId)
+            const isOptimistic = typeof msg.id === "number" && msg.id > Date.now() - 10000 && msg.id > 1000000000000
+
             return (
               <div key={msg.id} className={cn("flex gap-3 max-w-[85%]", isMe ? "ml-auto flex-row-reverse" : "")}>
-                {/* Avatar Column */}
                 {!isMe && (
                   <div className="w-8 shrink-0 flex flex-col justify-end">
                     {showAvatar && (
@@ -321,39 +346,29 @@ function ChatThread({ conversationId }: { conversationId: number }) {
                   </div>
                 )}
 
-                {/* Message Bubble */}
                 <div className={cn("flex flex-col gap-1", isMe ? "items-end" : "items-start")}>
-                  {showAvatar && (
+                  {showAvatar && !isMe && (
                     <span className="text-xs font-medium text-muted-foreground ml-1">
                       {msg.sender?.name}
                     </span>
                   )}
-                  
+
                   <div className={cn(
-                    "px-4 py-2.5 rounded-2xl relative group shadow-sm text-sm",
-                    isMe 
-                      ? "bg-primary text-primary-foreground rounded-br-sm" 
-                      : (msg as any).isFromWhatsapp
-                        ? "bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/50 text-foreground rounded-bl-sm"
-                        : "bg-card border border-border/50 text-foreground rounded-bl-sm"
+                    "px-4 py-2.5 rounded-2xl relative group shadow-sm text-sm transition-opacity",
+                    isMe
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-card border border-border/50 text-foreground rounded-bl-sm",
+                    isOptimistic && "opacity-70"
                   )}>
-                    {(msg as any).isFromWhatsapp && (
-                      <span className="text-[9px] text-green-600 dark:text-green-400 font-semibold flex items-center gap-1 mb-1">
-                        <Phone className="w-2.5 h-2.5" /> WhatsApp
-                      </span>
-                    )}
                     <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                    
-                    {/* Timestamp */}
                     <span className={cn(
                       "text-[10px] mt-1 block opacity-70",
                       isMe ? "text-right" : "text-left"
                     )}>
-                      {format(new Date(msg.createdAt), 'HH:mm')}
+                      {format(new Date(msg.createdAt), "HH:mm")}
                       {msg.isEdited && " (edited)"}
                     </span>
 
-                    {/* Action Menu (Hover) */}
                     <div className={cn(
                       "absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border shadow-md rounded-lg flex items-center p-1",
                       isMe ? "-left-12" : "-right-12"
@@ -371,7 +386,7 @@ function ChatThread({ conversationId }: { conversationId: number }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
+      {/* Input */}
       <div className="p-4 bg-background border-t border-border">
         <form onSubmit={handleSend} className="flex items-end gap-2 bg-card border border-border/60 rounded-2xl p-2 shadow-sm focus-within:ring-2 ring-primary/20 transition-all">
           <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-primary rounded-xl">
@@ -380,24 +395,26 @@ function ChatThread({ conversationId }: { conversationId: number }) {
           <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-primary rounded-xl">
             <Smile className="w-5 h-5" />
           </Button>
-          
+
           <textarea
+            ref={textareaRef}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Type a message..."
+            rows={1}
             className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:ring-0 py-3 px-2 text-sm custom-scrollbar"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend(e);
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault()
+                handleSend(e as any)
               }
             }}
           />
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={!inputText.trim() || sendMutation.isPending}
-            size="icon" 
+            size="icon"
             className="shrink-0 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md transition-transform active:scale-95"
           >
             <Send className="w-4 h-4 ml-0.5" />

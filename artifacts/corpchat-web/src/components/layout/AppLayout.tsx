@@ -95,7 +95,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <nav className="w-20 lg:w-64 flex flex-col justify-between bg-sidebar border-r border-sidebar-border text-sidebar-foreground pt-0 pb-6 flex-shrink-0 transition-all duration-300">
         <div className="flex flex-col items-center lg:items-start px-4">
           <div className="flex flex-col items-center gap-0 mb-4 lg:px-2">
-            <img src="/logo-2.svg" alt="CurCol Logo" className="w-60 h-60 shrink-0 rounded-xl" />
+            <img src="/logo-2.svg" alt="CurCol Logo" className="w-72 h-72 shrink-0 rounded-xl" />
             <span className="text-xs text-sidebar-foreground/50">v1.1.0</span>
           </div>
 

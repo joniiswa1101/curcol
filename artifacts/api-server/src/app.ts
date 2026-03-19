@@ -5,7 +5,23 @@ import router from "./routes/index.js";
 
 const app: Express = express();
 
-app.use(cors({ origin: true, credentials: true }));
+const allowedOrigins = [
+  "https://curcol.link",
+  "https://www.curcol.link",
+  `https://${process.env.REPLIT_DEV_DOMAIN}`,
+  `https://${process.env.REPLIT_DOMAINS}`,
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.some(o => origin === o || origin.endsWith(".replit.dev") || origin.endsWith(".repl.co"))) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

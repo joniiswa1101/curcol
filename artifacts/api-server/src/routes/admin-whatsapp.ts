@@ -11,8 +11,8 @@ const router = Router();
  * Status koneksi dan konfigurasi WhatsApp
  */
 router.get("/status", requireAdmin as any, async (req, res) => {
-  const isConfigured = !!(process.env.WHATSAPP_API_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || null;
+  const isConfigured = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER);
+  const phoneNumberId = process.env.TWILIO_WHATSAPP_NUMBER || null;
 
   const [{ count: usersWithWa }] = await db
     .select({ count: count() })
@@ -75,9 +75,11 @@ router.post("/test", requireAdmin as any, async (req, res) => {
  */
 router.get("/config", requireAdmin as any, async (req, res) => {
   res.json({
-    verifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || null,
-    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || null,
-    configured: !!process.env.WHATSAPP_API_TOKEN,
+    provider: "twilio",
+    accountSid: process.env.TWILIO_ACCOUNT_SID ? "configured" : null,
+    whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER || null,
+    configured: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER),
+    webhookPath: "/api/webhooks/twilio",
   });
 });
 

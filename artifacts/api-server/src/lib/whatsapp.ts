@@ -1,34 +1,42 @@
-import axios from "axios";
+import twilio from "twilio";
 
-const WHATSAPP_API_URL = "https://graph.facebook.com/v19.0";
-const API_TOKEN = process.env.WHATSAPP_API_TOKEN;
-const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_WA_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER; // e.g. "+14155238886" or your registered number
 
-if (!API_TOKEN || !PHONE_NUMBER_ID) {
-  console.warn("⚠️  WhatsApp credentials not configured. Messages won't be sent to WhatsApp.");
+function getClient() {
+  if (!ACCOUNT_SID || !AUTH_TOKEN) return null;
+  return twilio(ACCOUNT_SID, AUTH_TOKEN);
+}
+
+if (!ACCOUNT_SID || !AUTH_TOKEN) {
+  console.warn("⚠️  Twilio credentials not configured. WhatsApp messages won't be sent.");
+} else if (!TWILIO_WA_NUMBER) {
+  console.warn("⚠️  TWILIO_WHATSAPP_NUMBER not set. WhatsApp messages won't be sent.");
 } else {
-  console.log("✅ WhatsApp Business API configured. Phone Number ID:", PHONE_NUMBER_ID);
+  console.log(`✅ Twilio WhatsApp configured. Sending from: ${TWILIO_WA_NUMBER}`);
+}
+
+function formatWaNumber(phone: string): string {
+  const cleaned = phone.replace(/[\s\-]/g, "");
+  const withPlus = cleaned.startsWith("+") ? cleaned : `+${cleaned}`;
+  return `whatsapp:${withPlus}`;
 }
 
 export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<string | null> {
-  if (!API_TOKEN || !PHONE_NUMBER_ID) return null;
+  const client = getClient();
+  if (!client || !TWILIO_WA_NUMBER) return null;
 
   try {
-    const response = await axios.post(
-      `${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: phoneNumber,
-        type: "text",
-        text: { preview_url: false, body: message },
-      },
-      { headers: { Authorization: `Bearer ${API_TOKEN}`, "Content-Type": "application/json" } }
-    );
-    const msgId = response.data?.messages?.[0]?.id;
-    console.log("✅ WhatsApp message sent to", phoneNumber, "- ID:", msgId);
-    return msgId || null;
+    const msg = await client.messages.create({
+      from: formatWaNumber(TWILIO_WA_NUMBER),
+      to: formatWaNumber(phoneNumber),
+      body: message,
+    });
+    console.log(`✅ WhatsApp sent to ${phoneNumber} via Twilio — SID: ${msg.sid}`);
+    return msg.sid;
   } catch (error: any) {
-    console.error("❌ WhatsApp send error:", error.response?.data || error.message);
+    console.error(`❌ Twilio WhatsApp error:`, error?.message || error);
     return null;
   }
 }
@@ -63,33 +71,36 @@ export interface WhatsAppIncomingMessage {
   timestamp: string;
 }
 
-export function parseWhatsAppWebhookData(data: any): WhatsAppIncomingMessage | null {
+// Parse Twilio webhook (form-encoded body)
+export function parseWhatsAppWebhookData(body: any): WhatsAppIncomingMessage | null {
   try {
-    const entry = data?.entry?.[0];
-    const change = entry?.changes?.[0]?.value;
-    const message = change?.messages?.[0];
-    if (!message) return null;
+    const from = (body.From || "").replace("whatsapp:", "").trim();
+    const profileName = body.ProfileName || from;
+    const text = body.Body || "";
+    const waMessageId = body.MessageSid || "";
+    const timestamp = String(Date.now());
+    const numMedia = parseInt(body.NumMedia || "0");
 
-    const contact = change?.contacts?.[0];
-    const profileName = contact?.profile?.name || "Unknown";
-    const from = message.from;
-    const timestamp = message.timestamp;
-    const type = message.type;
-    const waMessageId = message.id;
+    if (!from) return null;
 
-    const parsed: WhatsAppIncomingMessage = { from, profileName, type, waMessageId, timestamp };
+    const parsed: WhatsAppIncomingMessage = {
+      from,
+      profileName,
+      type: "text",
+      text,
+      waMessageId,
+      timestamp,
+    };
 
-    if (type === "text") {
-      parsed.text = message.text?.body;
-    } else if (["image", "document", "audio", "video", "sticker"].includes(type)) {
-      const media = message[type];
-      parsed.mediaId = media?.id;
-      parsed.mediaType = media?.mime_type;
+    if (numMedia > 0) {
+      parsed.type = "image";
+      parsed.mediaId = body.MediaUrl0;
+      parsed.mediaType = body.MediaContentType0;
     }
 
     return parsed;
   } catch (error) {
-    console.error("Error parsing WhatsApp webhook:", error);
+    console.error("Error parsing Twilio webhook:", error);
     return null;
   }
 }

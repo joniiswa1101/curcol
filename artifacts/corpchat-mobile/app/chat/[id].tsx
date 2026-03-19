@@ -181,6 +181,8 @@ export default function ChatScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [editingMsgId, setEditingMsgId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [typingUsers, setTypingUsers] = useState<Map<number, string>>(new Map());
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const flatRef = useRef<FlatList>(null);
   const isWhatsapp = type === "whatsapp";
 
@@ -216,10 +218,30 @@ export default function ChatScreen() {
 
   const messages: Message[] = data?.messages || [];
 
+  // Handle text input with typing indicator
+  const handleTextChange = (newText: string) => {
+    setText(newText);
+    
+    // Send typing notification
+    if (newText.trim() && user?.id) {
+      api.post(`/conversations/${id}/typing`, {}).catch(() => {});
+    }
+    
+    // Reset typing timeout
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (newText.trim()) {
+      typingTimeoutRef.current = setTimeout(() => {
+        api.post(`/conversations/${id}/typing/stop`, {}).catch(() => {});
+      }, 2000);
+    }
+  };
+
   function send() {
     const trimmed = text.trim();
     if (!trimmed) return;
     setText("");
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    api.post(`/conversations/${id}/typing/stop`, {}).catch(() => {});
     sendMutation.mutate(trimmed);
   }
 
@@ -290,6 +312,15 @@ export default function ChatScreen() {
         />
       )}
 
+      {/* Typing Indicators */}
+      {typingUsers.size > 0 && (
+        <View style={[styles.typingIndicator, { backgroundColor: colors.surfaceSecondary, borderTopColor: colors.border }]}>
+          <Text style={[styles.typingText, { color: colors.textSecondary }]}>
+            {Array.from(typingUsers.values()).join(", ")} {typingUsers.size === 1 ? "sedang mengetik" : "sedang mengetik"}...
+          </Text>
+        </View>
+      )}
+
       {/* Input */}
       <View style={[styles.inputArea, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + 4 }]}>
         {isWhatsapp && (
@@ -314,7 +345,7 @@ export default function ChatScreen() {
             placeholder={isWhatsapp ? "Balas ke WhatsApp..." : "Ketik pesan..."}
             placeholderTextColor={colors.textSecondary}
             value={text}
-            onChangeText={setText}
+            onChangeText={handleTextChange}
             multiline
             maxLength={2000}
           />
@@ -442,4 +473,6 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   pinnedBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#f59e0b", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, alignSelf: "flex-start", marginBottom: 4 },
   pinnedText: { fontSize: 10, color: "#fff", fontFamily: "Inter_500Medium" },
+  typingIndicator: { borderTopWidth: 0.5, paddingHorizontal: 12, paddingVertical: 6 },
+  typingText: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
 });

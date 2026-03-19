@@ -196,6 +196,12 @@ export default function ProfileTab() {
         <InfoRow label="Role" value={user.role.charAt(0).toUpperCase() + user.role.slice(1)} colors={colors} />
       </View>
 
+      {/* Version */}
+      <View style={[styles.versionSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.versionLabel, { color: colors.textSecondary }]}>Versi Aplikasi</Text>
+        <Text style={[styles.versionNumber, { color: colors.text }]}>v1.1.0</Text>
+      </View>
+
       {/* Logout */}
       <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Pressable
@@ -289,6 +295,9 @@ const styles = StyleSheet.create({
   waCardDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   section: { marginHorizontal: 16, marginBottom: 12, borderRadius: 14, padding: 4, borderWidth: 0.5 },
   sectionTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5, textTransform: "uppercase", padding: 12, paddingBottom: 4 },
+  versionSection: { marginHorizontal: 16, marginBottom: 12, borderRadius: 14, padding: 12, borderWidth: 0.5, alignItems: "center", gap: 4 },
+  versionLabel: { fontSize: 11, fontFamily: "Inter_400Regular", letterSpacing: 0.3, textTransform: "uppercase" },
+  versionNumber: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 0.5 },
   infoLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
   infoValue: { fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "right", flex: 1, paddingLeft: 16 },

@@ -88,7 +88,7 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
 - **Admin WhatsApp Inbox**: Web admin page at `/admin/whatsapp` with 3-tab workflow (Unassigned, Assigned, Resolved). Claim WhatsApp conversations by clicking "Ambil" button. Resolve conversations once handled. Shows Twilio connection status, conversation count, contact details, and assignee info. Includes test message sender for setup verification.
 - **Performance Optimization**: Fast channel switching achieved with a single database query.
 - **Security Hardening**: Rate limiting (10 auth/15min, 200 API/min), CORS whitelist, file upload filter (MIME whitelist + blocked extensions).
-- **Current Version**: v1.1.0 (displayed in sidebar)
+- **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies
 

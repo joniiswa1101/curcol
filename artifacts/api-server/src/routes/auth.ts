@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, cicoStatusTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
-import { createSession, requireAuth } from "../lib/auth.js";
+import { createSession, refreshSession, requireAuth } from "../lib/auth.js";
 import { verifyPassword, hashPassword } from "../lib/password.js";
 import { logAudit } from "../lib/audit.js";
 import { loginWithCICO } from "../lib/cico.js";
@@ -9,6 +9,15 @@ import { generateTOTPSecret, getTOTPUri, generateQRCodeDataURL, verifyTOTPToken 
 import { is2FASystemEnabled, getSetting, setSetting } from "../lib/settings.js";
 
 const router = Router();
+
+function buildTokenResponse(tokenPair: { token: string; refreshToken: string; expiresAt: Date; refreshExpiresAt: Date }) {
+  return {
+    token: tokenPair.token,
+    refreshToken: tokenPair.refreshToken,
+    expiresAt: tokenPair.expiresAt.toISOString(),
+    refreshExpiresAt: tokenPair.refreshExpiresAt.toISOString(),
+  };
+}
 
 async function buildUserResponse(user: any) {
   const cicoRecord = await db.select().from(cicoStatusTable).where(eq(cicoStatusTable.employeeId, user.employeeId));
@@ -54,9 +63,9 @@ router.post("/sso/login", async (req, res) => {
     if (systemEnabled && user.twoFactorEnabled) {
       if (!user.twoFactorSecret) {
         await db.update(usersTable).set({ twoFactorEnabled: false }).where(eq(usersTable.id, user.id));
-        const ssoToken = await createSession(user.id);
+        const tokenPair = await createSession(user.id);
         await logAudit({ userId: user.id, action: "2fa_auto_reset_missing_secret", entityType: "session", req });
-        res.json({ token: ssoToken, user: await buildUserResponse(user) });
+        res.json({ ...buildTokenResponse(tokenPair), user: await buildUserResponse(user) });
         return;
       }
       const { totpCode } = req.body;
@@ -75,11 +84,11 @@ router.post("/sso/login", async (req, res) => {
       }
     }
 
-    const token = await createSession(user.id);
+    const tokenPair = await createSession(user.id);
     await logAudit({ userId: user.id, action: "login_via_cico", entityType: "session", req });
 
     res.json({
-      token,
+      ...buildTokenResponse(tokenPair),
       user: await buildUserResponse(user),
     });
   } catch (err) {
@@ -129,9 +138,9 @@ router.post("/login", async (req, res) => {
   if (systemEnabled && user.twoFactorEnabled) {
     if (!user.twoFactorSecret) {
       await db.update(usersTable).set({ twoFactorEnabled: false }).where(eq(usersTable.id, user.id));
-      const token = await createSession(user.id);
+      const tokenPair = await createSession(user.id);
       await logAudit({ userId: user.id, action: "2fa_auto_reset_missing_secret", entityType: "session", req });
-      res.json({ user: await buildUserResponse(user), token });
+      res.json({ user: await buildUserResponse(user), ...buildTokenResponse(tokenPair) });
       return;
     }
     if (!totpCode) {
@@ -149,12 +158,12 @@ router.post("/login", async (req, res) => {
     }
   }
 
-  const token = await createSession(user.id);
+  const tokenPair = await createSession(user.id);
   await logAudit({ userId: user.id, action: "login", entityType: "session", req });
 
   res.json({
     user: await buildUserResponse(user),
-    token,
+    ...buildTokenResponse(tokenPair),
   });
 });
 
@@ -166,6 +175,22 @@ router.post("/logout", requireAuth as any, async (req, res) => {
   const user = (req as any).user;
   await logAudit({ userId: user?.id, action: "logout", entityType: "session", req });
   res.json({ success: true, message: "Logged out" });
+});
+
+router.post("/refresh", async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    res.status(400).json({ error: "bad_request", message: "Refresh token wajib diisi" });
+    return;
+  }
+
+  const tokenPair = await refreshSession(refreshToken);
+  if (!tokenPair) {
+    res.status(401).json({ error: "unauthorized", message: "Refresh token tidak valid atau sudah expired. Silakan login ulang." });
+    return;
+  }
+
+  res.json(buildTokenResponse(tokenPair));
 });
 
 router.get("/me", requireAuth as any, async (req, res) => {

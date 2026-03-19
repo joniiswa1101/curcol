@@ -1,17 +1,77 @@
 import { db, sessionsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, lt } from "drizzle-orm";
 import type { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+
+const ACCESS_TOKEN_TTL = 60 * 60 * 1000;
+const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000;
 
 export function generateToken(): string {
   return crypto.randomBytes(48).toString("hex");
 }
 
-export async function createSession(userId: number): Promise<string> {
+export interface TokenPair {
+  token: string;
+  refreshToken: string;
+  expiresAt: Date;
+  refreshExpiresAt: Date;
+}
+
+export async function createSession(userId: number): Promise<TokenPair> {
   const token = generateToken();
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await db.insert(sessionsTable).values({ userId, token, expiresAt });
-  return token;
+  const refreshToken = generateToken();
+  const expiresAt = new Date(Date.now() + ACCESS_TOKEN_TTL);
+  const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL);
+
+  await db.insert(sessionsTable).values({
+    userId,
+    token,
+    refreshToken,
+    expiresAt,
+    refreshExpiresAt,
+  });
+
+  return { token, refreshToken, expiresAt, refreshExpiresAt };
+}
+
+export async function refreshSession(oldRefreshToken: string): Promise<TokenPair | null> {
+  const [session] = await db
+    .select()
+    .from(sessionsTable)
+    .where(eq(sessionsTable.refreshToken, oldRefreshToken));
+
+  if (!session) return null;
+  if (session.refreshExpiresAt && session.refreshExpiresAt < new Date()) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.id, session.id));
+    return null;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, session.userId));
+
+  if (!user || !user.isActive) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.id, session.id));
+    return null;
+  }
+
+  const newToken = generateToken();
+  const newRefreshToken = generateToken();
+  const expiresAt = new Date(Date.now() + ACCESS_TOKEN_TTL);
+  const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL);
+
+  await db.delete(sessionsTable).where(eq(sessionsTable.id, session.id));
+
+  await db.insert(sessionsTable).values({
+    userId: session.userId,
+    token: newToken,
+    refreshToken: newRefreshToken,
+    expiresAt,
+    refreshExpiresAt,
+  });
+
+  return { token: newToken, refreshToken: newRefreshToken, expiresAt, refreshExpiresAt };
 }
 
 export async function getUserFromToken(token: string) {
@@ -64,4 +124,12 @@ export async function requireAdminOrManager(req: Request, res: Response, next: N
     }
     next();
   });
+}
+
+export async function cleanExpiredSessions(): Promise<number> {
+  const result = await db
+    .delete(sessionsTable)
+    .where(lt(sessionsTable.expiresAt, new Date()))
+    .returning();
+  return result.length;
 }

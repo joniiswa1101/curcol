@@ -29,29 +29,43 @@ interface User {
 
 function UserRow({ user, colors, onPress }: { user: User; colors: any; onPress: () => void }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.surfaceSecondary : colors.surface }]}
-    >
-      <UserAvatar
-        name={user.name}
-        avatarUrl={user.avatarUrl}
-        size={48}
-        cicoStatus={user.cicoStatus?.status}
-        showCico
-      />
-      <View style={styles.rowInfo}>
-        <View style={styles.rowTop}>
-          <Text style={[styles.rowName, { color: colors.text }]}>{user.name}</Text>
-          <CicoStatusBadge status={user.cicoStatus?.status || "absent"} showLabel size="sm" />
+    <View style={[styles.row, { backgroundColor: colors.surface }]}>
+      <Pressable
+        onPress={onPress}
+        style={styles.rowContent}
+      >
+        <UserAvatar
+          name={user.name}
+          avatarUrl={user.avatarUrl}
+          size={48}
+          cicoStatus={user.cicoStatus?.status}
+          showCico
+        />
+        <View style={styles.rowInfo}>
+          <View style={styles.rowTop}>
+            <Text style={[styles.rowName, { color: colors.text }]}>{user.name}</Text>
+            <CicoStatusBadge status={user.cicoStatus?.status || "absent"} showLabel size="sm" />
+          </View>
+          <Text style={[styles.rowPos, { color: colors.textSecondary }]} numberOfLines={1}>
+            {user.position || user.role} {user.department ? `· ${user.department}` : ""}
+          </Text>
+          <Text style={[styles.rowEmp, { color: colors.textSecondary }]}>{user.employeeId}</Text>
         </View>
-        <Text style={[styles.rowPos, { color: colors.textSecondary }]} numberOfLines={1}>
-          {user.position || user.role} {user.department ? `· ${user.department}` : ""}
-        </Text>
-        <Text style={[styles.rowEmp, { color: colors.textSecondary }]}>{user.employeeId}</Text>
-      </View>
-      <Feather name="chevron-right" size={16} color={colors.border} />
-    </Pressable>
+      </Pressable>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.chatBtn,
+          { 
+            backgroundColor: pressed ? colors.primary : colors.primary,
+            opacity: pressed ? 0.8 : 1
+          }
+        ]}
+      >
+        <Feather name="message-circle" size={16} color="#fff" />
+        <Text style={styles.chatBtnText}>Chat</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -146,11 +160,14 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   emptyTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  rowContent: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   rowInfo: { flex: 1, gap: 2 },
   rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   rowName: { fontSize: 15, fontFamily: "Inter_600SemiBold", flex: 1 },
   rowPos: { fontSize: 13, fontFamily: "Inter_400Regular" },
   rowEmp: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  chatBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  chatBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
   separator: { height: 0.5, marginLeft: 76 },
 });

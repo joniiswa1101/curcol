@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter"
-import { MessageSquare, Users, Megaphone, ShieldAlert, LogOut, Settings, Clock, Phone, X, UserCog, MessageCircle } from "lucide-react"
+import { MessageSquare, Users, Megaphone, ShieldAlert, LogOut, Settings, Clock, Phone, X, UserCog, MessageCircle, Sun, Moon } from "lucide-react"
 import { useAuthStore } from "@/hooks/use-auth"
+import { useTheme } from "@/hooks/use-theme"
 import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { useCicoCheckIn, useCicoCheckOut } from "@workspace/api-client-react"
@@ -14,6 +15,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription } from "@/componen
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation()
   const { user, logout } = useAuthStore()
+  const { theme, toggleTheme } = useTheme()
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -98,7 +100,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="hidden lg:flex flex-col gap-0.5">
               <span className="font-display font-bold text-xl tracking-tight text-white">CurCol</span>
-              <span className="text-xs text-sidebar-foreground/50">v1.0.3</span>
+              <span className="text-xs text-sidebar-foreground/50">v1.1.0</span>
             </div>
           </div>
 
@@ -154,6 +156,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             </button>
             <div className="hidden lg:flex items-center gap-1">
+              <button 
+                onClick={toggleTheme}
+                className="p-2 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors"
+                title={theme === "dark" ? "Light Mode" : "Dark Mode"}
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
               <button 
                 onClick={openProfile}
                 className="p-2 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors"

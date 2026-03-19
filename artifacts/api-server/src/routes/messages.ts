@@ -229,4 +229,38 @@ router.patch("/:conversationId/messages/:messageId", requireAuth as any, async (
   res.json(enriched);
 });
 
+router.delete("/:conversationId/messages/:messageId", requireAuth as any, async (req, res) => {
+  const convId = parseInt(req.params.conversationId);
+  const msgId = parseInt(req.params.messageId);
+  const currentUser = (req as any).user;
+
+  const [message] = await db.select().from(messagesTable).where(eq(messagesTable.id, msgId));
+  if (!message) {
+    res.status(404).json({ error: "Message not found" });
+    return;
+  }
+
+  if (message.senderId !== currentUser.id) {
+    res.status(403).json({ error: "Can only delete own messages" });
+    return;
+  }
+
+  const [membership] = await db.select().from(conversationMembersTable)
+    .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
+  if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
+
+  const [deleted] = await db.update(messagesTable)
+    .set({ isDeleted: true, content: null })
+    .where(eq(messagesTable.id, msgId))
+    .returning();
+
+  await logAudit({ userId: currentUser.id, action: "delete_message", entityType: "message", entityId: msgId, req });
+
+  const [enriched] = await enrichMessages([deleted]);
+  const memberIds = await getConversationMemberIds(convId);
+  broadcastToConversation(convId, memberIds, { type: "update_message", conversationId: convId, data: enriched });
+
+  res.json(enriched);
+});
+
 export default router;

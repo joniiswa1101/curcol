@@ -50,7 +50,7 @@ interface BubbleProps {
   showAvatar: boolean;
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar, onEdit }: BubbleProps & { onEdit?: (msg: Message) => void }) {
+function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete }: BubbleProps & { onEdit?: (msg: Message) => void; onDelete?: (msgId: number) => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
@@ -129,7 +129,7 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit }: BubbleProps 
       </Pressable>
 
       {showMenu && isMine && (
-        <Pressable onPress={() => setShowMenu(false)} style={styles.menuBtn}>
+        <View style={styles.menuBtns}>
           <Feather
             name="edit-2"
             size={16}
@@ -139,7 +139,16 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit }: BubbleProps 
               setShowMenu(false);
             }}
           />
-        </Pressable>
+          <Feather
+            name="trash-2"
+            size={16}
+            color="#ef4444"
+            onPress={() => {
+              onDelete?.(msg.id);
+              setShowMenu(false);
+            }}
+          />
+        </View>
       )}
     </View>
   );
@@ -177,6 +186,11 @@ export default function ChatScreen() {
       setEditingMsgId(null);
       setEditText("");
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (msgId: number) => api.delete(`/conversations/${id}/messages/${msgId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
   });
 
   const messages: Message[] = data?.messages || [];
@@ -240,6 +254,7 @@ export default function ChatScreen() {
                   setEditingMsgId(msg.id);
                   setEditText(msg.content || "");
                 }}
+                onDelete={(msgId) => deleteMutation.mutate(msgId)}
               />
             );
           }}
@@ -395,7 +410,7 @@ const styles = StyleSheet.create({
     fontSize: 15, fontFamily: "Inter_400Regular", maxHeight: 120,
   },
   sendBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  menuBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  menuBtns: { flexDirection: "row", gap: 8, paddingHorizontal: 8, paddingVertical: 4 },
   modalOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", zIndex: 1000 },
   editModal: { width: "85%", borderRadius: 12, padding: 16, gap: 12, borderWidth: 0.5 },
   editTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },

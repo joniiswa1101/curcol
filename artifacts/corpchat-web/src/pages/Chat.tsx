@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { format } from "date-fns"
 import { useRoute } from "wouter"
+import { useQueryClient } from "@tanstack/react-query"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { 
   useListConversations, 
@@ -169,6 +170,7 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
 }
 
 function ChatThread({ conversationId }: { conversationId: number }) {
+  const queryClient = useQueryClient()
   const { data: convData } = useGetConversation(conversationId)
   const { data: msgData, isLoading } = useListMessages(conversationId)
   const sendMutation = useSendMessage()
@@ -192,7 +194,11 @@ function ChatThread({ conversationId }: { conversationId: number }) {
       conversationId,
       data: { content: inputText, type: "text" }
     }, {
-      onSuccess: () => setInputText("")
+      onSuccess: () => {
+        setInputText("")
+        queryClient.invalidateQueries({ queryKey: ["listMessages", conversationId] })
+        queryClient.invalidateQueries({ queryKey: ["listConversations"] })
+      }
     })
   }
 

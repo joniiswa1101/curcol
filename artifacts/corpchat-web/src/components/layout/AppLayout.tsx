@@ -94,10 +94,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar Nav */}
       <nav className="w-20 lg:w-64 flex flex-col justify-between bg-sidebar border-r border-sidebar-border text-sidebar-foreground py-6 flex-shrink-0 transition-all duration-300">
         <div className="flex flex-col items-center lg:items-start px-4">
-          <div className="flex items-center gap-3 mb-8 lg:px-2">
-            <img src="/logo-2.svg" alt="CurCol Logo" className="w-10 h-10 shrink-0" />
-            <div className="hidden lg:flex flex-col gap-0.5">
-              <span className="font-display font-bold text-xl tracking-tight text-white">CurCol</span>
+          <div className="flex items-center gap-4 mb-8 lg:px-2">
+            <img src="/logo-2.svg" alt="CurCol Logo" className="w-16 h-16 shrink-0 rounded-lg" />
+            <div className="hidden lg:flex flex-col gap-1">
+              <span className="font-display font-bold text-2xl tracking-tight text-white">CurCol</span>
               <span className="text-xs text-sidebar-foreground/50">v1.1.0</span>
             </div>
           </div>

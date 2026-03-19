@@ -273,8 +273,8 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
               {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
             </span>
           )}
-          </div>
         </div>
+      </div>
     </button>
   )
 }

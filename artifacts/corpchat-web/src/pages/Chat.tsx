@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react"
 import { format } from "date-fns"
 import { useRoute } from "wouter"
 import { useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData } from "@tanstack/react-query"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { 
   useListConversations, 
@@ -171,8 +172,12 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
 
 function ChatThread({ conversationId }: { conversationId: number }) {
   const queryClient = useQueryClient()
-  const { data: convData } = useGetConversation(conversationId)
-  const { data: msgData, isLoading } = useListMessages(conversationId)
+  const { data: convData } = useGetConversation(conversationId, {
+    query: { placeholderData: keepPreviousData }
+  })
+  const { data: msgData, isLoading } = useListMessages(conversationId, {
+    query: { placeholderData: keepPreviousData }
+  })
   const sendMutation = useSendMessage()
   const { user } = useAuthStore()
   

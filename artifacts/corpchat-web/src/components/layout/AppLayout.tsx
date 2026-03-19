@@ -96,10 +96,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center lg:items-start px-4">
           <div className="flex flex-col items-center gap-3 mb-12 lg:px-2 lg:items-start">
             <img src="/logo-2.svg" alt="CurCol Logo" className="w-48 h-48 shrink-0 rounded-xl" />
-            <div className="hidden lg:flex flex-col gap-0.5 text-center lg:text-left">
-              <span className="font-display font-bold text-6xl tracking-tight text-white">CurCol</span>
-              <span className="text-sm text-sidebar-foreground/50">v1.1.0</span>
-            </div>
           </div>
 
           <div className="flex flex-col w-full gap-2">

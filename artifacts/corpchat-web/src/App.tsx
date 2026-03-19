@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthInit, useAuthStore } from "@/hooks/use-auth";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { useEffect } from "react";
 
 // Pages
@@ -70,6 +71,7 @@ function MainRouter() {
   const { isAuthenticated, isLoading } = useAuthStore();
 
   useAuthInit();
+  useWebSocket();
 
   // Root redirect logic
   useEffect(() => {

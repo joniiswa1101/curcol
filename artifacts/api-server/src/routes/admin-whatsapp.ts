@@ -53,12 +53,14 @@ router.post("/test", requireAdmin as any, async (req, res) => {
     return;
   }
 
-  const cleanPhone = phoneNumber.replace(/[\s\-\(\)+]/g, "");
+  // Format ke E.164: remove all non-digits, then add + prefix
+  const digitsOnly = phoneNumber.replace(/[\s\-\(\)+]/g, "");
+  const formattedPhone = digitsOnly.startsWith("+") ? digitsOnly : "+" + digitsOnly;
 
-  const msgId = await sendWhatsAppMessage(cleanPhone, message);
+  const msgId = await sendWhatsAppMessage(formattedPhone, message);
 
   if (msgId) {
-    res.json({ success: true, messageId: msgId, phone: cleanPhone });
+    res.json({ success: true, messageId: msgId, phone: formattedPhone });
   } else {
     res.status(500).json({
       success: false,

@@ -275,7 +275,6 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
           )}
           </div>
         </div>
-      </div>
     </button>
   )
 }

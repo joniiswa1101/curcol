@@ -171,9 +171,8 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
 
 function ChatThread({ conversationId }: { conversationId: number }) {
   const queryClient = useQueryClient()
-  // Keep old data visible while loading new data (staleTime prevents immediate invalidation)
-  const { data: convData, isLoading: convLoading } = useGetConversation(conversationId)
-  const { data: msgData, isLoading: messagesLoading } = useListMessages(conversationId)
+  const { data: convData } = useGetConversation(conversationId)
+  const { data: msgData, isLoading } = useListMessages(conversationId)
   const sendMutation = useSendMessage()
   const { user } = useAuthStore()
   
@@ -197,8 +196,9 @@ function ChatThread({ conversationId }: { conversationId: number }) {
     }, {
       onSuccess: () => {
         setInputText("")
-        // Refetch messages to show the new message
+        // Refetch both messages and conversations
         queryClient.invalidateQueries({ queryKey: ["listMessages", conversationId] })
+        queryClient.invalidateQueries({ queryKey: ["listConversations"] })
       }
     })
   }
@@ -270,7 +270,7 @@ function ChatThread({ conversationId }: { conversationId: number }) {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gradient-to-b from-background to-muted/20">
-        {messagesLoading ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
           </div>

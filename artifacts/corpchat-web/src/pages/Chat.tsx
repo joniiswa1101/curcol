@@ -488,8 +488,8 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
                   <div className={cn(
                     "px-4 py-2.5 rounded-2xl relative group shadow-sm text-sm transition-opacity min-w-[80px]",
                     isMe
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "bg-card border border-border/50 text-foreground rounded-bl-sm",
+                      ? "bg-primary text-primary-foreground rounded-br-sm shadow-md"
+                      : "bg-muted/70 text-foreground rounded-bl-sm border border-border/40",
                     isOptimistic && "opacity-60"
                   )}>
                     {/* Image attachments */}

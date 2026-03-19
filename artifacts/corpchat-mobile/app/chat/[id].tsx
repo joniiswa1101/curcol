@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar } from "@/components/UserAvatar";
 import { CicoStatusBadge } from "@/components/CicoStatusBadge";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import { useWebSocket } from "@/hooks/use-websocket";
 
 function formatMsgTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -190,8 +191,11 @@ export default function ChatScreen() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["messages", id],
     queryFn: () => api.get(`/conversations/${id}/messages`),
-    refetchInterval: 5000,
+    refetchInterval: 30000, // Fallback polling every 30s (WebSocket is primary)
   });
+
+  // Real-time WebSocket listener for instant message updates
+  useWebSocket(id);
 
   const sendMutation = useMutation({
     mutationFn: (content: string) => api.post(`/conversations/${id}/messages`, { content, type: "text" }),

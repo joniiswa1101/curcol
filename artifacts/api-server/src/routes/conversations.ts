@@ -32,14 +32,31 @@ router.get("/", requireAuth as any, async (req, res) => {
   const allUsers = await getUsersForConversation(allUserIds);
   const userMap = new Map(allUsers.map(u => [u.id, u]));
 
-  const lastMessages = await Promise.all(convIds.map(async (cid) => {
-    const [msg] = await db.select().from(messagesTable)
-      .where(eq(messagesTable.conversationId, cid))
-      .orderBy(desc(messagesTable.createdAt))
-      .limit(1);
-    return { cid, msg };
-  }));
-  const lastMsgMap = new Map(lastMessages.map(({ cid, msg }) => [cid, msg]));
+  // Optimized: get last message for all conversations in single query using subquery
+  const lastMsgsRaw = await db
+    .select({
+      conversationId: messagesTable.conversationId,
+      id: messagesTable.id,
+      senderId: messagesTable.senderId,
+      content: messagesTable.content,
+      createdAt: messagesTable.createdAt,
+      type: messagesTable.type,
+      isEdited: messagesTable.isEdited,
+    })
+    .from(messagesTable)
+    .where(inArray(messagesTable.conversationId, convIds))
+    .orderBy(desc(messagesTable.createdAt))
+    .then(msgs => {
+      // Group by conversation and take first (most recent)
+      const map = new Map<number, typeof msgs[0]>();
+      for (const msg of msgs) {
+        if (!map.has(msg.conversationId)) {
+          map.set(msg.conversationId, msg);
+        }
+      }
+      return map;
+    });
+  const lastMsgMap = lastMsgsRaw;
 
   const membershipMap = new Map(memberships.map(m => [m.conversationId, m]));
 

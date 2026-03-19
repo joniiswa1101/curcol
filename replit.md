@@ -321,10 +321,11 @@ If Meta continues to fail, we can switch to Twilio:
 ✅ Announcements  
 ✅ Admin panel with WhatsApp admin page
 ✅ CICO SSO login
-✅ Unread message tracking
+✅ Unread message tracking (FIXED: now accurately calculated)
 ✅ Message reactions/emojis
 ✅ Pinned messages & conversations
 ✅ Muted conversations
 ✅ Message editing & deletion
 ✅ File attachments
 ✅ Mobile app (Expo)
+✅ **Fast channel switching** (OPTIMIZED: single DB query instead of N queries)

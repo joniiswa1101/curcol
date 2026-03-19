@@ -1,18 +1,41 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { useListUsers, useGetCicoStatuses } from "@workspace/api-client-react"
 import { Avatar } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Mail, Phone, Building2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Search, Mail, Phone, Building2, MessageCircle } from "lucide-react"
 import { getStatusLabel } from "@/lib/utils"
 
 export default function Directory() {
+  const navigate = useNavigate()
+  const { toast } = useToast()
   const [search, setSearch] = useState("")
+  const [loadingUserId, setLoadingUserId] = useState<number | null>(null)
   
   // Fetch users and cico statuses (usually backend joins this, but api defines it inside user object)
   const { data, isLoading } = useListUsers({ search, limit: 50 })
   const users = data?.users || []
+
+  async function startDirectChat(userId: number, userName: string) {
+    setLoadingUserId(userId)
+    try {
+      const response = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "direct", memberIds: [userId] }),
+      })
+      if (!response.ok) throw new Error("Gagal membuat conversation")
+      const conversation = await response.json()
+      navigate(`/chat/${conversation.id}`)
+    } catch (error) {
+      toast({ variant: "destructive", title: `Gagal chat dengan ${userName}` })
+    } finally {
+      setLoadingUserId(null)
+    }
+  }
 
   return (
     <AppLayout>
@@ -92,6 +115,19 @@ export default function Directory() {
                           </div>
                         )}
                       </div>
+
+                      <button
+                        onClick={() => startDirectChat(user.id, user.name)}
+                        disabled={loadingUserId === user.id}
+                        className="mt-4 w-full py-2.5 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group-hover:bg-primary/20"
+                      >
+                        {loadingUserId === user.id ? (
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <MessageCircle className="w-4 h-4" />
+                        )}
+                        {loadingUserId === user.id ? "Membuka..." : "Chat"}
+                      </button>
                     </div>
                   )
                 })}

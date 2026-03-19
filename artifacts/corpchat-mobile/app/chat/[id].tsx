@@ -231,6 +231,35 @@ export default function ChatScreen() {
 
   const allMessages: Message[] = [...(data?.messages || []), ...optimisticMessages];
 
+  // Insert date separators between messages from different days
+  const messagesWithSeparators = useCallback(() => {
+    if (allMessages.length === 0) return [];
+
+    const result: any[] = [];
+    let lastDate = "";
+
+    for (let i = 0; i < allMessages.length; i++) {
+      const msg = allMessages[i];
+      const msgDate = new Date(msg.createdAt).toDateString();
+
+      // Add separator if date changed
+      if (msgDate !== lastDate) {
+        result.push({
+          id: `sep_${msgDate}`,
+          type: "date_separator",
+          date: msg.createdAt,
+        });
+        lastDate = msgDate;
+      }
+
+      result.push(msg);
+    }
+
+    return result;
+  }, [allMessages]);
+
+  const displayItems = messagesWithSeparators();
+
   // Handle text input with typing indicator
   const handleTextChange = (newText: string) => {
     setText(newText);
@@ -308,14 +337,28 @@ export default function ChatScreen() {
       ) : (
         <FlatList
           ref={flatRef}
-          data={[...allMessages].reverse()}
-          keyExtractor={(item) => `${item.id}_${item.createdAt}`}
+          data={[...displayItems].reverse()}
+          keyExtractor={(item) => `${item.id}_${item.type === 'date_separator' ? 'sep' : item.createdAt}`}
           inverted
           contentContainerStyle={{ paddingVertical: 12, paddingHorizontal: 16 }}
           renderItem={({ item, index }) => {
+            // Render date separator
+            if (item.type === "date_separator") {
+              return (
+                <View style={[styles.dateSeparator, { marginVertical: 12 }]}>
+                  <Text style={[styles.dateSeparatorText, { color: colors.textSecondary }]}>
+                    {formatDayLabel(item.date)}
+                  </Text>
+                </View>
+              );
+            }
+
+            // Render message bubble
             const isMine = item.senderId === user?.id;
-            const nextMsg = allMessages[allMessages.length - index - 2];
-            const showAvatar = !isMine && (!nextMsg || nextMsg.senderId !== item.senderId);
+            const nextItem = displayItems[displayItems.length - index - 2];
+            const nextMsg = nextItem?.type !== "date_separator" ? nextItem : null;
+            const showAvatar = !isMine && (!nextMsg || nextMsg?.senderId !== item.senderId);
+
             return (
               <MessageBubble
                 msg={item}
@@ -504,4 +547,6 @@ const styles = StyleSheet.create({
   pinnedText: { fontSize: 10, color: "#fff", fontFamily: "Inter_500Medium" },
   typingIndicator: { borderTopWidth: 0.5, paddingHorizontal: 12, paddingVertical: 6 },
   typingText: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
+  dateSeparator: { alignItems: "center", justifyContent: "center", marginVertical: 16 },
+  dateSeparatorText: { fontSize: 12, fontFamily: "Inter_500Medium", letterSpacing: 0.3, textTransform: "capitalize" },
 });

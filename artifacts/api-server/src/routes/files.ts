@@ -18,9 +18,54 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/bmp",
+  "application/pdf",
+  "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain", "text/csv",
+  "audio/mpeg", "audio/wav", "audio/ogg", "audio/webm", "audio/mp4",
+  "video/mp4", "video/webm", "video/quicktime",
+  "application/zip", "application/x-rar-compressed",
+]);
 
-router.post("/upload", requireAuth as any, upload.single("file"), async (req, res) => {
+const BLOCKED_EXTENSIONS = new Set([
+  ".exe", ".bat", ".cmd", ".sh", ".ps1", ".msi", ".dll", ".com", ".scr",
+  ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh", ".pif", ".app", ".action",
+  ".cpl", ".inf", ".reg", ".rgs", ".sct", ".php", ".py", ".rb", ".pl",
+]);
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (BLOCKED_EXTENSIONS.has(ext)) {
+      cb(new Error(`Tipe file '${ext}' tidak diizinkan.`));
+      return;
+    }
+    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+      cb(new Error(`MIME type '${file.mimetype}' tidak diizinkan.`));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+router.post("/upload", requireAuth as any, (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      res.status(400).json({ error: "bad_request", message: err.message });
+      return;
+    }
+    if (err) {
+      res.status(400).json({ error: "bad_request", message: err.message });
+      return;
+    }
+    next();
+  });
+}, async (req, res) => {
   if (!req.file) { res.status(400).json({ error: "bad_request", message: "No file provided" }); return; }
 
   const url = `/api/files/${req.file.filename}`;

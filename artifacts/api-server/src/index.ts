@@ -3,13 +3,7 @@ import app from "./app.js";
 import { initWebSocket } from "./lib/websocket.js";
 import { db, usersTable, cicoStatusTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import crypto from "crypto";
-
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
+import { hashPassword } from "./lib/password.js";
 
 async function ensureSeeded() {
   try {

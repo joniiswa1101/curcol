@@ -158,6 +158,10 @@ router.post("/change-password", requireAuth as any, async (req, res) => {
   }
 
   const [dbUser] = await db.select().from(usersTable).where(eq(usersTable.id, user.id));
+  if (!dbUser) {
+    res.status(404).json({ error: "not_found", message: "User tidak ditemukan" });
+    return;
+  }
   if (!verifyPassword(currentPassword, dbUser.password)) {
     res.status(401).json({ error: "unauthorized", message: "Password lama tidak sesuai" });
     return;

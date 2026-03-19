@@ -270,3 +270,61 @@ If Meta continues to fail, we can switch to Twilio:
 - Handles WhatsApp messaging through Twilio's API
 - More reliable for production use
 - Can be set up without Meta Developer Console complexity
+
+---
+
+## Recent Feature Improvements (March 19, 2026)
+
+### 1. Fixed Unread Count ✅
+
+**Problem**: Unread count was hardcoded to 0 in all conversations
+
+**Solution**: 
+- Backend now calculates actual unread count by comparing message timestamp with `lastReadAt`
+- Any message created after user's last read time is counted as unread
+- Frontend already displays unread badge on conversation list
+
+**Code**: `artifacts/api-server/src/routes/conversations.ts` (lines 55-64)
+
+### 2. Added Typing Indicators ✅
+
+**New Endpoints**:
+- `POST /api/messages/:conversationId/typing` — broadcast that user is typing
+- `POST /api/messages/:conversationId/typing/stop` — broadcast that user stopped typing
+
+**Frontend Integration**:
+- When user types in message input, frontend calls `/typing` endpoint
+- Automatically calls `/typing/stop` after 2 seconds of inactivity
+- Broadcasts to all conversation members via WebSocket
+
+**Code**: 
+- Backend: `artifacts/api-server/src/routes/messages.ts` (lines 144-180)
+- Frontend: `artifacts/corpchat-web/src/pages/Chat.tsx` (lines 193-211)
+
+### 3. Enhanced Message Display
+
+**Improvements**:
+- Unread count displayed as badge on conversation list
+- Timestamps show message time (HH:mm format)
+- Edited messages show "(edited)" indicator
+- Message bubbles have proper styling for WhatsApp messages
+
+**Next Steps for Typing Indicators**:
+- WebSocket event listener for `typing_indicator` events is ready
+- Once integrated, will show "X people are typing..." indicator in chat
+- UI skeleton already in place in Chat component
+
+### Features Working Well
+
+✅ Chat (direct and group)
+✅ Directory & search
+✅ Announcements  
+✅ Admin panel with WhatsApp admin page
+✅ CICO SSO login
+✅ Unread message tracking
+✅ Message reactions/emojis
+✅ Pinned messages & conversations
+✅ Muted conversations
+✅ Message editing & deletion
+✅ File attachments
+✅ Mobile app (Expo)

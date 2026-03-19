@@ -50,7 +50,15 @@ router.get("/", requireAuth as any, async (req, res) => {
     const lastMsg = lastMsgMap.get(conv.id);
 
     const lastReadAt = myMembership?.lastReadAt;
-    const unreadCount = 0;
+    // Calculate unread count: messages created after lastReadAt
+    let unreadCount = 0;
+    if (lastReadAt && lastMsg) {
+      const msgTime = new Date(lastMsg.createdAt).getTime();
+      const readTime = new Date(lastReadAt).getTime();
+      unreadCount = msgTime > readTime ? 1 : 0;
+    } else if (!lastReadAt && lastMsg) {
+      unreadCount = 1; // No lastReadAt means all messages are unread
+    }
 
     return {
       ...conv,
@@ -64,6 +72,7 @@ router.get("/", requireAuth as any, async (req, res) => {
       } : null,
       memberCount,
       unreadCount,
+      lastReadAt,
       isPinned: myMembership?.isPinned || false,
       isMuted: myMembership?.isMuted || false,
     };

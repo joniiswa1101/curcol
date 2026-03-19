@@ -176,6 +176,7 @@ function ChatThread({ conversationId }: { conversationId: number }) {
   
   const [inputText, setInputText] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout>()
 
   const messages = msgData?.messages || []
 
@@ -183,6 +184,27 @@ function ChatThread({ conversationId }: { conversationId: number }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Handle typing indicator on input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value)
+    
+    // Clear previous timeout
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    
+    // Send typing indicator
+    if (e.target.value.trim()) {
+      fetch(`/api/messages/${conversationId}/typing`, { method: 'POST' }).catch(() => {})
+      
+      // Stop typing after 2 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        fetch(`/api/messages/${conversationId}/typing/stop`, { method: 'POST' }).catch(() => {})
+      }, 2000)
+    } else {
+      // Stop typing if input is empty
+      fetch(`/api/messages/${conversationId}/typing/stop`, { method: 'POST' }).catch(() => {})
+    }
+  }
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
@@ -330,6 +352,16 @@ function ChatThread({ conversationId }: { conversationId: number }) {
             )
           })
         )}
+        {typingUsers.size > 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex gap-1">
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span>{Array.from(typingUsers).length} {Array.from(typingUsers).length === 1 ? 'person is' : 'people are'} typing...</span>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -345,7 +377,7 @@ function ChatThread({ conversationId }: { conversationId: number }) {
           
           <textarea
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Type a message..."
             className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:ring-0 py-3 px-2 text-sm custom-scrollbar"
             onKeyDown={(e) => {

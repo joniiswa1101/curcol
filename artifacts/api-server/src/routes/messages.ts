@@ -138,4 +138,42 @@ router.get("/:conversationId/pinned", requireAuth as any, async (req, res) => {
   res.json({ messages: enriched, hasMore: false });
 });
 
+// Typing indicator: broadcast to all members in conversation
+router.post("/:conversationId/typing", requireAuth as any, async (req, res) => {
+  const convId = parseInt(req.params.conversationId);
+  const currentUser = (req as any).user;
+
+  // Verify user is member of conversation
+  const [membership] = await db.select().from(conversationMembersTable)
+    .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
+  if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
+
+  // Broadcast typing indicator to all members
+  const memberIds = await getConversationMemberIds(convId);
+  broadcastToConversation(convId, memberIds, {
+    type: "typing_indicator",
+    data: { userId: currentUser.id, userName: currentUser.name, isTyping: true }
+  });
+
+  res.json({ success: true });
+});
+
+// Stop typing indicator
+router.post("/:conversationId/typing/stop", requireAuth as any, async (req, res) => {
+  const convId = parseInt(req.params.conversationId);
+  const currentUser = (req as any).user;
+
+  const [membership] = await db.select().from(conversationMembersTable)
+    .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
+  if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
+
+  const memberIds = await getConversationMemberIds(convId);
+  broadcastToConversation(convId, memberIds, {
+    type: "typing_indicator",
+    data: { userId: currentUser.id, userName: currentUser.name, isTyping: false }
+  });
+
+  res.json({ success: true });
+});
+
 export default router;

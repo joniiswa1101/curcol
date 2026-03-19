@@ -12,3 +12,9 @@ id = "-HQe015_wZXk4CK7fn3zN"
 uri = "file://.local/gap-checklist.md"
 type = "text"
 title = "Updated Gap Audit Checklist — A1-A5 Complete"
+
+[[outputs]]
+id = "GO02_aztFBTgRZKMaW-6t"
+uri = "file://.local/curcol-comprehensive-audit.md"
+type = "text"
+title = "CurCol Comprehensive Audit Report — v1.1.0"

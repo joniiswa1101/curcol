@@ -182,6 +182,7 @@ export default function ChatScreen() {
   const [editingMsgId, setEditingMsgId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [typingUsers, setTypingUsers] = useState<Map<number, string>>(new Map());
+  const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const flatRef = useRef<FlatList>(null);
   const isWhatsapp = type === "whatsapp";
@@ -194,7 +195,15 @@ export default function ChatScreen() {
 
   const sendMutation = useMutation({
     mutationFn: (content: string) => api.post(`/conversations/${id}/messages`, { content, type: "text" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
+    onSuccess: (newMsg) => {
+      // Replace optimistic message with real one
+      setOptimisticMessages(prev => prev.filter(m => m.id !== (newMsg.id - 0.5)));
+      queryClient.invalidateQueries({ queryKey: ["messages", id] });
+    },
+    onError: (error, content) => {
+      // Remove optimistic message on failure
+      setOptimisticMessages(prev => prev.filter(m => m.content !== content || !m.id.toString().includes('.')));
+    },
   });
 
   const editMutation = useMutation({
@@ -216,7 +225,7 @@ export default function ChatScreen() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
   });
 
-  const messages: Message[] = data?.messages || [];
+  const allMessages: Message[] = [...(data?.messages || []), ...optimisticMessages];
 
   // Handle text input with typing indicator
   const handleTextChange = (newText: string) => {
@@ -242,6 +251,22 @@ export default function ChatScreen() {
     setText("");
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     api.post(`/conversations/${id}/typing/stop`, {}).catch(() => {});
+    
+    // Create optimistic message
+    const optimisticMsg: Message = {
+      id: Math.random() * -1, // Negative ID to mark as optimistic
+      senderId: user?.id || 0,
+      content: trimmed,
+      type: "text",
+      isEdited: false,
+      isDeleted: false,
+      isPinned: false,
+      createdAt: new Date().toISOString(),
+      sender: user ? { name: user.name, avatarUrl: user.avatarUrl, cicoStatus: null } : undefined,
+      reactions: [],
+    };
+    
+    setOptimisticMessages(prev => [...prev, optimisticMsg]);
     sendMutation.mutate(trimmed);
   }
 
@@ -279,13 +304,13 @@ export default function ChatScreen() {
       ) : (
         <FlatList
           ref={flatRef}
-          data={[...messages].reverse()}
-          keyExtractor={(item) => item.id.toString()}
+          data={[...allMessages].reverse()}
+          keyExtractor={(item) => `${item.id}_${item.createdAt}`}
           inverted
           contentContainerStyle={{ paddingVertical: 12, paddingHorizontal: 16 }}
           renderItem={({ item, index }) => {
             const isMine = item.senderId === user?.id;
-            const nextMsg = messages[messages.length - index - 2];
+            const nextMsg = allMessages[allMessages.length - index - 2];
             const showAvatar = !isMine && (!nextMsg || nextMsg.senderId !== item.senderId);
             return (
               <MessageBubble

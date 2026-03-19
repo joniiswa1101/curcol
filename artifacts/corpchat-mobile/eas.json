@@ -7,9 +7,6 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "ios": {
-        "buildType": "simulator"
       }
     },
     "preview": {
@@ -21,15 +18,7 @@
     "production": {
       "distribution": "store",
       "android": {
-        "buildType": "aab"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "android": {
-        "serviceAccount": "keystore.json",
-        "track": "internal"
+        "buildType": "app-bundle"
       }
     }
   }

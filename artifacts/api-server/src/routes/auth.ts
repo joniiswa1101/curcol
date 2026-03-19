@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, cicoStatusTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
-import { createSession, refreshSession, requireAuth } from "../lib/auth.js";
+import { createSession, refreshSession, requireAuth, requireAdmin } from "../lib/auth.js";
 import { verifyPassword, hashPassword } from "../lib/password.js";
 import { validatePasswordComplexity, getPasswordRequirements } from "../lib/password-rules.js";
 import { logAudit } from "../lib/audit.js";
 import { loginWithCICO } from "../lib/cico.js";
 import { generateTOTPSecret, getTOTPUri, generateQRCodeDataURL, verifyTOTPToken } from "../lib/totp.js";
 import { is2FASystemEnabled, getSetting, setSetting } from "../lib/settings.js";
+import { recordLoginAttempt, isUserLockedOut, resetFailedAttempts, unlockUserByAdmin, getMaxFailedAttempts, getLockoutDurationMinutes, getFailedAttemptsCount } from "../lib/brute-force.js";
 
 const router = Router();
 
@@ -112,6 +113,8 @@ router.post("/login", async (req, res) => {
     return;
   }
 
+  const ipAddress = (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() || req.socket.remoteAddress || "unknown";
+
   const [user] = await db.select().from(usersTable).where(
     or(
       eq(usersTable.employeeId, employeeId),
@@ -124,13 +127,26 @@ router.post("/login", async (req, res) => {
     return;
   }
 
+  // Check if user is locked out due to too many failed attempts
+  const lockedOut = await isUserLockedOut(user.id);
+  if (lockedOut) {
+    await logAudit({ userId: user.id, action: "login_failed_account_locked", entityType: "session", req });
+    res.status(429).json({
+      error: "account_locked",
+      message: `Akun terkunci karena terlalu banyak login gagal. Coba lagi dalam ${getLockoutDurationMinutes()} menit atau hubungi administrator.`,
+    });
+    return;
+  }
+
   if (!user.isActive) {
     res.status(401).json({ error: "unauthorized", message: "Akun tidak aktif. Hubungi administrator." });
     return;
   }
 
   if (!verifyPassword(password, user.password)) {
-    await logAudit({ userId: user.id, action: "login_failed", entityType: "session", req });
+    await recordLoginAttempt(user.id, ipAddress, false);
+    const failedCount = await getFailedAttemptsCount(user.id);
+    await logAudit({ userId: user.id, action: "login_failed", entityType: "session", details: { failedAttempts: failedCount }, req });
     res.status(401).json({ error: "unauthorized", message: "Employee ID atau password salah" });
     return;
   }
@@ -160,12 +176,40 @@ router.post("/login", async (req, res) => {
   }
 
   const tokenPair = await createSession(user.id);
+  await recordLoginAttempt(user.id, ipAddress, true);
+  await resetFailedAttempts(user.id);
   await logAudit({ userId: user.id, action: "login", entityType: "session", req });
 
   res.json({
     user: await buildUserResponse(user),
     ...buildTokenResponse(tokenPair),
   });
+});
+
+router.post("/unlock-account", requireAuth as any, requireAdmin as any, async (req, res) => {
+  const { targetEmployeeId } = req.body;
+  if (!targetEmployeeId) {
+    res.status(400).json({ error: "bad_request", message: "Target employee ID wajib diisi" });
+    return;
+  }
+
+  const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.employeeId, targetEmployeeId));
+  if (!targetUser) {
+    res.status(404).json({ error: "not_found", message: "User tidak ditemukan" });
+    return;
+  }
+
+  await unlockUserByAdmin(targetUser.id);
+  const user = (req as any).user;
+  await logAudit({
+    userId: user.id,
+    action: "unlock_account",
+    entityType: "user",
+    entityId: targetUser.id,
+    req,
+  });
+
+  res.json({ success: true, message: `Akun ${targetEmployeeId} berhasil di-unlock` });
 });
 
 router.post("/logout", requireAuth as any, async (req, res) => {

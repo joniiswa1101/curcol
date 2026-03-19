@@ -197,7 +197,8 @@ function ChatThread({ conversationId }: { conversationId: number }) {
     }, {
       onSuccess: () => {
         setInputText("")
-        // Don't invalidate - let staleTime handle updates
+        // Refetch messages to show the new message
+        queryClient.invalidateQueries({ queryKey: ["listMessages", conversationId] })
       }
     })
   }

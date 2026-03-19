@@ -18,3 +18,9 @@ id = "GO02_aztFBTgRZKMaW-6t"
 uri = "file://.local/curcol-comprehensive-audit.md"
 type = "text"
 title = "CurCol Comprehensive Audit Report — v1.1.0"
+
+[[outputs]]
+id = "uph6Hp_eCWZPBI05q4was"
+uri = "file://.local/curcol-web-checklist.md"
+type = "text"
+title = "CurCol Web Version - Feature Checklist"

@@ -50,7 +50,8 @@ interface BubbleProps {
   showAvatar: boolean;
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar }: BubbleProps) {
+function MessageBubble({ msg, isMine, colors, showAvatar, onEdit }: BubbleProps & { onEdit?: (msg: Message) => void }) {
+  const [showMenu, setShowMenu] = useState(false);
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
 
@@ -74,7 +75,7 @@ function MessageBubble({ msg, isMine, colors, showAvatar }: BubbleProps) {
         <View style={{ width: 30 }} />
       ) : null}
 
-      <View style={[styles.bubbleWrap, isMine && styles.bubbleWrapMine]}>
+      <Pressable onLongPress={() => setShowMenu(true)} style={[styles.bubbleWrap, isMine && styles.bubbleWrapMine]}>
         {!isMine && showAvatar && (
           <Text style={[styles.senderName, { color: colors.textSecondary }]}>
             {isFromWa ? `📱 ${msg.sender?.name || "WhatsApp"}` : (msg.sender?.name || "")}
@@ -125,7 +126,21 @@ function MessageBubble({ msg, isMine, colors, showAvatar }: BubbleProps) {
             ))}
           </View>
         )}
-      </View>
+      </Pressable>
+
+      {showMenu && isMine && (
+        <Pressable onPress={() => setShowMenu(false)} style={styles.menuBtn}>
+          <Feather
+            name="edit-2"
+            size={16}
+            color={colors.primary}
+            onPress={() => {
+              onEdit?.(msg);
+              setShowMenu(false);
+            }}
+          />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -139,6 +154,8 @@ export default function ChatScreen() {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [editingMsgId, setEditingMsgId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
   const flatRef = useRef<FlatList>(null);
   const isWhatsapp = type === "whatsapp";
 
@@ -151,6 +168,15 @@ export default function ChatScreen() {
   const sendMutation = useMutation({
     mutationFn: (content: string) => api.post(`/conversations/${id}/messages`, { content, type: "text" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: (content: string) => api.patch(`/conversations/${id}/messages/${editingMsgId}`, { content }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages", id] });
+      setEditingMsgId(null);
+      setEditText("");
+    },
   });
 
   const messages: Message[] = data?.messages || [];
@@ -204,7 +230,18 @@ export default function ChatScreen() {
             const isMine = item.senderId === user?.id;
             const nextMsg = messages[messages.length - index - 2];
             const showAvatar = !isMine && (!nextMsg || nextMsg.senderId !== item.senderId);
-            return <MessageBubble msg={item} isMine={isMine} colors={colors} showAvatar={showAvatar} />;
+            return (
+              <MessageBubble
+                msg={item}
+                isMine={isMine}
+                colors={colors}
+                showAvatar={showAvatar}
+                onEdit={(msg) => {
+                  setEditingMsgId(msg.id);
+                  setEditText(msg.content || "");
+                }}
+              />
+            );
           }}
           onLayout={() => flatRef.current?.scrollToOffset({ offset: 0, animated: false })}
           ListEmptyComponent={() => (
@@ -266,6 +303,46 @@ export default function ChatScreen() {
           onClose={() => setShowEmojiPicker(false)}
         />
       </View>
+
+      {/* Edit Modal */}
+      {editingMsgId !== null && (
+        <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+          <View style={[styles.editModal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.editTitle, { color: colors.text }]}>Edit Pesan</Text>
+            <TextInput
+              style={[styles.editInput, { backgroundColor: colors.surfaceSecondary, color: colors.text, borderColor: colors.border }]}
+              multiline
+              placeholder="Ketik pesan baru..."
+              placeholderTextColor={colors.textSecondary}
+              value={editText}
+              onChangeText={setEditText}
+              maxLength={2000}
+            />
+            <View style={styles.editActions}>
+              <Pressable
+                onPress={() => {
+                  setEditingMsgId(null);
+                  setEditText("");
+                }}
+                style={[styles.editBtn, { backgroundColor: colors.surfaceSecondary }]}
+              >
+                <Text style={[styles.editBtnText, { color: colors.text }]}>Batal</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => editMutation.mutate(editText.trim())}
+                disabled={!editText.trim() || editMutation.isPending}
+                style={[styles.editBtn, { backgroundColor: colors.primary, opacity: !editText.trim() || editMutation.isPending ? 0.5 : 1 }]}
+              >
+                {editMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={[styles.editBtnText, { color: "#fff" }]}>Simpan</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -318,4 +395,12 @@ const styles = StyleSheet.create({
     fontSize: 15, fontFamily: "Inter_400Regular", maxHeight: 120,
   },
   sendBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  menuBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  modalOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", zIndex: 1000 },
+  editModal: { width: "85%", borderRadius: 12, padding: 16, gap: 12, borderWidth: 0.5 },
+  editTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  editInput: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, fontFamily: "Inter_400Regular", minHeight: 80, borderWidth: 0.5, maxHeight: 150 },
+  editActions: { flexDirection: "row", gap: 12, justifyContent: "flex-end" },
+  editBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, minWidth: 80, alignItems: "center" },
+  editBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });

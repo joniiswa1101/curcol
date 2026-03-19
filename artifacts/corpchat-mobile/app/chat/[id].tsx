@@ -10,7 +10,7 @@ import { Feather } from "@expo/vector-icons";
 import { format, isToday, isYesterday } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import Colors from "@/constants/colors";
-import { api } from "@/lib/api";
+import { api, APIError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar } from "@/components/UserAvatar";
 import { CicoStatusBadge } from "@/components/CicoStatusBadge";
@@ -207,6 +207,14 @@ export default function ChatScreen() {
     onError: (error, content) => {
       // Remove optimistic message on failure
       setOptimisticMessages(prev => prev.filter(m => m.content !== content || !m.id.toString().includes('.')));
+      // Handle 429 rate limit error
+      if (error instanceof APIError && error.status === 429) {
+        Alert.alert(
+          "Terlalu Banyak Pesan",
+          "Anda telah mengirim terlalu banyak pesan dalam waktu singkat. Coba lagi dalam beberapa detik.",
+          [{ text: "OK" }]
+        );
+      }
     },
   });
 
@@ -217,16 +225,31 @@ export default function ChatScreen() {
       setEditingMsgId(null);
       setEditText("");
     },
+    onError: (error) => {
+      if (error instanceof APIError && error.status === 429) {
+        Alert.alert("Terlalu Banyak Permintaan", "Coba lagi dalam beberapa detik.", [{ text: "OK" }]);
+      }
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (msgId: number) => api.delete(`/conversations/${id}/messages/${msgId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
+    onError: (error) => {
+      if (error instanceof APIError && error.status === 429) {
+        Alert.alert("Terlalu Banyak Permintaan", "Coba lagi dalam beberapa detik.", [{ text: "OK" }]);
+      }
+    },
   });
 
   const pinMutation = useMutation({
     mutationFn: (msgId: number) => api.patch(`/conversations/${id}/messages/${msgId}/pin`, {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
+    onError: (error) => {
+      if (error instanceof APIError && error.status === 429) {
+        Alert.alert("Terlalu Banyak Permintaan", "Coba lagi dalam beberapa detik.", [{ text: "OK" }]);
+      }
+    },
   });
 
   const allMessages: Message[] = [...(data?.messages || []), ...optimisticMessages];

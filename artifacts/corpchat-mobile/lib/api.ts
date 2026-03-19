@@ -16,6 +16,13 @@ async function getToken(): Promise<string | null> {
   return AsyncStorage.getItem("auth_token");
 }
 
+export class APIError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = "APIError";
+  }
+}
+
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = await getToken();
   const headers: Record<string, string> = {
@@ -26,7 +33,7 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(`${BASE_URL}/api${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(err.message || "Request failed");
+    throw new APIError(res.status, err.message || "Request failed");
   }
   return res.json();
 }

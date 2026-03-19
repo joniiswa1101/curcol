@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation } from "wouter"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { useListUsers, useGetCicoStatuses } from "@workspace/api-client-react"
 import { Avatar } from "@/components/ui/avatar"
@@ -10,7 +10,7 @@ import { Search, Mail, Phone, Building2, MessageCircle } from "lucide-react"
 import { getStatusLabel } from "@/lib/utils"
 
 export default function Directory() {
-  const navigate = useNavigate()
+  const [, navigate] = useLocation()
   const { toast } = useToast()
   const [search, setSearch] = useState("")
   const [loadingUserId, setLoadingUserId] = useState<number | null>(null)

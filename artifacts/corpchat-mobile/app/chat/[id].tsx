@@ -50,7 +50,7 @@ interface BubbleProps {
   showAvatar: boolean;
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete }: BubbleProps & { onEdit?: (msg: Message) => void; onDelete?: (msgId: number) => void }) {
+function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPin }: BubbleProps & { onEdit?: (msg: Message) => void; onDelete?: (msgId: number) => void; onPin?: (msgId: number) => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
@@ -86,7 +86,14 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete }: Bu
           { backgroundColor: bubbleBg },
           isMine ? styles.bubbleMine : styles.bubbleOther,
           isFromWa && !isMine && styles.bubbleWhatsapp,
+          msg.isPinned && { borderLeftWidth: 3, borderLeftColor: "#f59e0b" },
         ]}>
+          {msg.isPinned && (
+            <View style={styles.pinnedBadge}>
+              <Feather name="pin" size={10} color="#fff" />
+              <Text style={styles.pinnedText}>Pinned</Text>
+            </View>
+          )}
           {isFromWa && (
             <View style={styles.waTag}>
               <Feather name="phone" size={9} color="#25D366" />
@@ -136,6 +143,15 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete }: Bu
             color={colors.primary}
             onPress={() => {
               onEdit?.(msg);
+              setShowMenu(false);
+            }}
+          />
+          <Feather
+            name={msg.isPinned ? "pin" : "pin"}
+            size={16}
+            color={msg.isPinned ? "#f59e0b" : colors.textSecondary}
+            onPress={() => {
+              onPin?.(msg.id);
               setShowMenu(false);
             }}
           />
@@ -190,6 +206,11 @@ export default function ChatScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: (msgId: number) => api.delete(`/conversations/${id}/messages/${msgId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: (msgId: number) => api.patch(`/conversations/${id}/messages/${msgId}/pin`, {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
   });
 
@@ -255,6 +276,7 @@ export default function ChatScreen() {
                   setEditText(msg.content || "");
                 }}
                 onDelete={(msgId) => deleteMutation.mutate(msgId)}
+                onPin={(msgId) => pinMutation.mutate(msgId)}
               />
             );
           }}
@@ -418,4 +440,6 @@ const styles = StyleSheet.create({
   editActions: { flexDirection: "row", gap: 12, justifyContent: "flex-end" },
   editBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, minWidth: 80, alignItems: "center" },
   editBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  pinnedBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#f59e0b", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, alignSelf: "flex-start", marginBottom: 4 },
+  pinnedText: { fontSize: 10, color: "#fff", fontFamily: "Inter_500Medium" },
 });

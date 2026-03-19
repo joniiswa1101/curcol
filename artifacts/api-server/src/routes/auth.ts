@@ -9,6 +9,7 @@ import { loginWithCICO } from "../lib/cico.js";
 import { generateTOTPSecret, getTOTPUri, generateQRCodeDataURL, verifyTOTPToken } from "../lib/totp.js";
 import { is2FASystemEnabled, getSetting, setSetting } from "../lib/settings.js";
 import { recordLoginAttempt, isUserLockedOut, resetFailedAttempts, unlockUserByAdmin, getMaxFailedAttempts, getLockoutDurationMinutes, getFailedAttemptsCount } from "../lib/brute-force.js";
+import { runAllRetentionPolicies, getRetentionSummary } from "../lib/data-retention.js";
 
 const router = Router();
 
@@ -476,6 +477,39 @@ router.post("/2fa/admin-reset", requireAuth as any, async (req, res) => {
   });
 
   res.json({ success: true, message: `2FA untuk ${targetEmployeeId} berhasil direset` });
+});
+
+router.post("/data-retention/run", requireAuth as any, requireAdmin as any, async (req, res) => {
+  const { auditLogs, loginAttempts, cicoRecords } = req.body;
+  const policies = {};
+  if (typeof auditLogs === 'number') policies.auditLogs = auditLogs;
+  if (typeof loginAttempts === 'number') policies.loginAttempts = loginAttempts;
+  if (typeof cicoRecords === 'number') policies.cicoRecords = cicoRecords;
+
+  const user = (req as any).user;
+  const result = await runAllRetentionPolicies(policies);
+
+  await logAudit({
+    userId: user.id,
+    action: "data_retention_executed",
+    entityType: "system",
+    details: result.results as any,
+    req,
+  });
+
+  res.json({
+    success: result.success,
+    timestamp: result.timestamp,
+    results: result.results,
+    policies: result.policies,
+  });
+});
+
+router.get("/data-retention/policy", requireAuth as any, requireAdmin as any, async (req, res) => {
+  res.json({
+    summary: getRetentionSummary(),
+    message: "Data retention policies define how long data is kept before automatic deletion.",
+  });
 });
 
 router.get("/test-cico-health", async (req, res) => {

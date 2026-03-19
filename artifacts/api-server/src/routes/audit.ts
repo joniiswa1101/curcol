@@ -88,9 +88,18 @@ router.get("/stats", requireAdmin as any, async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const lastWeekStart = new Date(today);
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const prevWeekStart = new Date(lastWeekStart);
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+
   const [
     totalMsgResult, totalUsersResult, activeUsersTodayResult, totalConvsResult,
-    messagesPerDayResult, topUsersResult
+    messagesPerDayResult, topUsersResult,
+    msgThisWeek, msgLastWeek,
+    messagesTodayResult,
+    actionDistributionResult,
+    loginActivityResult
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(messagesTable),
     db.select({ count: sql<number>`count(*)` }).from(usersTable).where(eq(usersTable.isActive, true)),
@@ -111,18 +120,53 @@ router.get("/stats", requireAdmin as any, async (req, res) => {
       ORDER BY "messageCount" DESC
       LIMIT 10
     `),
+    db.select({ count: sql<number>`count(*)` }).from(messagesTable).where(gte(messagesTable.createdAt, lastWeekStart)),
+    db.select({ count: sql<number>`count(*)` }).from(messagesTable).where(and(gte(messagesTable.createdAt, prevWeekStart), lte(messagesTable.createdAt, lastWeekStart))),
+    db.select({ count: sql<number>`count(*)` }).from(messagesTable).where(gte(messagesTable.createdAt, today)),
+    db.execute(sql`
+      SELECT action, COUNT(*) as count
+      FROM audit_logs
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY action
+      ORDER BY count DESC
+      LIMIT 15
+    `),
+    db.execute(sql`
+      SELECT DATE(created_at) as date, COUNT(*) as count
+      FROM audit_logs
+      WHERE action IN ('login_success', 'login_failed', 'sso_login_success')
+        AND created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(created_at)
+      ORDER BY date
+    `),
   ]);
+
+  const thisWeekCount = Number(msgThisWeek[0].count);
+  const lastWeekCount = Number(msgLastWeek[0].count);
+  const weeklyTrend = lastWeekCount > 0
+    ? Math.round(((thisWeekCount - lastWeekCount) / lastWeekCount) * 100)
+    : 0;
 
   res.json({
     totalMessages: Number(totalMsgResult[0].count),
     totalUsers: Number(totalUsersResult[0].count),
     activeUsersToday: Number(activeUsersTodayResult[0].count),
     totalConversations: Number(totalConvsResult[0].count),
+    messagesToday: Number(messagesTodayResult[0].count),
+    weeklyTrend,
     messagesPerDay: (messagesPerDayResult.rows || []).map((r: any) => ({ date: r.date, count: Number(r.count) })),
     topActiveUsers: (topUsersResult.rows || []).map((r: any) => ({
       userId: r.userId,
       name: r.name,
       messageCount: Number(r.messageCount),
+    })),
+    actionDistribution: (actionDistributionResult.rows || []).map((r: any) => ({
+      action: r.action,
+      count: Number(r.count),
+    })),
+    loginActivity: (loginActivityResult.rows || []).map((r: any) => ({
+      date: r.date,
+      count: Number(r.count),
     })),
   });
 });

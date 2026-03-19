@@ -2,15 +2,18 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, FlatList, Pressable, TextInput, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform, useColorScheme, Alert,
+  ScrollView, Image,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { format, isToday, isYesterday } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import Colors from "@/constants/colors";
 import { api, APIError } from "@/lib/api";
+import { validateFile, getFileIcon } from "@/lib/upload-config";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar } from "@/components/UserAvatar";
 import { CicoStatusBadge } from "@/components/CicoStatusBadge";
@@ -184,6 +187,9 @@ export default function ChatScreen() {
   const [editText, setEditText] = useState("");
   const [typingUsers, setTypingUsers] = useState<Map<number, string>>(new Map());
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
+  const [pendingFile, setPendingFile] = useState<any>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const flatRef = useRef<FlatList>(null);
   const isWhatsapp = type === "whatsapp";
@@ -252,6 +258,73 @@ export default function ChatScreen() {
     },
   });
 
+  // File upload handler
+  const handleFileSelect = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset.uri) return;
+
+      setUploadError(null);
+
+      // Validate file
+      const validation = validateFile(asset.uri, asset.mimeType || "application/octet-stream", asset.fileSize || 0);
+      if (!validation.valid) {
+        setUploadError(validation.error || "File tidak valid");
+        return;
+      }
+
+      // Upload file
+      setUploading(true);
+      const formData = new FormData();
+      formData.append("file", {
+        uri: asset.uri,
+        name: asset.filename || "file",
+        type: asset.mimeType || "application/octet-stream",
+      } as any);
+
+      const response = await fetch(`${getBaseUrl()}/api/files/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user?.token || (await (await import("@react-native-async-storage/async-storage")).default.getItem("auth_token")) || ""}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Upload gagal" }));
+        throw new Error(error.message || "Upload gagal");
+      }
+
+      const data = await response.json();
+      setPendingFile({
+        id: data.id,
+        fileName: data.fileName,
+        fileSize: data.fileSize,
+        mimeType: data.mimeType,
+        url: data.url,
+        localUri: asset.uri,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload gagal";
+      setUploadError(message);
+    } finally {
+      setUploading(false);
+    }
+  }, [user?.token]);
+
+  const getBaseUrl = useCallback(() => {
+    if (Platform.OS === "web") return "";
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    return domain ? `https://${domain}` : "";
+  }, []);
+
   const allMessages: Message[] = [...(data?.messages || []), ...optimisticMessages];
 
   // Insert date separators between messages from different days
@@ -284,6 +357,37 @@ export default function ChatScreen() {
   const displayItems = messagesWithSeparators();
 
   // Handle text input with typing indicator
+  const handleSend = useCallback(() => {
+    const content = text.trim();
+    if (!content && !pendingFile) return;
+    if (sendMutation.isPending) return;
+
+    const msgData = {
+      content: content || (pendingFile ? `📎 ${pendingFile.fileName}` : ""),
+      type: "text",
+    };
+
+    setText("");
+    const fileToSend = pendingFile;
+    setPendingFile(null);
+
+    const tempId = Date.now() + Math.random();
+    const optimisticMessage: Message = {
+      id: tempId - 0.5,
+      senderId: user?.id || 0,
+      content: msgData.content,
+      type: "text",
+      isEdited: false,
+      isDeleted: false,
+      isPinned: false,
+      createdAt: new Date().toISOString(),
+      sender: { name: user?.name || "You" },
+    };
+
+    setOptimisticMessages((prev) => [...prev, optimisticMessage]);
+    sendMutation.mutate(msgData.content);
+  }, [text, pendingFile, sendMutation, user]);
+
   const handleTextChange = (newText: string) => {
     setText(newText);
     
@@ -418,6 +522,33 @@ export default function ChatScreen() {
 
       {/* Input */}
       <View style={[styles.inputArea, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + 4 }]}>
+        {/* Upload error alert */}
+        {uploadError && (
+          <View style={[styles.errorBanner, { backgroundColor: colors.errorBg || "#fee2e2", borderColor: colors.error || "#ef4444" }]}>
+            <Feather name="alert-circle" size={14} color={colors.error || "#ef4444"} />
+            <Text style={[styles.errorText, { color: colors.error || "#ef4444", flex: 1, marginLeft: 8 }]} numberOfLines={2}>{uploadError}</Text>
+            <Pressable onPress={() => setUploadError(null)} hitSlop={6}>
+              <Feather name="x" size={16} color={colors.error || "#ef4444"} />
+            </Pressable>
+          </View>
+        )}
+
+        {/* File preview */}
+        {pendingFile && (
+          <View style={[styles.filePreview, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+            <Text style={[styles.fileIcon, { fontSize: 24 }]}>{getFileIcon(pendingFile.mimeType)}</Text>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={1}>{pendingFile.fileName}</Text>
+              <Text style={[styles.fileSize, { color: colors.textSecondary, fontSize: 12 }]}>
+                {pendingFile.fileSize ? (pendingFile.fileSize / 1024).toFixed(0) + " KB" : ""}
+              </Text>
+            </View>
+            <Pressable onPress={() => setPendingFile(null)} hitSlop={6}>
+              <Feather name="x" size={18} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        )}
+
         {isWhatsapp && (
           <View style={[styles.waInputHint, { backgroundColor: "#e8fce8" }]}>
             <Feather name="phone" size={12} color="#25D366" />
@@ -425,8 +556,17 @@ export default function ChatScreen() {
           </View>
         )}
         <View style={styles.inputRow}>
-          <Pressable style={styles.attachBtn} hitSlop={6}>
-            <Feather name="paperclip" size={20} color={colors.textSecondary} />
+          <Pressable 
+            onPress={handleFileSelect}
+            disabled={uploading}
+            style={[styles.attachBtn, { opacity: uploading ? 0.5 : 1 }]} 
+            hitSlop={6}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Feather name="paperclip" size={20} color={colors.textSecondary} />
+            )}
           </Pressable>
           <Pressable
             onPress={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -446,10 +586,10 @@ export default function ChatScreen() {
           />
           <Pressable
             onPress={send}
-            disabled={!text.trim() || sendMutation.isPending}
+            disabled={(!text.trim() && !pendingFile) || sendMutation.isPending}
             style={({ pressed }) => [
               styles.sendBtn,
-              { backgroundColor: text.trim() ? (isWhatsapp ? "#25D366" : colors.primary) : colors.border, opacity: pressed ? 0.8 : 1 },
+              { backgroundColor: (text.trim() || pendingFile) ? (isWhatsapp ? "#25D366" : colors.primary) : colors.border, opacity: pressed ? 0.8 : 1 },
             ]}
           >
             {sendMutation.isPending ? (
@@ -546,6 +686,12 @@ const styles = StyleSheet.create({
   reactionEmoji: { fontSize: 13 },
   reactionCount: { fontSize: 11, fontFamily: "Inter_500Medium" },
   inputArea: { borderTopWidth: 0.5, paddingBottom: 4 },
+  errorBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, marginHorizontal: 12, marginTop: 8, marginBottom: 4, borderRadius: 8, borderWidth: 0.5 },
+  errorText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  filePreview: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10, marginHorizontal: 12, marginTop: 4, marginBottom: 8, borderRadius: 8, borderWidth: 0.5 },
+  fileIcon: { textAlign: "center" },
+  fileName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  fileSize: { fontFamily: "Inter_400Regular" },
   waInputHint: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 6 },
   waInputHintText: { fontSize: 11, color: "#25D366", fontFamily: "Inter_400Regular" },
   inputRow: {

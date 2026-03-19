@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { db, attachmentsTable } from "@workspace/db";
 import { requireAuth } from "../lib/auth.js";
+import { validateFileMagicBytes, hasDoubleExtension, deleteFileIfExists } from "../lib/fileValidator.js";
+import { logAudit } from "../lib/audit.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -14,7 +16,8 @@ const storage = multer.diskStorage({
   destination: uploadDir,
   filename: (_req, file, cb) => {
     const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, unique + ext);
   },
 });
 
@@ -49,6 +52,10 @@ const upload = multer({
       cb(new Error(`MIME type '${file.mimetype}' tidak diizinkan.`));
       return;
     }
+    if (hasDoubleExtension(file.originalname)) {
+      cb(new Error("Nama file dengan double extension tidak diizinkan."));
+      return;
+    }
     cb(null, true);
   },
 });
@@ -56,6 +63,10 @@ const upload = multer({
 router.post("/upload", requireAuth as any, (req, res, next) => {
   upload.single("file")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        res.status(400).json({ error: "bad_request", message: "Ukuran file maksimal 10MB" });
+        return;
+      }
       res.status(400).json({ error: "bad_request", message: err.message });
       return;
     }
@@ -66,7 +77,38 @@ router.post("/upload", requireAuth as any, (req, res, next) => {
     next();
   });
 }, async (req, res) => {
-  if (!req.file) { res.status(400).json({ error: "bad_request", message: "No file provided" }); return; }
+  if (!req.file) {
+    res.status(400).json({ error: "bad_request", message: "No file provided" });
+    return;
+  }
+
+  const filePath = req.file.path;
+
+  const validation = validateFileMagicBytes(filePath, req.file.mimetype);
+  if (!validation.valid) {
+    deleteFileIfExists(filePath);
+
+    const user = (req as any).user;
+    if (user) {
+      await logAudit({
+        userId: user.id,
+        action: "file_upload_blocked",
+        entityType: "file",
+        details: {
+          fileName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          reason: validation.reason,
+        },
+        req,
+      });
+    }
+
+    res.status(400).json({
+      error: "file_rejected",
+      message: validation.reason || "File tidak lolos validasi keamanan",
+    });
+    return;
+  }
 
   const url = `/api/files/${req.file.filename}`;
   const [attachment] = await db.insert(attachmentsTable).values({
@@ -77,6 +119,22 @@ router.post("/upload", requireAuth as any, (req, res, next) => {
     createdAt: new Date(),
   }).returning();
 
+  const user = (req as any).user;
+  if (user) {
+    await logAudit({
+      userId: user.id,
+      action: "file_uploaded",
+      entityType: "file",
+      entityId: attachment.id,
+      details: {
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+      },
+      req,
+    });
+  }
+
   res.json({
     id: attachment.id,
     fileName: attachment.fileName,
@@ -86,9 +144,18 @@ router.post("/upload", requireAuth as any, (req, res, next) => {
   });
 });
 
-router.get("/:filename", (req, res) => {
-  const filePath = path.join(process.cwd(), "uploads", req.params.filename);
+router.get("/:filename", requireAuth as any, (req, res) => {
+  const filename = path.basename(req.params.filename);
+
+  if (filename !== req.params.filename || filename.includes("..")) {
+    res.status(400).json({ error: "bad_request", message: "Nama file tidak valid" });
+    return;
+  }
+
+  const filePath = path.join(process.cwd(), "uploads", filename);
   if (fs.existsSync(filePath)) {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", "inline");
     res.sendFile(path.resolve(filePath));
   } else {
     res.status(404).json({ error: "not_found" });

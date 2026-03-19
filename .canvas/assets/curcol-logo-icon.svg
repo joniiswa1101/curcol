@@ -1,0 +1,37 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="purpleGradIcon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d8b4fe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+    <filter id="iconShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+  
+  <!-- Main bubble -->
+  <path d="M 15 25 Q 15 12 27 12 L 93 12 Q 105 12 105 25 L 105 75 Q 105 88 93 88 L 65 88 L 50 105 L 70 88 L 93 88 Q 105 88 105 75 L 105 25 Q 105 12 93 12" 
+        fill="url(#purpleGradIcon)" opacity="0.15" filter="url(#iconShadow)"/>
+  
+  <!-- Outer bubble stroke -->
+  <path d="M 17 27 Q 17 14 27 14 L 93 14 Q 103 14 103 27 L 103 75 Q 103 86 93 86 L 65 86 L 50 102 L 70 86 L 93 86 Q 103 86 103 75 L 103 27 Q 103 14 93 14" 
+        fill="none" stroke="url(#purpleGradIcon)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- People inside bubble -->
+  <!-- Person 1 (left) -->
+  <circle cx="38" cy="33" r="5" fill="url(#purpleGradIcon)"/>
+  <path d="M 32 42 Q 32 39 38 39 Q 44 39 44 42 L 44 58 Q 44 60 42 60 L 34 60 Q 32 60 32 58 Z" fill="url(#purpleGradIcon)"/>
+  
+  <!-- Person 2 (center) -->
+  <circle cx="60" cy="30" r="6" fill="url(#purpleGradIcon)"/>
+  <path d="M 52 41 Q 52 38 60 38 Q 68 38 68 41 L 68 62 Q 68 64 66 64 L 54 64 Q 52 64 52 62 Z" fill="url(#purpleGradIcon)"/>
+  
+  <!-- Person 3 (right) -->
+  <circle cx="82" cy="33" r="5" fill="url(#purpleGradIcon)"/>
+  <path d="M 76 42 Q 76 39 82 39 Q 88 39 88 42 L 88 58 Q 88 60 86 60 L 78 60 Q 76 60 76 58 Z" fill="url(#purpleGradIcon)"/>
+  
+  <!-- Chat dots -->
+  <circle cx="48" cy="72" r="2.2" fill="url(#purpleGradIcon)" opacity="0.6"/>
+  <circle cx="60" cy="74" r="2.8" fill="url(#purpleGradIcon)" opacity="0.8"/>
+  <circle cx="72" cy="72" r="2.2" fill="url(#purpleGradIcon)" opacity="0.6"/>
+</svg>

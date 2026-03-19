@@ -1,0 +1,52 @@
+<svg viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="purpleGradFinal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d8b4fe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+    <style>
+      .curcol-text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .curcol-title { font-size: 48px; font-weight: 700; fill: #1f2937; letter-spacing: -0.5px; }
+      .curcol-tagline { font-size: 12px; fill: #6b7280; letter-spacing: 0.5px; }
+    </style>
+  </defs>
+  
+  <!-- Main bubble container with subtle shadow effect -->
+  <defs>
+    <filter id="bubbleShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  
+  <!-- Main bubble -->
+  <path d="M 20 30 Q 20 20 32 20 L 88 20 Q 100 20 100 32 L 100 70 Q 100 82 88 82 L 65 82 L 55 95 L 70 82 L 88 82 Q 100 82 100 70 L 100 32 Q 100 20 88 20" 
+        fill="url(#purpleGradFinal)" opacity="0.15" filter="url(#bubbleShadow)"/>
+  
+  <!-- Outer bubble stroke (elegant) -->
+  <path d="M 22 32 Q 22 24 32 24 L 88 24 Q 98 24 98 32 L 98 70 Q 98 80 88 80 L 65 80 L 55 92 L 70 80 L 88 80 Q 98 80 98 70 L 98 32 Q 98 24 88 24" 
+        fill="none" stroke="url(#purpleGradFinal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- People inside bubble (silhouettes with detail) -->
+  <!-- Person 1 (left) -->
+  <circle cx="40" cy="35" r="4.5" fill="url(#purpleGradFinal)"/>
+  <path d="M 35 43 Q 35 40 40 40 Q 45 40 45 43 L 45 56 Q 45 57 44 57 L 36 57 Q 35 57 35 56 Z" fill="url(#purpleGradFinal)"/>
+  
+  <!-- Person 2 (center - slightly taller) -->
+  <circle cx="60" cy="32" r="5.5" fill="url(#purpleGradFinal)"/>
+  <path d="M 53 42 Q 53 40 60 40 Q 67 40 67 42 L 67 59 Q 67 60 66 60 L 54 60 Q 53 60 53 59 Z" fill="url(#purpleGradFinal)"/>
+  
+  <!-- Person 3 (right) -->
+  <circle cx="80" cy="35" r="4.5" fill="url(#purpleGradFinal)"/>
+  <path d="M 75 43 Q 75 40 80 40 Q 85 40 85 43 L 85 56 Q 85 57 84 57 L 76 57 Q 75 57 75 56 Z" fill="url(#purpleGradFinal)"/>
+  
+  <!-- Chat indicator dots (message animation reference) -->
+  <circle cx="50" cy="68" r="2" fill="url(#purpleGradFinal)" opacity="0.6"/>
+  <circle cx="60" cy="70" r="2.5" fill="url(#purpleGradFinal)" opacity="0.8"/>
+  <circle cx="70" cy="68" r="2" fill="url(#purpleGradFinal)" opacity="0.6"/>
+  
+  <!-- Wordmark: CurCol -->
+  <text x="120" y="75" class="curcol-text curcol-title">CurCol</text>
+  
+  <!-- Tagline -->
+  <text x="120" y="100" class="curcol-text curcol-tagline">UNIFIED WORKPLACE COMMUNICATION</text>
+</svg>

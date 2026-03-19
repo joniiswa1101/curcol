@@ -1,0 +1,29 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="purpleGradFav" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d8b4fe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="64" height="64" fill="white"/>
+  
+  <!-- Bubble -->
+  <path d="M 8 18 Q 8 10 16 10 L 52 10 Q 60 10 60 18 L 60 48 Q 60 56 52 56 L 36 56 L 28 67 L 40 56 L 52 56 Q 60 56 60 48 L 60 18 Q 60 10 52 10" 
+        fill="url(#purpleGradFav)" opacity="0.15"/>
+  
+  <!-- Stroke -->
+  <path d="M 10 20 Q 10 12 16 12 L 52 12 Q 58 12 58 20 L 58 48 Q 58 54 52 54 L 36 54 L 28 64 L 40 54 L 52 54 Q 58 54 58 48 L 58 20 Q 58 12 52 12" 
+        fill="none" stroke="url(#purpleGradFav)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Simplified people -->
+  <circle cx="22" cy="24" r="2.5" fill="url(#purpleGradFav)"/>
+  <path d="M 19 30 Q 19 28 22 28 Q 25 28 25 30 L 25 38 Q 25 39 24 39 L 20 39 Q 19 39 19 38 Z" fill="url(#purpleGradFav)"/>
+  
+  <circle cx="32" cy="22" r="3" fill="url(#purpleGradFav)"/>
+  <path d="M 28 30 Q 28 27 32 27 Q 36 27 36 30 L 36 40 Q 36 41 35 41 L 29 41 Q 28 41 28 40 Z" fill="url(#purpleGradFav)"/>
+  
+  <circle cx="42" cy="24" r="2.5" fill="url(#purpleGradFav)"/>
+  <path d="M 39 30 Q 39 28 42 28 Q 45 28 45 30 L 45 38 Q 45 39 44 39 L 40 39 Q 39 39 39 38 Z" fill="url(#purpleGradFav)"/>
+</svg>

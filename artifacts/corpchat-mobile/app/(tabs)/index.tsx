@@ -144,19 +144,9 @@ export default function ChatsTab() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Header with Logo */}
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={styles.logoSection}>
-          <View style={[styles.logoBadge, { backgroundColor: "#a855f7" }]}>
-            <View style={[styles.logoBadgeInner, { backgroundColor: "#d8b4fe" }]}>
-              <Text style={styles.logoBadgeText}>👥</Text>
-            </View>
-          </View>
-          <View style={styles.titleGroup}>
-            <Text style={[styles.title, { color: colors.text }]}>Pesan</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>CurCol</Text>
-          </View>
-        </View>
+        <Text style={[styles.title, { color: colors.text }]}>Pesan</Text>
         <Pressable onPress={startNewChat} style={({ pressed }) => [styles.newBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Feather name="edit" size={22} color={colors.primary} />
         </Pressable>
@@ -213,13 +203,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 0.5,
   },
-  logoSection: { flexDirection: "row", alignItems: "center", gap: 12 },
-  logoBadge: { width: 42, height: 42, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-  logoBadgeInner: { width: 36, height: 36, borderRadius: 8, justifyContent: "center", alignItems: "center" },
-  logoBadgeText: { fontSize: 18 },
-  titleGroup: { gap: 2 },
-  title: { fontSize: 22, fontFamily: "Inter_700Bold" },
-  subtitle: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  title: { fontSize: 26, fontFamily: "Inter_700Bold" },
   newBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   searchWrap: { paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 0.5 },
   searchBox: {

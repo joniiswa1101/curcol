@@ -259,8 +259,8 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
             {conversation.lastMessage?.content || "No messages yet"}
           </p>
           {conversation.unreadCount > 0 && (
-            <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
-              {conversation.unreadCount}
+            <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 min-w-[20px] text-center">
+              {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
             </span>
           )}
         </div>

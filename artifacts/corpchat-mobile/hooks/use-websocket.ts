@@ -1,12 +1,26 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState } from 'react-native';
 
 export function useWebSocket(conversationId: string | string[] | undefined) {
   const ws = useRef<WebSocket | null>(null);
   const queryClient = useQueryClient();
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const pingTimerRef = useRef<NodeJS.Timeout>();
+  const appStateRef = useRef(AppState.currentState);
+  const [appState, setAppState] = useState(AppState.currentState);
+
+  // Adaptive heartbeat based on app state
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      appStateRef.current = state;
+      setAppState(state);
+      console.log('[WebSocket] App state changed:', state);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -32,13 +46,27 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
 
         ws.current.onopen = () => {
           console.log('[WebSocket] ✅ Connected');
-          // Ping every 15s to keep connection alive
-          if (pingTimerRef.current) clearInterval(pingTimerRef.current as any);
-          pingTimerRef.current = setInterval(() => {
-            if (ws.current?.readyState === WebSocket.OPEN) {
-              ws.current.send(JSON.stringify({ type: 'ping' }));
-            }
-          }, 15000) as any;
+          
+          // Adaptive heartbeat:
+          // - Active/Foreground: 45s ping (battery efficient)
+          // - Background: 50s ping (minimal overhead)
+          // - Server timeout: 60s, so client pings before timeout
+          const schedulePing = () => {
+            if (!ws.current || ws.current.readyState !== WebSocket.OPEN) return;
+            
+            const pingInterval = appStateRef.current === 'active' ? 45000 : 50000;
+            console.log(`[WebSocket] Scheduling ping every ${pingInterval}ms (state: ${appStateRef.current})`);
+            
+            ws.current.send(JSON.stringify({ type: 'ping' }));
+            if (pingTimerRef.current) clearInterval(pingTimerRef.current as any);
+            pingTimerRef.current = setInterval(() => {
+              if (ws.current?.readyState === WebSocket.OPEN) {
+                ws.current.send(JSON.stringify({ type: 'ping' }));
+              }
+            }, pingInterval) as any;
+          };
+
+          schedulePing();
         };
 
         ws.current.onmessage = (event) => {
@@ -144,7 +172,7 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
       if (pingTimerRef.current) clearInterval(pingTimerRef.current as any);
       ws.current?.close();
     };
-  }, [conversationId, queryClient]);
+  }, [conversationId, queryClient, appState]);
 
   return ws.current;
 }

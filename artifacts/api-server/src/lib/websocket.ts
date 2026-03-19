@@ -55,13 +55,15 @@ export function initWebSocket(server: Server) {
     ws.send(JSON.stringify({ type: "connected", userId: ws.userId }));
   });
 
+  // Heartbeat interval: 60 seconds (extended for mobile battery optimization)
+  // Clients should ping within 50s to maintain connection
   const interval = setInterval(() => {
     clients.forEach((ws) => {
       if (!ws.isAlive) { ws.terminate(); clients.delete(ws); return; }
       ws.isAlive = false;
       ws.ping();
     });
-  }, 30000);
+  }, 60000);
 
   wss.on("close", () => clearInterval(interval));
 

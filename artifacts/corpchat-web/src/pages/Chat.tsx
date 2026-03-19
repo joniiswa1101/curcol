@@ -239,6 +239,10 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">
             <Hash className="w-6 h-6" />
           </div>
+        ) : conversation.type === "whatsapp" ? (
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#075E54] to-[#128C7E] flex items-center justify-center text-white font-bold shadow-md">
+            <span className="text-lg">💬</span>
+          </div>
         ) : (
           <Avatar src={displayAvatar} fallback={displayName || "U"} size="lg" status={cicoStatus as any} />
         )}
@@ -246,9 +250,14 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
 
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <div className="flex justify-between items-baseline mb-0.5">
-          <h4 className={cn("text-sm font-semibold truncate", isActive ? "text-primary" : "text-foreground")}>
-            {displayName || "Unnamed Chat"}
-          </h4>
+          <div className="flex items-center gap-2 min-w-0">
+            <h4 className={cn("text-sm font-semibold truncate", isActive ? "text-primary" : "text-foreground")}>
+              {displayName || "Unnamed Chat"}
+            </h4>
+            {conversation.type === "whatsapp" && (
+              <span className="text-[10px] font-semibold text-white bg-[#075E54] px-2 py-0.5 rounded-full shrink-0">WhatsApp</span>
+            )}
+          </div>
           {conversation.lastMessage && (
             <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
               {formatMessageTime(conversation.lastMessage.createdAt)}
@@ -264,6 +273,7 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
               {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
             </span>
           )}
+          </div>
         </div>
       </div>
     </button>
@@ -429,28 +439,43 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
 
   const canSend = (inputText.trim().length > 0 || pendingFile !== null) && !sendMutation.isPending
 
+  const isWhatsapp = conversation?.type === "whatsapp"
+
   return (
     <>
       {/* Header */}
-      <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-card/50 backdrop-blur-md sticky top-0 z-10">
+      <div className={cn(
+        "h-16 border-b border-border flex items-center justify-between px-6 backdrop-blur-md sticky top-0 z-10",
+        isWhatsapp ? "bg-gradient-to-r from-[#075E54] to-[#128C7E]" : "bg-card/50"
+      )}>
         <div className="flex items-center gap-4">
           {conversation?.type === "group" ? (
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-sm">
               <Hash className="w-5 h-5" />
             </div>
+          ) : isWhatsapp ? (
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold shadow-sm">
+              <span className="text-base">💬</span>
+            </div>
           ) : (
             <Avatar src={headerAvatar} fallback={headerName} size="md" status={cicoStatusStr as any} />
           )}
           <div>
-            <h3 className="font-bold text-foreground leading-tight">{headerName}</h3>
-            {headerStatus && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                <span className={cn("w-2 h-2 rounded-full", cicoStatusStr === "present" ? "bg-status-present" : "bg-muted-foreground")} />
-                {headerStatus}
-              </p>
-            )}
-            {conversation?.type === "group" && (
-              <p className="text-xs text-muted-foreground mt-0.5">{conversation.memberCount} members</p>
+            <h3 className={cn("font-bold leading-tight", isWhatsapp ? "text-white" : "text-foreground")}>{headerName}</h3>
+            {isWhatsapp ? (
+              <p className="text-xs text-white/80 mt-0.5">💬 Replies forwarded to WhatsApp</p>
+            ) : (
+              <>
+                {headerStatus && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                    <span className={cn("w-2 h-2 rounded-full", cicoStatusStr === "present" ? "bg-status-present" : "bg-muted-foreground")} />
+                    {headerStatus}
+                  </p>
+                )}
+                {conversation?.type === "group" && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{conversation.memberCount} members</p>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -190,15 +190,41 @@ function ChatThread({ conversationId }: { conversationId: number }) {
     e.preventDefault()
     if (!inputText.trim() || sendMutation.isPending) return
 
+    const optimisticMessage = {
+      id: Date.now(),
+      conversationId,
+      senderId: user?.id || 0,
+      content: inputText,
+      type: "text" as const,
+      createdAt: new Date().toISOString(),
+      editedAt: null,
+      isEdited: false,
+      sender: user,
+    }
+
+    // Optimistically update cache
+    queryClient.setQueryData(["listMessages", conversationId], (old: any) => {
+      if (!old) return { messages: [optimisticMessage] }
+      return { ...old, messages: [...old.messages, optimisticMessage] }
+    })
+
     sendMutation.mutate({
       conversationId,
       data: { content: inputText, type: "text" }
     }, {
       onSuccess: () => {
         setInputText("")
-        // Refetch both messages and conversations
+        // Refetch to get the real message with ID
         queryClient.invalidateQueries({ queryKey: ["listMessages", conversationId] })
         queryClient.invalidateQueries({ queryKey: ["listConversations"] })
+      },
+      onError: (error) => {
+        console.error("Send message error:", error)
+        // Revert optimistic update on error
+        queryClient.setQueryData(["listMessages", conversationId], (old: any) => {
+          if (!old) return old
+          return { ...old, messages: old.messages.filter((m: any) => m.id !== optimisticMessage.id) }
+        })
       }
     })
   }

@@ -65,6 +65,8 @@ router.post("/twilio", async (req, res) => {
         description: `Chat WhatsApp dengan ${incoming.profileName} (${incoming.from})`,
         whatsappContactPhone: incoming.from,
         whatsappContactName: incoming.profileName,
+        waStatus: "unassigned",
+        assignedToId: null,
         createdById: systemUserId,
         updatedAt: new Date(),
       }).returning();

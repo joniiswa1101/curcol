@@ -3,6 +3,7 @@ import { usersTable } from "./users";
 
 export const conversationTypeEnum = pgEnum("conversation_type", ["direct", "group", "announcement", "whatsapp"]);
 export const memberRoleEnum = pgEnum("member_role", ["admin", "member"]);
+export const waStatusEnum = pgEnum("wa_status", ["unassigned", "assigned", "resolved"]);
 
 export const conversationsTable = pgTable("conversations", {
   id: serial("id").primaryKey(),
@@ -13,6 +14,8 @@ export const conversationsTable = pgTable("conversations", {
   createdById: integer("created_by_id").references(() => usersTable.id),
   whatsappContactPhone: text("whatsapp_contact_phone"),
   whatsappContactName: text("whatsapp_contact_name"),
+  waStatus: waStatusEnum("wa_status").default("unassigned"),
+  assignedToId: integer("assigned_to_id").references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

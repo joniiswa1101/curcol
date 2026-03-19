@@ -4,6 +4,7 @@ import { eq, ilike, and, or, sql } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
 import { hashPassword } from "../lib/password.js";
+import { validatePasswordComplexity, getPasswordRequirements } from "../lib/password-rules.js";
 import { sanitizeUser } from "../lib/sanitize.js";
 
 const router = Router();
@@ -112,6 +113,20 @@ router.post("/", requireAdmin as any, async (req, res) => {
 
   // Default password = Employee ID jika tidak disediakan
   const rawPassword = password || employeeId;
+
+  if (password) {
+    const complexity = validatePasswordComplexity(password);
+    if (!complexity.valid) {
+      res.status(400).json({
+        error: "bad_request",
+        message: "Password tidak memenuhi persyaratan keamanan",
+        requirements: getPasswordRequirements(),
+        errors: complexity.errors,
+      });
+      return;
+    }
+  }
+
   const hashedPassword = hashPassword(rawPassword);
 
   const [newUser] = await db.insert(usersTable).values({

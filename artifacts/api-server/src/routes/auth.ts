@@ -3,6 +3,7 @@ import { db, usersTable, sessionsTable, cicoStatusTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import { createSession, refreshSession, requireAuth } from "../lib/auth.js";
 import { verifyPassword, hashPassword } from "../lib/password.js";
+import { validatePasswordComplexity, getPasswordRequirements } from "../lib/password-rules.js";
 import { logAudit } from "../lib/audit.js";
 import { loginWithCICO } from "../lib/cico.js";
 import { generateTOTPSecret, getTOTPUri, generateQRCodeDataURL, verifyTOTPToken } from "../lib/totp.js";
@@ -213,8 +214,14 @@ router.post("/change-password", requireAuth as any, async (req, res) => {
     return;
   }
 
-  if (newPassword.length < 6) {
-    res.status(400).json({ error: "bad_request", message: "Password baru minimal 6 karakter" });
+  const complexity = validatePasswordComplexity(newPassword);
+  if (!complexity.valid) {
+    res.status(400).json({
+      error: "bad_request",
+      message: "Password tidak memenuhi persyaratan keamanan",
+      requirements: getPasswordRequirements(),
+      errors: complexity.errors,
+    });
     return;
   }
 

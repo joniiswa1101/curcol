@@ -6,3 +6,9 @@ id = "bbhoBgurXC5MkSYYLX2M1"
 uri = "file://.local/curcol-audit-report.md"
 type = "text"
 title = "CurCol Audit & Strategic Recommendations Report"
+
+[[outputs]]
+id = "-HQe015_wZXk4CK7fn3zN"
+uri = "file://.local/gap-checklist.md"
+type = "text"
+title = "Gap Audit Checklist — Web vs Mobile"

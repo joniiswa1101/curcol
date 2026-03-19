@@ -92,6 +92,11 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
 - **Security Hardening**: Rate limiting (10 auth/15min, 200 API/min), CORS whitelist, file upload filter (MIME whitelist + blocked extensions).
 - **Rate Limit Error Handling**: Mobile app detects HTTP 429 (rate limit) errors and displays user-friendly Indonesian alerts on chat operations (send, edit, delete, pin). Uses custom `APIError` class with status code tracking in `lib/api.ts`.
 - **File Upload Validation**: Web app validates files before upload with client-side checks for blocked extensions, MIME types, and file size (10 MB limit). Shows dismissible error alerts with specific feedback (e.g., "Tipe file '.exe' tidak diizinkan"). Validation config in `lib/upload-config.ts`.
+- **Database Performance Indexes**: Added indexes to improve query performance:
+  - Messages table: `(conversation_id, created_at)`, `sender_id`, `conversation_id`
+  - Conversations table: `created_at`, `updated_at`, `wa_status`
+  - Conversation members: `(conversation_id, user_id)`, `conversation_id`, `user_id`
+- **Security Headers**: API server uses Helmet middleware for HTTPS security headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, CORS whitelisting).
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

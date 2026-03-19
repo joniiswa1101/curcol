@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const conversationTypeEnum = pgEnum("conversation_type", ["direct", "group", "announcement", "whatsapp"]);
@@ -18,7 +18,11 @@ export const conversationsTable = pgTable("conversations", {
   assignedToId: integer("assigned_to_id").references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  createdAtIdx: index("idx_conversations_created_at").on(table.createdAt),
+  updatedAtIdx: index("idx_conversations_updated_at").on(table.updatedAt),
+  waStatusIdx: index("idx_conversations_wa_status").on(table.waStatus),
+}));
 
 export const conversationMembersTable = pgTable("conversation_members", {
   id: serial("id").primaryKey(),
@@ -29,7 +33,11 @@ export const conversationMembersTable = pgTable("conversation_members", {
   isMuted: boolean("is_muted").notNull().default(false),
   lastReadAt: timestamp("last_read_at"),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  conversationUserIdx: uniqueIndex("idx_conversation_members_conversation_user").on(table.conversationId, table.userId),
+  conversationIdIdx: index("idx_conversation_members_conversation_id").on(table.conversationId),
+  userIdIdx: index("idx_conversation_members_user_id").on(table.userId),
+}));
 
 export type Conversation = typeof conversationsTable.$inferSelect;
 export type ConversationMember = typeof conversationMembersTable.$inferSelect;

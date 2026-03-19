@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp, jsonb, pgEnum, index } from "drizzle-orm/pg-core";
 import { conversationsTable } from "./conversations";
 import { usersTable } from "./users";
 
@@ -20,7 +20,12 @@ export const messagesTable = pgTable("messages", {
   waMessageId: text("wa_message_id"),
   isFromWhatsapp: boolean("is_from_whatsapp").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  conversationIdIdx: index("idx_messages_conversation_id").on(table.conversationId),
+  senderIdIdx: index("idx_messages_sender_id").on(table.senderId),
+  createdAtIdx: index("idx_messages_created_at").on(table.createdAt),
+  conversationCreatedIdx: index("idx_messages_conversation_created").on(table.conversationId, table.createdAt),
+}));
 
 export const attachmentsTable = pgTable("attachments", {
   id: serial("id").primaryKey(),

@@ -172,12 +172,8 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
 function ChatThread({ conversationId }: { conversationId: number }) {
   const queryClient = useQueryClient()
   // Keep old data visible while loading new data (staleTime prevents immediate invalidation)
-  const { data: convData, isLoading: convLoading } = useGetConversation(conversationId, {
-    query: { staleTime: 5 * 60 * 1000 } // 5 minutes
-  })
-  const { data: msgData, isLoading: messagesLoading } = useListMessages(conversationId, {
-    query: { staleTime: 5 * 60 * 1000 } // 5 minutes
-  })
+  const { data: convData, isLoading: convLoading } = useGetConversation(conversationId)
+  const { data: msgData, isLoading: messagesLoading } = useListMessages(conversationId)
   const sendMutation = useSendMessage()
   const { user } = useAuthStore()
   

@@ -171,8 +171,8 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
 
 function ChatThread({ conversationId }: { conversationId: number }) {
   const queryClient = useQueryClient()
-  const { data: convData } = useGetConversation(conversationId)
-  const { data: msgData, isLoading } = useListMessages(conversationId)
+  const { data: convData, isLoading: convLoading } = useGetConversation(conversationId)
+  const { data: msgData, isLoading: messagesLoading } = useListMessages(conversationId)
   const sendMutation = useSendMessage()
   const { user } = useAuthStore()
   
@@ -196,10 +196,36 @@ function ChatThread({ conversationId }: { conversationId: number }) {
     }, {
       onSuccess: () => {
         setInputText("")
+        // Only refetch messages for this specific conversation
         queryClient.invalidateQueries({ queryKey: ["listMessages", conversationId] })
-        queryClient.invalidateQueries({ queryKey: ["listConversations"] })
       }
     })
+  }
+
+  if (!convData && convLoading) {
+    return (
+      <div className="flex-1 flex flex-col bg-background">
+        <div className="h-16 border-b border-border flex items-center px-6 bg-card/50 animate-pulse">
+          <div className="w-10 h-10 rounded-xl bg-muted mr-4" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-muted w-32 rounded" />
+            <div className="h-3 bg-muted w-20 rounded" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-background to-muted/20">
+          <div className="flex gap-3 max-w-[85%]">
+            <div className="w-8 h-8 rounded-full bg-muted shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-muted w-48 rounded" />
+              <div className="h-4 bg-muted w-40 rounded" />
+            </div>
+          </div>
+          <div className="flex gap-3 max-w-[85%] ml-auto flex-row-reverse">
+            <div className="h-12 bg-primary/20 rounded-2xl w-48" />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!convData) return null
@@ -269,7 +295,7 @@ function ChatThread({ conversationId }: { conversationId: number }) {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gradient-to-b from-background to-muted/20">
-        {isLoading ? (
+        {messagesLoading ? (
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
           </div>

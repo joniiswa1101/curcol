@@ -461,7 +461,8 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
           </div>
         ) : (
           messages.map((msg, i, arr) => {
-            const isMe = msg.senderId === user?.id
+            const isFromWhatsapp = (msg as any).isFromWhatsapp === true
+            const isMe = !isFromWhatsapp && msg.senderId === user?.id
             const prevMsg = arr[i - 1]
             const showSender = !isMe && (i === 0 || prevMsg?.senderId !== msg.senderId)
             const isOptimistic = typeof msg.id === "number" && msg.id > 1_000_000_000_000

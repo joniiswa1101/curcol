@@ -9,6 +9,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { UserAvatar } from "@/components/UserAvatar";
 import { CicoStatusBadge } from "@/components/CicoStatusBadge";
 import { api } from "@/lib/api";
@@ -24,6 +25,52 @@ function InfoRow({ label, value, colors }: { label: string; value: string; color
   );
 }
 
+function ThemeToggleSection({ colors }: { colors: any }) {
+  const { preference, setPreference } = useTheme();
+
+  const options: Array<{ label: string; value: "light" | "dark" | "system" }> = [
+    { label: "Terang", value: "light" },
+    { label: "Gelap", value: "dark" },
+    { label: "Sistem", value: "system" },
+  ];
+
+  return (
+    <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Tampilan</Text>
+      <View style={styles.themeGrid}>
+        {options.map(opt => (
+          <Pressable
+            key={opt.value}
+            onPress={() => setPreference(opt.value)}
+            style={({ pressed }) => [
+              styles.themeOption,
+              {
+                backgroundColor: preference === opt.value ? colors.primary : colors.surfaceSecondary,
+                opacity: pressed ? 0.8 : 1,
+                borderColor: preference === opt.value ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Feather
+              name={opt.value === "light" ? "sun" : opt.value === "dark" ? "moon" : "settings"}
+              size={20}
+              color={preference === opt.value ? "#fff" : colors.primary}
+            />
+            <Text
+              style={[
+                styles.themeLabel,
+                { color: preference === opt.value ? "#fff" : colors.text },
+              ]}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const cicoLabels: Record<string, string> = {
   present: "Hadir (Kantor)",
   wfh: "Work From Home",
@@ -33,8 +80,8 @@ const cicoLabels: Record<string, string> = {
 };
 
 export default function ProfileTab() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
+  const { theme } = useTheme();
+  const colors = Colors[theme === "dark" ? "dark" : "light"];
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const { user, logout, refreshUser } = useAuth();
@@ -196,6 +243,9 @@ export default function ProfileTab() {
         <InfoRow label="Role" value={user.role.charAt(0).toUpperCase() + user.role.slice(1)} colors={colors} />
       </View>
 
+      {/* Theme Toggle */}
+      <ThemeToggleSection colors={colors} />
+
       {/* Version */}
       <View style={[styles.versionSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.versionLabel, { color: colors.textSecondary }]}>Versi Aplikasi</Text>
@@ -295,6 +345,9 @@ const styles = StyleSheet.create({
   waCardDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   section: { marginHorizontal: 16, marginBottom: 12, borderRadius: 14, padding: 4, borderWidth: 0.5 },
   sectionTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5, textTransform: "uppercase", padding: 12, paddingBottom: 4 },
+  themeGrid: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingBottom: 12 },
+  themeOption: { flex: 1, alignItems: "center", gap: 6, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5 },
+  themeLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
   versionSection: { marginHorizontal: 16, marginBottom: 12, borderRadius: 14, padding: 12, borderWidth: 0.5, alignItems: "center", gap: 4 },
   versionLabel: { fontSize: 11, fontFamily: "Inter_400Regular", letterSpacing: 0.3, textTransform: "uppercase" },
   versionNumber: { fontSize: 13, fontFamily: "Inter_600SemiBold" },

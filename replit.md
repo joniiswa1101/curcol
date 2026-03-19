@@ -91,6 +91,7 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
 - **Performance Optimization**: Fast channel switching achieved with a single database query.
 - **Security Hardening**: Rate limiting (10 auth/15min, 200 API/min), CORS whitelist, file upload filter (MIME whitelist + blocked extensions).
 - **Rate Limit Error Handling**: Mobile app detects HTTP 429 (rate limit) errors and displays user-friendly Indonesian alerts on chat operations (send, edit, delete, pin). Uses custom `APIError` class with status code tracking in `lib/api.ts`.
+- **File Upload Validation**: Web app validates files before upload with client-side checks for blocked extensions, MIME types, and file size (10 MB limit). Shows dismissible error alerts with specific feedback (e.g., "Tipe file '.exe' tidak diizinkan"). Validation config in `lib/upload-config.ts`.
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

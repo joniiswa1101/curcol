@@ -16,9 +16,10 @@ import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn, formatMessageTime, getStatusLabel } from "@/lib/utils"
+import { validateFile } from "@/lib/upload-config"
 import {
   Search, Send, Paperclip, Smile, MoreVertical,
-  Hash, Info, MessageSquare, X, FileText, Image as ImageIcon
+  Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle
 } from "lucide-react"
 
 // ─── Emoji Picker ─────────────────────────────────────────────────────────────
@@ -278,6 +279,7 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
   const [showEmoji, setShowEmoji] = useState(false)
   const [pendingFile, setPendingFile] = useState<UploadedFile | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -311,6 +313,14 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ""
+    setUploadError(null)
+
+    // Client-side validation first
+    const validation = validateFile(file)
+    if (!validation.valid) {
+      setUploadError(validation.error || "File tidak valid")
+      return
+    }
 
     setUploading(true)
     try {
@@ -323,12 +333,17 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
         body: formData,
       })
 
-      if (!res.ok) throw new Error("Upload failed")
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: "Upload gagal" }))
+        throw new Error(errorData.message || "Upload gagal")
+      }
       const data = await res.json()
 
       const localUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined
       setPendingFile({ ...data, localUrl })
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload gagal"
+      setUploadError(message)
       console.error("File upload error:", err)
     } finally {
       setUploading(false)
@@ -558,6 +573,23 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
 
       {/* Input Area */}
       <div className="p-4 bg-background border-t border-border">
+        {/* Upload error alert */}
+        {uploadError && (
+          <div className="mb-3 flex items-start gap-3 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+            <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-destructive font-medium">Upload Gagal</p>
+              <p className="text-xs text-destructive/80 mt-1">{uploadError}</p>
+            </div>
+            <button
+              onClick={() => setUploadError(null)}
+              className="text-destructive/60 hover:text-destructive transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* File preview above input */}
         {pendingFile && (
           <div className="mb-2 pl-1">

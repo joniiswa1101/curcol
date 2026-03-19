@@ -98,7 +98,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="hidden lg:flex flex-col gap-0.5">
               <span className="font-display font-bold text-xl tracking-tight text-white">CurCol</span>
-              <span className="text-xs text-sidebar-foreground/50">v1.0.0</span>
+              <span className="text-xs text-sidebar-foreground/50">v1.0.1</span>
             </div>
           </div>
 

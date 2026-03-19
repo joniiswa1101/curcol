@@ -4,6 +4,7 @@ import { eq, desc, sql, inArray, isNotNull } from "drizzle-orm";
 import { requireAuth, requireAdminOrManager } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
 import { sendWhatsAppToMultiple } from "../lib/whatsapp.js";
+import { sanitizeUser } from "../lib/sanitize.js";
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.get("/", requireAuth as any, async (req, res) => {
   const authors = authorIds.length > 0
     ? await db.select().from(usersTable).where(inArray(usersTable.id, authorIds))
     : [];
-  const authorMap = new Map(authors.map(u => [u.id, { ...u, password: undefined }]));
+  const authorMap = new Map(authors.map(u => [u.id, sanitizeUser(u)]));
 
   res.json({
     announcements: announcements.map(a => ({ ...a, author: authorMap.get(a.authorId) || null })),
@@ -67,7 +68,7 @@ router.post("/", requireAdminOrManager as any, async (req, res) => {
     }
   }
 
-  res.status(201).json({ ...announcement, author: { ...currentUser, password: undefined } });
+  res.status(201).json({ ...announcement, author: sanitizeUser(currentUser) });
 });
 
 export default router;

@@ -5,6 +5,7 @@ import {
 import { eq, and, inArray, sql, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
+import { sanitizeUser } from "../lib/sanitize.js";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ async function getUsersForConversation(userIds: number[]) {
   const users = await db.select().from(usersTable).where(inArray(usersTable.id, userIds));
   const cicoStatuses = await db.select().from(cicoStatusTable);
   const cicoMap = new Map(cicoStatuses.map(c => [c.employeeId, c]));
-  return users.map(u => ({ ...u, password: undefined, cicoStatus: cicoMap.get(u.employeeId) || null }));
+  return users.map(u => ({ ...sanitizeUser(u), cicoStatus: cicoMap.get(u.employeeId) || null }));
 }
 
 router.get("/", requireAuth as any, async (req, res) => {

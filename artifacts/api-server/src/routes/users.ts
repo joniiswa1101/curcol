@@ -4,6 +4,7 @@ import { eq, ilike, and, or, sql } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
 import { hashPassword } from "../lib/password.js";
+import { sanitizeUser } from "../lib/sanitize.js";
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.get("/", requireAuth as any, async (req, res) => {
   const cicoMap = new Map(cicoStatuses.map(c => [c.employeeId, c]));
 
   res.json({
-    users: users.map(u => ({ ...u, password: undefined, cicoStatus: cicoMap.get(u.employeeId) || null })),
+    users: users.map(u => ({ ...sanitizeUser(u), cicoStatus: cicoMap.get(u.employeeId) || null })),
     total: Number(countResult[0].count),
     page: pageNum,
     limit: limitNum,
@@ -48,7 +49,7 @@ router.get("/:userId", requireAuth as any, async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) { res.status(404).json({ error: "not_found", message: "User not found" }); return; }
   const [cicoStatus] = await db.select().from(cicoStatusTable).where(eq(cicoStatusTable.employeeId, user.employeeId));
-  res.json({ ...user, password: undefined, cicoStatus: cicoStatus || null });
+  res.json({ ...sanitizeUser(user), cicoStatus: cicoStatus || null });
 });
 
 // Bulk import dari CSV — hanya admin
@@ -126,7 +127,7 @@ router.post("/", requireAdmin as any, async (req, res) => {
   }).returning();
 
   await logAudit({ userId: currentUser.id, action: "create_user", entityType: "user", entityId: newUser.id, req });
-  res.status(201).json({ ...newUser, password: undefined });
+  res.status(201).json(sanitizeUser(newUser));
 });
 
 router.patch("/:userId", requireAuth as any, async (req, res) => {
@@ -148,7 +149,7 @@ router.patch("/:userId", requireAuth as any, async (req, res) => {
   if (isActive !== undefined && currentUser.role === "admin") update.isActive = isActive;
   const [updated] = await db.update(usersTable).set(update).where(eq(usersTable.id, userId)).returning();
   await logAudit({ userId: currentUser.id, action: "update_user", entityType: "user", entityId: userId, req });
-  res.json({ ...updated, password: undefined });
+  res.json(sanitizeUser(updated));
 });
 
 router.post("/:userId/deactivate", requireAdmin as any, async (req, res) => {

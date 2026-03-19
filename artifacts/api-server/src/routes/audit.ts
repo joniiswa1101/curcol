@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, auditLogsTable, usersTable, messagesTable, conversationsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql, desc, inArray } from "drizzle-orm";
 import { requireAdmin } from "../lib/auth.js";
+import { sanitizeUser } from "../lib/sanitize.js";
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.get("/logs", requireAdmin as any, async (req, res) => {
   const users = userIds.length > 0
     ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds))
     : [];
-  const userMap = new Map(users.map(u => [u.id, { ...u, password: undefined }]));
+  const userMap = new Map(users.map(u => [u.id, sanitizeUser(u)]));
 
   res.json({
     logs: logs.map(l => ({ ...l, user: l.userId ? (userMap.get(l.userId) || null) : null })),

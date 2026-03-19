@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, messagesTable, conversationMembersTable, usersTable } from "@workspace/db";
 import { eq, and, ilike, inArray, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
+import { sanitizeUser } from "../lib/sanitize.js";
 
 const router = Router();
 
@@ -45,7 +46,7 @@ router.get("/", requireAuth as any, async (req, res) => {
   const senders = senderIds.length > 0
     ? await db.select().from(usersTable).where(inArray(usersTable.id, senderIds))
     : [];
-  const senderMap = new Map(senders.map(u => [u.id, { ...u, password: undefined }]));
+  const senderMap = new Map(senders.map(u => [u.id, sanitizeUser(u)]));
 
   res.json({
     messages: slice.map(m => ({ ...m, sender: senderMap.get(m.senderId) || null, attachments: [], reactions: [] })),

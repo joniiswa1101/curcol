@@ -8,6 +8,7 @@ import { requireAuth } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
 import { broadcastToConversation } from "../lib/websocket.js";
 import { sendWhatsAppMessage } from "../lib/whatsapp.js";
+import { sanitizeUser } from "../lib/sanitize.js";
 
 const router = Router();
 
@@ -70,7 +71,7 @@ async function enrichMessages(msgs: any[]) {
 
     return {
       ...msg,
-      sender: sender ? { ...sender, password: undefined, cicoStatus } : null,
+      sender: sender ? { ...sanitizeUser(sender), cicoStatus } : null,
       attachments: msgAttachments,
       reactions: Object.values(reactionMap),
     };

@@ -1,0 +1,30 @@
+<svg viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="purpleGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Logo 1: Overlapping Chat Bubbles (Conversation Flow) -->
+  <!-- Background circle -->
+  <circle cx="55" cy="60" r="45" fill="url(#purpleGrad1)" opacity="0.1"/>
+  
+  <!-- Chat bubble 1 (top-left) -->
+  <path d="M 25 35 Q 25 25 35 25 L 55 25 Q 65 25 65 35 L 65 50 Q 65 60 55 60 L 40 60 L 35 70 L 45 60 L 35 60 Q 25 60 25 50 Z" 
+        fill="url(#purpleGrad1)" opacity="0.8"/>
+  
+  <!-- Chat bubble 2 (right, slightly overlapping) -->
+  <path d="M 50 45 Q 50 38 58 38 L 80 38 Q 88 38 88 45 L 88 65 Q 88 72 80 72 L 65 72 L 60 80 L 70 72 L 80 72 Q 88 72 88 65 Z" 
+        fill="url(#purpleGrad1)" opacity="0.6"/>
+  
+  <!-- Chat bubble 3 (bottom, continuous) -->
+  <path d="M 30 70 Q 30 62 40 62 L 70 62 Q 80 62 80 70 L 80 85 Q 80 92 70 92 L 50 92 L 45 100 L 55 92 L 40 92 Q 30 92 30 85 Z" 
+        fill="url(#purpleGrad1)"/>
+  
+  <!-- Wordmark: CurCol -->
+  <text x="120" y="75" font-family="Inter, -apple-system, sans-serif" font-size="48" font-weight="600" fill="#1f2937" letter-spacing="-0.5">CurCol</text>
+  
+  <!-- Tagline (optional, smaller) -->
+  <text x="120" y="100" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#6b7280" letter-spacing="0.5">CONNECT • COLLABORATE • CREATE</text>
+</svg>

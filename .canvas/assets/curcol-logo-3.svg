@@ -1,0 +1,41 @@
+<svg viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="purpleGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d8b4fe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Logo 3: Unified Chat Bubble + People (Integrated Communication) -->
+  <!-- Main bubble container -->
+  <path d="M 20 30 Q 20 20 32 20 L 88 20 Q 100 20 100 32 L 100 70 Q 100 82 88 82 L 65 82 L 55 95 L 70 82 L 88 82 Q 100 82 100 70 L 100 32 Q 100 20 88 20" 
+        fill="url(#purpleGrad3)" opacity="0.15" stroke="url(#purpleGrad3)" stroke-width="2"/>
+  
+  <!-- Outer bubble stroke (elegant) -->
+  <path d="M 22 32 Q 22 24 32 24 L 88 24 Q 98 24 98 32 L 98 70 Q 98 80 88 80 L 65 80 L 55 92 L 70 80 L 88 80 Q 98 80 98 70 L 98 32 Q 98 24 88 24" 
+        fill="none" stroke="url(#purpleGrad3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- People inside bubble (silhouettes) -->
+  <!-- Person 1 (left) -->
+  <circle cx="40" cy="35" r="4" fill="url(#purpleGrad3)"/>
+  <path d="M 36 43 Q 36 41 40 41 Q 44 41 44 43 L 44 55 Q 44 56 43 56 L 37 56 Q 36 56 36 55 Z" fill="url(#purpleGrad3)"/>
+  
+  <!-- Person 2 (center) -->
+  <circle cx="60" cy="32" r="5" fill="url(#purpleGrad3)"/>
+  <path d="M 54 42 Q 54 40 60 40 Q 66 40 66 42 L 66 58 Q 66 59 65 59 L 55 59 Q 54 59 54 58 Z" fill="url(#purpleGrad3)"/>
+  
+  <!-- Person 3 (right) -->
+  <circle cx="80" cy="36" r="4" fill="url(#purpleGrad3)"/>
+  <path d="M 76 44 Q 76 42 80 42 Q 84 42 84 44 L 84 56 Q 84 57 83 57 L 77 57 Q 76 57 76 56 Z" fill="url(#purpleGrad3)"/>
+  
+  <!-- Small chat indicator dots (message) -->
+  <circle cx="50" cy="68" r="2" fill="url(#purpleGrad3)" opacity="0.6"/>
+  <circle cx="60" cy="70" r="2.5" fill="url(#purpleGrad3)" opacity="0.7"/>
+  <circle cx="70" cy="68" r="2" fill="url(#purpleGrad3)" opacity="0.6"/>
+  
+  <!-- Wordmark: CurCol -->
+  <text x="120" y="75" font-family="Inter, -apple-system, sans-serif" font-size="48" font-weight="700" fill="#1f2937" letter-spacing="-0.5">CurCol</text>
+  
+  <!-- Tagline -->
+  <text x="120" y="100" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#6b7280" letter-spacing="0.5">UNIFIED WORKPLACE COMMUNICATION</text>
+</svg>

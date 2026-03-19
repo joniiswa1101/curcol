@@ -205,3 +205,68 @@ If CICO is temporarily unavailable:
 - CICO token: 24-hour TTL (managed by CICO)
 - CurCol session: stored in `sessions` table, valid until explicit logout
 - Token validation: `/api/auth/me` endpoint verifies active session
+
+---
+
+## WhatsApp Integration Status & Issues
+
+**Current Status**: ❌ **BROKEN** — Meta WhatsApp Business API has authentication issues
+
+### Error: "Account not registered" (Error #133010)
+
+This error from Meta means:
+1. **WhatsApp Business Account setup incomplete** — the account exists but isn't fully registered
+2. **API token mismatch** — wrong token being used
+3. **Phone Number ID mismatch** — ID doesn't match the account
+
+### What We've Tried (and why it failed)
+- Changed phone number ID multiple times (no fix)
+- Changed API token multiple times (no fix)
+- The root cause is **Meta's account configuration**, not the code
+
+### Real Solution - Check Meta Console
+
+You MUST verify these in Meta Console (https://developers.facebook.com/):
+
+1. **Go to App Dashboard → Settings → Basic**
+   - Copy the correct **App ID** and **App Secret**
+
+2. **Go to WhatsApp Business → API Setup**
+   - Find your **Business Phone Number ID** (should start with 1063...)
+   - Copy it exactly — digit by digit
+
+3. **Go to Settings → Users and Roles → System Users**
+   - Create a NEW system user (not temporary token from API Setup page)
+   - Generate NEW access token
+   - Give it "manage_whatsapp_business_messaging" permission
+   - Copy the token and set it in Replit Secrets as `WHATSAPP_API_TOKEN`
+
+4. **Verify WhatsApp Business Account Status**
+   - Go to WhatsApp Business Account settings
+   - Check if account is fully activated (not pending/suspended)
+   - Check if phone number is fully registered
+
+5. **Check Webhook Configuration**
+   - Verify webhook URL is: `https://curcol.link/api/webhooks/whatsapp`
+   - Verify verify token is correct
+
+### Implementation Details
+
+**Code**: `artifacts/api-server/src/lib/whatsapp.ts`
+- Uses Meta Graph API v19.0
+- Requires `WHATSAPP_API_TOKEN` (from System User, not temporary token)
+- Requires `WHATSAPP_PHONE_NUMBER_ID` (exact digit match with Meta)
+
+**Routes**: `artifacts/api-server/src/routes/admin-whatsapp.ts`
+- `POST /api/admin/whatsapp/test` — test send message (admin only)
+- `GET /api/admin/whatsapp/status` — check WhatsApp config status
+- `GET /api/admin/whatsapp/config` — get webhook config for Meta setup
+- `GET /api/admin/whatsapp/conversations` — list WhatsApp incoming messages
+
+### Alternative: Twilio Integration
+
+If Meta continues to fail, we can switch to Twilio:
+- Twilio integration is available via Replit integrations
+- Handles WhatsApp messaging through Twilio's API
+- More reliable for production use
+- Can be set up without Meta Developer Console complexity

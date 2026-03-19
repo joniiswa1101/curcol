@@ -96,7 +96,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
               <MessageSquare className="text-white h-5 w-5" />
             </div>
-            <span className="hidden lg:block font-display font-bold text-xl tracking-tight text-white">CurCol</span>
+            <div className="hidden lg:flex flex-col gap-0.5">
+              <span className="font-display font-bold text-xl tracking-tight text-white">CurCol</span>
+              <span className="text-xs text-sidebar-foreground/50">v1.0.0</span>
+            </div>
           </div>
 
           <div className="flex flex-col w-full gap-2">

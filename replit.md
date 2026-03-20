@@ -115,3 +115,21 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
 - **Vite**: Frontend tooling (implied by build setup, though esbuild is explicitly mentioned for CJS bundles).
 - **CORS**: Middleware for handling Cross-Origin Resource Sharing.
 - **pg (node-postgres)**: PostgreSQL client for Node.js.
+- **node-cron**: Scheduler for automated backups.
+
+## Database Backup Strategy (March 20, 2026)
+- **Status**: ✅ Fully operational
+- **Automatic Backups**: Daily at 2 AM UTC via `node-cron`
+- **Backup Files**: `./backups/` directory with compression (gzip)
+- **Retention**: Last 30 backups (~30 days), auto-cleanup of old files
+- **API Endpoints**:
+  - `GET /api/backup/health` — Public health check
+  - `GET /api/backup/list` — List backups (admin only)
+  - `POST /api/backup/create` — Manual backup (admin only)
+  - `POST /api/backup/restore` — Restore from backup (admin only, destructive)
+  - `GET /api/backup/scheduler-status` — Check scheduler (public)
+- **Implementation Files**:
+  - `artifacts/api-server/src/lib/backup.ts` — Core backup functions
+  - `artifacts/api-server/src/lib/backup-scheduler.ts` — Cron scheduler
+  - `artifacts/api-server/src/routes/backup.ts` — API endpoints
+- **Documentation**: `.local/DATABASE_BACKUP_STRATEGY.md` (comprehensive guide)

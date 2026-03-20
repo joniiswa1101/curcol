@@ -4,6 +4,7 @@ import { initWebSocket } from "./lib/websocket.js";
 import { db, usersTable, cicoStatusTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { hashPassword } from "./lib/password.js";
+import { initBackupScheduler, getSchedulerStatus } from "./lib/backup-scheduler.js";
 
 async function ensureSeeded() {
   try {
@@ -104,6 +105,15 @@ initWebSocket(httpServer);
 
 // Seed database before starting server
 ensureSeeded().then(() => {
+  // Initialize backup scheduler
+  const schedulerStatus = initBackupScheduler({
+    cronExpression: process.env.BACKUP_CRON_SCHEDULE || "0 2 * * *", // Default: 2 AM daily
+    enabled: process.env.BACKUP_ENABLED !== "false",
+  });
+  
+  // Store scheduler status globally for status endpoint
+  (globalThis as any).__backupSchedulerStatus = schedulerStatus;
+  
   httpServer.listen(port, () => {
     console.log(`Server listening on port ${port}`);
   });

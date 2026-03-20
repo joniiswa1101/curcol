@@ -329,14 +329,15 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
     textareaRef.current?.focus()
   }, [conversationId])
 
+  const messagesQueryKey = getListMessagesQueryKey(conversationId)
+
   // Polling fallback - refetch messages every 3 seconds as backup to WebSocket
   useEffect(() => {
-    const messagesQueryKey = getListMessagesQueryKey(conversationId)
     const interval = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: messagesQueryKey })
     }, 3000)
     return () => clearInterval(interval)
-  }, [conversationId, queryClient])
+  }, [conversationId, queryClient, messagesQueryKey])
 
   // Detect scroll to top and load older messages, and auto-mark visible messages as read
   const handleScroll = useCallback(() => {

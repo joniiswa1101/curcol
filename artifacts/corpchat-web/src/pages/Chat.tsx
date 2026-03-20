@@ -22,7 +22,7 @@ import { validateFile } from "@/lib/upload-config"
 import {
   Search, Send, Paperclip, Smile, MoreVertical, Mic, Reply,
   Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle,
-  Phone, Video
+  Phone, Video, Pin, Heart
 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
@@ -311,6 +311,7 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [replyToMessage, setReplyToMessage] = useState<any>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msg: any } | null>(null)
+  const [showPinned, setShowPinned] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -723,6 +724,59 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gradient-to-b from-background to-muted/20"
       >
+        {/* Pin indicator button */}
+        {messages.some(m => m.isPinned) && !showPinned && (
+          <button
+            onClick={() => setShowPinned(true)}
+            className="mx-auto px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-full text-xs text-primary hover:bg-primary/20 transition-colors flex items-center gap-1 w-fit"
+          >
+            <Pin className="w-3 h-3" />
+            <span>{messages.filter(m => m.isPinned).length} pinned</span>
+          </button>
+        )}
+
+        {/* Pinned messages section */}
+        {showPinned && (
+          <div className="border-b border-border bg-muted/30 p-3 space-y-2 max-h-40 overflow-y-auto rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Pin className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold text-muted-foreground">PINNED ({messages.filter(m => m.isPinned).length})</span>
+              </div>
+              <button
+                onClick={() => setShowPinned(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+            {messages.filter(m => m.isPinned).length > 0 ? (
+              <div className="space-y-1">
+                {messages.filter(m => m.isPinned).map(msg => (
+                  <div
+                    key={msg.id}
+                    className="text-xs bg-background rounded px-2 py-1 cursor-pointer hover:bg-muted transition-colors border border-border/50"
+                    onClick={() => {
+                      const el = document.getElementById(`msg-${msg.id}`)
+                      if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "center" })
+                        el.classList.add("ring-2", "ring-primary/50")
+                        setTimeout(() => el.classList.remove("ring-2", "ring-primary/50"), 2000)
+                      }
+                      setShowPinned(false)
+                    }}
+                  >
+                    <span className="font-medium">{msg.sender?.name || "Unknown"}: </span>
+                    <span className="text-muted-foreground line-clamp-1">{msg.content || "[attachment]"}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No pinned messages yet</p>
+            )}
+          </div>
+        )}
+
         {/* Loading older messages indicator */}
         {isLoadingMore && (
           <div className="flex justify-center py-4">
@@ -897,8 +951,33 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
                       >
                         <Reply className="w-3 h-3" />
                       </button>
-                      <button className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground">
-                        <MoreVertical className="w-3 h-3" />
+                      <button
+                        className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground"
+                        title={msg.isPinned ? "Unpin" : "Pin"}
+                        onClick={() => {
+                          fetch(`/api/conversations/${conversationId}/messages/${msg.id}/pin`, {
+                            method: "POST",
+                            headers: { "Authorization": `Bearer ${token}` }
+                          }).then(() => {
+                            queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(conversationId, {}) })
+                          }).catch(err => console.error("Pin error:", err))
+                        }}
+                      >
+                        <Pin className={cn("w-3 h-3", msg.isPinned && "fill-current text-primary")} />
+                      </button>
+                      <button
+                        className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground"
+                        title={msg.isFavorited ? "Unfavorite" : "Favorite"}
+                        onClick={() => {
+                          fetch(`/api/conversations/${conversationId}/messages/${msg.id}/favorite`, {
+                            method: "POST",
+                            headers: { "Authorization": `Bearer ${token}` }
+                          }).then(() => {
+                            queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(conversationId, {}) })
+                          }).catch(err => console.error("Favorite error:", err))
+                        }}
+                      >
+                        <Heart className={cn("w-3 h-3", msg.isFavorited && "fill-red-500 text-red-500")} />
                       </button>
                     </div>
                   </div>
@@ -930,6 +1009,36 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
             >
               <Reply className="w-4 h-4" />
               Reply
+            </button>
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+              onClick={() => {
+                fetch(`/api/conversations/${conversationId}/messages/${contextMenu.msg.id}/pin`, {
+                  method: "POST",
+                  headers: { "Authorization": `Bearer ${token}` }
+                }).then(() => {
+                  queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(conversationId, {}) })
+                  setContextMenu(null)
+                }).catch(err => console.error("Pin error:", err))
+              }}
+            >
+              <Pin className="w-4 h-4" />
+              {contextMenu.msg.isPinned ? "Unpin" : "Pin"}
+            </button>
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+              onClick={() => {
+                fetch(`/api/conversations/${conversationId}/messages/${contextMenu.msg.id}/favorite`, {
+                  method: "POST",
+                  headers: { "Authorization": `Bearer ${token}` }
+                }).then(() => {
+                  queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(conversationId, {}) })
+                  setContextMenu(null)
+                }).catch(err => console.error("Favorite error:", err))
+              }}
+            >
+              <Heart className="w-4 h-4" />
+              {contextMenu.msg.isFavorited ? "Unfavorite" : "Favorite"}
             </button>
           </div>
         </div>

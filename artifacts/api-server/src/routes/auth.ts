@@ -513,8 +513,9 @@ router.get("/data-retention/policy", requireAuth as any, requireAdmin as any, as
 });
 
 router.get("/test-cico-health", async (req, res) => {
+  const CICO_API_URL = "https://cico2025.replit.app";
   try {
-    const response = await fetch("https://workspace.joniiswa1101.repl.co/api/auth/sso/login", {
+    const response = await fetch(`${CICO_API_URL}/api/auth/sso/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "test-health-check", password: "test" }),
@@ -523,7 +524,7 @@ router.get("/test-cico-health", async (req, res) => {
     const data = await response.json();
     res.json({
       status: "connected",
-      cicoUrl: "https://workspace.joniiswa1101.repl.co",
+      cicoUrl: CICO_API_URL,
       httpStatus: response.status,
       responsePreview: typeof data === 'object' ? { ...data, token: data.token ? '[JWT]' : undefined } : data,
     });
@@ -531,7 +532,7 @@ router.get("/test-cico-health", async (req, res) => {
     res.status(503).json({
       status: "disconnected",
       error: err instanceof Error ? err.message : "Unknown error",
-      cicoUrl: "https://workspace.joniiswa1101.repl.co",
+      cicoUrl: CICO_API_URL,
       message: "Cannot reach CICO. Check URL and network connectivity.",
     });
   }

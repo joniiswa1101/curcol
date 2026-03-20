@@ -100,24 +100,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function loginViaCICO(username: string, password: string) {
-    const res = await fetch(`${BASE_URL}/api/auth/sso/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    if (!res.ok) {
-      let err: any;
-      try {
-        err = await res.json();
-      } catch {
-        throw new Error("CICO login gagal - server error");
+    try {
+      const res = await fetch(`${BASE_URL}/api/auth/sso/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      
+      if (!res.ok) {
+        let err: any;
+        try {
+          err = await res.json();
+        } catch {
+          // Network or parsing error
+          if (!res.status) {
+            throw new Error("CICO login gagal - tidak bisa terhubung ke server");
+          }
+          throw new Error(`CICO login gagal - server error (HTTP ${res.status})`);
+        }
+        throw new Error(err.message || `CICO login gagal (${res.status})`);
       }
-      throw new Error(err.message || "CICO login gagal");
+      
+      const data = await res.json();
+      
+      // Validate response format
+      if (!data.token || !data.user) {
+        throw new Error("CICO login gagal - response format tidak valid");
+      }
+      
+      await AsyncStorage.setItem("auth_token", data.token);
+      setToken(data.token);
+      setUser(data.user);
+    } catch (e) {
+      if (e instanceof Error) {
+        throw e;
+      }
+      throw new Error("CICO login gagal - error tidak diketahui");
     }
-    const data = await res.json();
-    await AsyncStorage.setItem("auth_token", data.token);
-    setToken(data.token);
-    setUser(data.user);
   }
 
   async function logout() {

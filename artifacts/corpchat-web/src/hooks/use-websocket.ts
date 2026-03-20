@@ -7,6 +7,9 @@ export function useWebSocket() {
   const ws = useRef<WebSocket | null>(null);
   const queryClient = useQueryClient();
   const token = useAuthStore(state => state.token);
+  const retryCountRef = useRef(0);
+  const maxRetries = 10;
+  const baseDelay = 3000; // 3 seconds
 
   useEffect(() => {
     if (!token) return;
@@ -17,16 +20,24 @@ export function useWebSocket() {
     let reconnectTimer: ReturnType<typeof setTimeout>;
     let isDestroyed = false;
 
+    // Calculate exponential backoff: 3s, 6s, 12s, 24s, 30s (capped at 30s)
+    const getBackoffDelay = (retryCount: number): number => {
+      const exponentialDelay = baseDelay * Math.pow(2, retryCount);
+      const maxDelay = 30000; // 30 seconds
+      return Math.min(exponentialDelay, maxDelay);
+    };
+
     const connect = () => {
       if (isDestroyed) return;
 
-      console.log('[WebSocket] Connecting to:', wsUrl);
+      console.log(`[WebSocket] Connecting to: ${wsUrl} (attempt ${retryCountRef.current + 1}/${maxRetries})`);
       ws.current = new WebSocket(wsUrl);
 
       let pingTimer: ReturnType<typeof setInterval>;
 
       ws.current.onopen = () => {
         console.log('[WebSocket] ✅ Connected');
+        retryCountRef.current = 0; // Reset retry count on successful connection
         // Send ping every 15 seconds to keep connection alive
         pingTimer = setInterval(() => {
           if (ws.current?.readyState === WebSocket.OPEN) {
@@ -84,9 +95,17 @@ export function useWebSocket() {
 
       ws.current.onclose = () => {
         clearInterval(pingTimer);
-        console.log('[WebSocket] ❌ Disconnected, reconnecting in 3s...');
-        if (!isDestroyed) {
-          reconnectTimer = setTimeout(connect, 3000);
+        
+        if (retryCountRef.current < maxRetries) {
+          const delay = getBackoffDelay(retryCountRef.current);
+          console.log(`[WebSocket] ❌ Disconnected, reconnecting in ${delay / 1000}s (attempt ${retryCountRef.current + 1}/${maxRetries})`);
+          retryCountRef.current++;
+          
+          if (!isDestroyed) {
+            reconnectTimer = setTimeout(connect, delay);
+          }
+        } else {
+          console.error(`[WebSocket] Failed to reconnect after ${maxRetries} attempts. Giving up.`);
         }
       };
 

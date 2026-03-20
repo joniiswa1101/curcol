@@ -25,6 +25,8 @@ import {
 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
+import { useOfflineQueue } from "@/hooks/use-offline-queue"
+import { useQueueSync } from "@/hooks/use-queue-sync"
 
 // ─── Emoji Picker ─────────────────────────────────────────────────────────────
 
@@ -307,6 +309,8 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
 
   const sendMutation = useSendMessage()
   const { markMessageAsRead, markConversationAsRead } = useReadReceipts(conversationId)
+  const { isOnline, queuedCount, enqueue, getQueuedMessages } = useOfflineQueue(conversationId)
+  useQueueSync()
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -438,34 +442,43 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
       return { ...old, messages: [...old.messages, optimisticMessage] }
     })
 
-    sendMutation.mutate(
-      {
+    if (!isOnline) {
+      enqueue({
         conversationId,
-        data: {
-          content: text || undefined,
-          type: "text",
-          attachmentIds: fileToSend ? [fileToSend.id] : undefined,
-        } as any,
-      },
-      {
-        onSuccess: (newMsg) => {
-          queryClient.setQueryData(messagesQueryKey, (old: any) => {
-            if (!old) return { messages: [newMsg], hasMore: false }
-            return { ...old, messages: old.messages.map((m: any) => m.id === tempId ? newMsg : m) }
-          })
-          queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+        content: text || undefined,
+        type: "text",
+        attachmentIds: fileToSend ? [fileToSend.id] : undefined,
+      })
+    } else {
+      sendMutation.mutate(
+        {
+          conversationId,
+          data: {
+            content: text || undefined,
+            type: "text",
+            attachmentIds: fileToSend ? [fileToSend.id] : undefined,
+          } as any,
         },
-        onError: () => {
-          queryClient.setQueryData(messagesQueryKey, (old: any) => {
-            if (!old) return old
-            return { ...old, messages: old.messages.filter((m: any) => m.id !== tempId) }
-          })
-          setInputText(text)
-          if (fileToSend) setPendingFile(fileToSend)
-        },
-      }
-    )
-  }, [inputText, pendingFile, conversationId, user, sendMutation, queryClient, messagesQueryKey])
+        {
+          onSuccess: (newMsg) => {
+            queryClient.setQueryData(messagesQueryKey, (old: any) => {
+              if (!old) return { messages: [newMsg], hasMore: false }
+              return { ...old, messages: old.messages.map((m: any) => m.id === tempId ? newMsg : m) }
+            })
+            queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+          },
+          onError: () => {
+            queryClient.setQueryData(messagesQueryKey, (old: any) => {
+              if (!old) return old
+              return { ...old, messages: old.messages.filter((m: any) => m.id !== tempId) }
+            })
+            setInputText(text)
+            if (fileToSend) setPendingFile(fileToSend)
+          },
+        }
+      )
+    }
+  }, [inputText, pendingFile, conversationId, user, sendMutation, queryClient, messagesQueryKey, isOnline, enqueue])
 
   const handleVoiceRecorded = useCallback(async (blob: Blob, duration: number) => {
     setShowVoiceRecorder(false)
@@ -587,6 +600,12 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
               <p className="text-xs text-white/80 mt-0.5">💬 Replies forwarded to WhatsApp</p>
             ) : (
               <>
+                {!isOnline && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5 mt-0.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    Offline {queuedCount > 0 && `(${queuedCount} pending)`}
+                  </p>
+                )}
                 {headerStatus && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                     <span className={cn("w-2 h-2 rounded-full", cicoStatusStr === "present" ? "bg-status-present" : "bg-muted-foreground")} />

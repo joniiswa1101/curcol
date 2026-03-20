@@ -3,6 +3,7 @@ import { db, attachmentsTable } from "@workspace/db";
 import { requireAuth } from "../lib/auth.js";
 import { validateFileMagicBytes, hasDoubleExtension, deleteFileIfExists } from "../lib/fileValidator.js";
 import { logAudit } from "../lib/audit.js";
+import { compressImage, isImage } from "../lib/image-compression.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -110,10 +111,31 @@ router.post("/upload", requireAuth as any, (req, res, next) => {
     return;
   }
 
+  // Compress image if applicable
+  let finalFileSize = req.file.size;
+  let compressionInfo: { originalSize: number; compressedSize: number; ratio: number } | null = null;
+  
+  if (isImage(req.file.mimetype)) {
+    const compressionResult = await compressImage(filePath, req.file.mimetype, {
+      quality: 80,
+      maxWidth: 1920,
+      maxHeight: 1920,
+    });
+    
+    if (compressionResult.success) {
+      finalFileSize = compressionResult.compressedSize;
+      compressionInfo = {
+        originalSize: compressionResult.originalSize,
+        compressedSize: compressionResult.compressedSize,
+        ratio: compressionResult.ratio,
+      };
+    }
+  }
+
   const url = `/api/files/${req.file.filename}`;
   const [attachment] = await db.insert(attachmentsTable).values({
     fileName: req.file.originalname,
-    fileSize: req.file.size,
+    fileSize: finalFileSize,
     mimeType: req.file.mimetype,
     url,
     createdAt: new Date(),
@@ -128,8 +150,13 @@ router.post("/upload", requireAuth as any, (req, res, next) => {
       entityId: attachment.id,
       details: {
         fileName: req.file.originalname,
-        fileSize: req.file.size,
+        originalFileSize: req.file.size,
+        finalFileSize: finalFileSize,
         mimeType: req.file.mimetype,
+        ...(compressionInfo && {
+          compressionRatio: compressionInfo.ratio,
+          compressed: true,
+        }),
       },
       req,
     });
@@ -141,6 +168,13 @@ router.post("/upload", requireAuth as any, (req, res, next) => {
     fileSize: attachment.fileSize,
     mimeType: attachment.mimeType,
     url: attachment.url,
+    ...(compressionInfo && {
+      compression: {
+        originalSize: compressionInfo.originalSize,
+        compressedSize: compressionInfo.compressedSize,
+        ratio: compressionInfo.ratio,
+      },
+    }),
   });
 });
 

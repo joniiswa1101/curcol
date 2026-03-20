@@ -12,6 +12,7 @@ import {
   Conversation
 } from "@workspace/api-client-react"
 import { useAuthStore } from "@/hooks/use-auth"
+import { useInfiniteMessages } from "@/hooks/use-infinite-messages"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -290,18 +291,32 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const messagesQueryKey = getListMessagesQueryKey(conversationId)
-  const { data: msgData, isLoading: messagesLoading } = useListMessages(conversationId)
-  const sendMutation = useSendMessage()
-  const messages = msgData?.messages || []
+  // Use infinite scroll pagination with caching
+  const { messages, isLoading: messagesLoading, isLoadingMore, hasMore, loadOlderMessages } = useInfiniteMessages({
+    conversationId,
+    initialLimit: 50,
+  })
 
+  const sendMutation = useSendMessage()
+
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (scrollContainerRef.current && messages.length > 0) {
+      const shouldAutoScroll = 
+        scrollContainerRef.current.scrollHeight - scrollContainerRef.current.scrollTop - scrollContainerRef.current.clientHeight < 100
+      if (shouldAutoScroll) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+        }, 0)
+      }
+    }
   }, [messages.length])
 
+  // Reset state when conversation changes
   useEffect(() => {
     setInputText("")
     setPendingFile(null)
@@ -311,11 +326,23 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
 
   // Polling fallback - refetch messages every 3 seconds as backup to WebSocket
   useEffect(() => {
+    const messagesQueryKey = getListMessagesQueryKey(conversationId)
     const interval = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: messagesQueryKey })
     }, 3000)
     return () => clearInterval(interval)
-  }, [conversationId, messagesQueryKey, queryClient])
+  }, [conversationId, queryClient])
+
+  // Detect scroll to top and load older messages
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return
+    
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current
+    // When scrolled near the top (100px), load older messages
+    if (scrollTop < 100 && hasMore && !isLoadingMore) {
+      loadOlderMessages()
+    }
+  }, [hasMore, isLoadingMore, loadOlderMessages])
 
   // ── File upload handler ────────────────────────────────────────────────────
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -489,7 +516,22 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gradient-to-b from-background to-muted/20">
+      <div 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gradient-to-b from-background to-muted/20"
+      >
+        {/* Loading older messages indicator */}
+        {isLoadingMore && (
+          <div className="flex justify-center py-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce"></div>
+              <span>Loading older messages...</span>
+              <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+            </div>
+          </div>
+        )}
+
         {messagesLoading ? (
           <div className="space-y-4">
             {[1,2,3,4].map(i => (

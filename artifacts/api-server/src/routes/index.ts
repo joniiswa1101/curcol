@@ -16,6 +16,7 @@ import backupRouter from "./backup.js";
 import gdprRouter from "./gdpr.js";
 import callsRouter from "./calls.js";
 import presenceRouter from "./presence.js";
+import stickersRouter from "./stickers.js";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.use("/users", usersRouter);
 router.use("/cico", cicoRouter);
 router.use("/conversations", conversationsRouter);
 router.use("/conversations", messagesRouter);
+router.use("/messages", messagesRouter);
 router.use("/messages", messageActionsRouter);
 router.use("/announcements", announcementsRouter);
 router.use("/audit", auditRouter);
@@ -36,5 +38,6 @@ router.use("/backup", backupRouter);
 router.use("/gdpr", gdprRouter);
 router.use("/calls", callsRouter);
 router.use("/presence", presenceRouter);
+router.use("/stickers", stickersRouter);
 
 export default router;

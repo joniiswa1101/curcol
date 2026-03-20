@@ -98,6 +98,7 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
   - Conversation members: `(conversation_id, user_id)`, `conversation_id`, `user_id`
 - **Security Headers**: API server uses Helmet middleware for HTTPS security headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, CORS whitelisting).
 - **Mobile File Upload**: Full file picker with validation, preview, and error feedback. Supports images, videos, audio, PDFs, Office docs, and archives. 10 MB file size limit. Real-time validation with blocking of executable files (.exe, .bat, .sh, .php, .py, etc.). Error alerts in Indonesian (e.g., "Tipe file '.exe' tidak diizinkan"). File preview before send with emoji icon and file size display.
+- **Link Previews (P11.1-P11.3)**: Auto-detects URLs in message content via regex. Backend endpoint fetches Open Graph metadata (title, description, image, domain) using Cheerio HTML parser. Frontend displays interactive preview cards with optional image thumbnail, title, description, and domain attribution. Cards open links in new tabs. Supports dark/light mode styling with hover effects.
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

@@ -317,6 +317,8 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchFilters, setSearchFilters] = useState<{ senderId?: number; before?: string; after?: string }>({})
+  const [linkPreviews, setLinkPreviews] = useState<Record<number, any>>({})
+  const [showStickerPicker, setShowStickerPicker] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -460,7 +462,55 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
     }
   }, [searchQuery, searchFilters, conversationId, token])
 
+  // ── URL detection ─────────────────────────────────────────────────────────
+  const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\][\w-]+(:[0-9]+)?(\/[^\s<>"{}|\\^`\]\)]*)?/g;
+  
+  const detectUrls = useCallback((text: string): string[] => {
+    if (!text) return [];
+    const matches = text.match(urlRegex) || [];
+    return [...new Set(matches)];
+  }, []);
+
+  // ── Detect and fetch link previews ─────────────────────────────────────────
+  const fetchLinkPreview = useCallback(async (msgId: number, url: string) => {
+    if (linkPreviews[msgId]) return;
+    try {
+      const response = await fetch("/api/messages/link-preview", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ url })
+      });
+      if (!response.ok) return;
+      const preview = await response.json();
+      setLinkPreviews(prev => ({ ...prev, [msgId]: preview }));
+    } catch (err) {
+      console.error("Link preview fetch error:", err);
+    }
+  }, [linkPreviews, token]);
+
+  // ── Auto-fetch link previews on message render ──────────────────────────────
+  useEffect(() => {
+    messages.forEach(msg => {
+      if (msg.content) {
+        const urls = detectUrls(msg.content);
+        urls.forEach(url => {
+          if (!linkPreviews[msg.id]) {
+            fetchLinkPreview(msg.id, url);
+          }
+        });
+      }
+    });
+  }, [messages, detectUrls, fetchLinkPreview, linkPreviews]);
+
   // ── Send message ──────────────────────────────────────────────────────────
+  const handleSelectSticker = useCallback((sticker: string) => {
+    setInputText(sticker)
+    setShowStickerPicker(false)
+  }, [])
+
   const handleSend = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     const text = inputText.trim()
@@ -1029,7 +1079,37 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
                       </a>
                     ))}
 
-                    {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
+                    {msg.content && (
+                      <div>
+                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        {linkPreviews[msg.id] && (
+                          <a
+                            href={linkPreviews[msg.id].url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(
+                              "flex gap-3 mt-2 rounded-lg border overflow-hidden hover:opacity-80 transition-opacity max-w-sm",
+                              isMe
+                                ? "bg-white/10 border-white/20"
+                                : "bg-muted border-border/60"
+                            )}
+                          >
+                            {linkPreviews[msg.id].image && (
+                              <img
+                                src={linkPreviews[msg.id].image}
+                                alt={linkPreviews[msg.id].title}
+                                className="w-24 h-24 object-cover shrink-0"
+                              />
+                            )}
+                            <div className="flex-1 p-2 min-w-0">
+                              <p className="text-xs font-semibold line-clamp-1">{linkPreviews[msg.id].title}</p>
+                              <p className="text-xs opacity-70 line-clamp-2">{linkPreviews[msg.id].description}</p>
+                              <p className="text-xs opacity-60 mt-1">{linkPreviews[msg.id].domain}</p>
+                            </div>
+                          </a>
+                        )}
+                      </div>
+                    )}
 
                     <div className={cn(
                       "flex items-center gap-1 mt-1",
@@ -1300,21 +1380,41 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
                   <Send className="w-4 h-4 ml-0.5" />
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowVoiceRecorder(true)}
-                  className="shrink-0 rounded-xl text-muted-foreground hover:text-primary transition-colors"
-                  title="Pesan suara"
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowStickerPicker(true)}
+                    className="shrink-0 rounded-xl text-muted-foreground hover:text-primary transition-colors"
+                    title="Stiker"
+                  >
+                    <Smile className="w-5 h-5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowVoiceRecorder(true)}
+                    className="shrink-0 rounded-xl text-muted-foreground hover:text-primary transition-colors"
+                    title="Pesan suara"
+                  >
+                    <Mic className="w-5 h-5" />
+                  </Button>
+                </>
               )}
             </form>
           )}
         </div>
       </div>
+
+      {/* Sticker Picker Modal */}
+      <StickerPicker
+        isOpen={showStickerPicker}
+        onClose={() => setShowStickerPicker(false)}
+        onSelectSticker={handleSelectSticker}
+        token={token}
+      />
     </>
   )
 }

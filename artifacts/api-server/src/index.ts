@@ -1,7 +1,7 @@
 import { createServer } from "http";
 import app from "./app.js";
 import { initWebSocket } from "./lib/websocket.js";
-import { db, usersTable, cicoStatusTable } from "@workspace/db";
+import { db, usersTable, cicoStatusTable, stickersTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { hashPassword } from "./lib/password.js";
 import { initBackupScheduler, getSchedulerStatus } from "./lib/backup-scheduler.js";
@@ -89,7 +89,33 @@ async function ensureSeeded() {
       { employeeId: "EMP006", status: "present", checkInTime: new Date(now.getTime() - 1*60*60*1000), location: "Office", updatedAt: now },
     ]);
 
-    console.log(`✅ Seeded ${users.length} users and CICO statuses`);
+    // Seed stickers
+    const stickerPacks = [
+      { packId: "emoji-smileys", packName: "Smileys", stickers: ["😊", "😂", "😍", "🤔", "😎", "🤗", "😇", "🥰", "😘", "😜", "🤐", "😴", "😤", "😡", "🤬", "🥳"] },
+      { packId: "emoji-nature", packName: "Animals", stickers: ["🐶", "🐱", "🦁", "🐯", "🐻", "🐼", "🐨", "🐭", "🐹", "🐰", "🦊", "🦝", "🐮", "🐷", "🐸", "🐵"] },
+      { packId: "emoji-food", packName: "Food", stickers: ["🍕", "🍔", "🍟", "🌭", "🌮", "🌯", "🍱", "🍜", "🍝", "🍛", "🍲", "🥘", "🍰", "🎂", "🍪", "☕"] },
+      { packId: "emoji-activities", packName: "Sports", stickers: ["⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🥏", "🎱", "🏓", "🏸", "🏒", "🏑", "🥍", "🏌️", "⛳"] },
+    ];
+
+    const stickerValues: any[] = [];
+    stickerPacks.forEach((pack, packIdx) => {
+      pack.stickers.forEach((emoji, stickerIdx) => {
+        stickerValues.push({
+          packId: pack.packId,
+          packName: pack.packName,
+          stickerUrl: emoji,
+          alt: `${pack.packName}/${emoji}`,
+          order: stickerIdx + 1,
+        });
+      });
+    });
+
+    if (stickerValues.length > 0) {
+      await db.insert(stickersTable).values(stickerValues);
+      console.log(`✅ Seeded ${stickerValues.length} stickers`);
+    }
+
+    console.log(`✅ Seeded ${users.length} users, CICO statuses, and stickers`);
   } catch (err) {
     console.error("⚠️ Seed check failed (non-critical):", err instanceof Error ? err.message : String(err));
   }

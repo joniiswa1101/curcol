@@ -560,4 +560,48 @@ router.get("/:conversationId/search", requireAuth as any, async (req, res) => {
   });
 });
 
+// ── Fetch link metadata ──────────────────────────────────────────────────────
+router.post("/link-preview", requireAuth as any, async (req, res) => {
+  const { url } = req.body;
+  if (!url) { res.status(400).json({ error: "url required" }); return; }
+
+  try {
+    const urlObj = new URL(url);
+    const allowedDomains = ["http", "https"];
+    if (!allowedDomains.includes(urlObj.protocol.replace(":", ""))) {
+      res.status(400).json({ error: "invalid protocol" });
+      return;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; CurCol/1.0)"
+      },
+      timeout: 5000
+    });
+
+    if (!response.ok) { res.status(400).json({ error: "fetch failed" }); return; }
+
+    const html = await response.text();
+    const { load } = await import("cheerio");
+    const $ = load(html);
+
+    const title = $("meta[property='og:title']").attr("content") || $("title").text() || url;
+    const description = $("meta[property='og:description']").attr("content") || $("meta[name='description']").attr("content") || "";
+    const image = $("meta[property='og:image']").attr("content") || "";
+    const domain = urlObj.hostname || url;
+
+    res.json({
+      url,
+      title: title.substring(0, 200),
+      description: description.substring(0, 300),
+      image,
+      domain
+    });
+  } catch (error: any) {
+    console.error("Link preview error:", error.message);
+    res.status(500).json({ error: "failed to fetch preview" });
+  }
+});
+
 export default router;

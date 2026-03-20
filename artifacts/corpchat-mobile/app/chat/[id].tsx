@@ -18,6 +18,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar } from "@/components/UserAvatar";
 import { CicoStatusBadge } from "@/components/CicoStatusBadge";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { AudioPlayer } from "@/components/AudioPlayer";
 import { useWebSocket } from "@/hooks/use-websocket";
 
 function formatMsgTime(dateStr: string) {
@@ -30,6 +32,12 @@ function formatDayLabel(dateStr: string) {
   if (isToday(d)) return "Hari Ini";
   if (isYesterday(d)) return "Kemarin";
   return format(d, "d MMMM yyyy", { locale: idLocale });
+}
+
+interface Attachment {
+  fileName: string;
+  url: string;
+  mimeType: string;
 }
 
 interface Message {
@@ -45,6 +53,7 @@ interface Message {
   sender?: { name: string; avatarUrl?: string; cicoStatus?: any };
   replyTo?: Message;
   reactions?: { emoji: string; count: number; userIds: number[] }[];
+  attachments?: Attachment[];
 }
 
 interface BubbleProps {
@@ -111,13 +120,23 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPi
               </Text>
             </View>
           )}
-          <Text style={[styles.msgText, {
-            color: isMine ? colors.bubble.mineText : colors.bubble.otherText,
-            fontStyle: msg.isDeleted ? "italic" : "normal",
-            opacity: msg.isDeleted ? 0.6 : 1,
-          }]}>
-            {content}
-          </Text>
+          {msg.attachments?.filter(a => a.mimeType?.startsWith("audio/")).map((att, idx) => (
+            <AudioPlayer key={`audio-${idx}`} src={att.url} isMine={isMine} colors={colors} />
+          ))}
+          {msg.attachments?.filter(a => a.mimeType?.startsWith("image/")).map((att, idx) => (
+            <Pressable key={`img-${idx}`} onPress={() => {}}>
+              <Image source={{ uri: att.url.startsWith("http") ? att.url : `${process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : ""}${att.url}` }} style={{ width: 200, height: 200, borderRadius: 12, marginBottom: 4 }} resizeMode="cover" />
+            </Pressable>
+          ))}
+          {(!msg.attachments?.some(a => a.mimeType?.startsWith("audio/")) || content) && (
+            <Text style={[styles.msgText, {
+              color: isMine ? colors.bubble.mineText : colors.bubble.otherText,
+              fontStyle: msg.isDeleted ? "italic" : "normal",
+              opacity: msg.isDeleted ? 0.6 : 1,
+            }]}>
+              {content}
+            </Text>
+          )}
           <View style={styles.msgMeta}>
             <Text style={[styles.msgTime, { color: isMine ? "rgba(255,255,255,0.6)" : colors.textSecondary }]}>
               {formatMsgTime(msg.createdAt)}
@@ -190,6 +209,7 @@ export default function ChatScreen() {
   const [pendingFile, setPendingFile] = useState<any>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const flatRef = useRef<FlatList>(null);
   const isWhatsapp = type === "whatsapp";
@@ -430,6 +450,65 @@ export default function ChatScreen() {
     sendMutation.mutate(trimmed);
   }
 
+  const handleVoiceRecorded = useCallback(async (uri: string, duration: number, mimeType: string) => {
+    setShowVoiceRecorder(false);
+    setUploading(true);
+    try {
+      const ext = mimeType.includes("mp4") ? "m4a" : "webm";
+      const formData = new FormData();
+      formData.append("file", {
+        uri,
+        name: `voice-${Date.now()}.${ext}`,
+        type: mimeType,
+      } as any);
+
+      const baseUrl = getBaseUrl();
+      const authToken = user?.token || (await (await import("@react-native-async-storage/async-storage")).default.getItem("auth_token")) || "";
+
+      const response = await fetch(`${baseUrl}/api/files/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Upload gagal" }));
+        throw new Error(error.message || "Upload gagal");
+      }
+
+      const data = await response.json();
+      const durationStr = `${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, "0")}`;
+
+      const optimisticMsg: Message = {
+        id: Math.random() * -1,
+        senderId: user?.id || 0,
+        content: `🎤 Pesan suara (${durationStr})`,
+        type: "file",
+        isEdited: false,
+        isDeleted: false,
+        isPinned: false,
+        createdAt: new Date().toISOString(),
+        sender: user ? { name: user.name, avatarUrl: user.avatarUrl, cicoStatus: null } : undefined,
+        reactions: [],
+      };
+
+      setOptimisticMessages(prev => [...prev, optimisticMsg]);
+
+      await api.post(`/conversations/${id}/messages`, {
+        content: `🎤 Pesan suara (${durationStr})`,
+        type: "text",
+        attachmentIds: [data.id],
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["messages", id] });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload gagal";
+      setUploadError(message);
+    } finally {
+      setUploading(false);
+    }
+  }, [user, id, queryClient]);
+
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.background }]}
@@ -555,50 +634,71 @@ export default function ChatScreen() {
             <Text style={styles.waInputHintText}>Pesan akan dikirim ke WhatsApp kontak</Text>
           </View>
         )}
-        <View style={styles.inputRow}>
-          <Pressable 
-            onPress={handleFileSelect}
+        {showVoiceRecorder ? (
+          <VoiceRecorder
+            onRecorded={handleVoiceRecorded}
+            onCancel={() => setShowVoiceRecorder(false)}
+            colors={colors}
             disabled={uploading}
-            style={[styles.attachBtn, { opacity: uploading ? 0.5 : 1 }]} 
-            hitSlop={6}
-          >
-            {uploading ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Feather name="paperclip" size={20} color={colors.textSecondary} />
-            )}
-          </Pressable>
-          <Pressable
-            onPress={() => setShowEmojiPicker(!showEmojiPicker)}
-            style={styles.attachBtn}
-            hitSlop={6}
-          >
-            <Feather name="smile" size={20} color={colors.textSecondary} />
-          </Pressable>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.surfaceSecondary, color: colors.text }]}
-            placeholder={isWhatsapp ? "Balas ke WhatsApp..." : "Ketik pesan..."}
-            placeholderTextColor={colors.textSecondary}
-            value={text}
-            onChangeText={handleTextChange}
-            multiline
-            maxLength={2000}
           />
-          <Pressable
-            onPress={send}
-            disabled={(!text.trim() && !pendingFile) || sendMutation.isPending}
-            style={({ pressed }) => [
-              styles.sendBtn,
-              { backgroundColor: (text.trim() || pendingFile) ? (isWhatsapp ? "#25D366" : colors.primary) : colors.border, opacity: pressed ? 0.8 : 1 },
-            ]}
-          >
-            {sendMutation.isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <View style={styles.inputRow}>
+            <Pressable 
+              onPress={handleFileSelect}
+              disabled={uploading}
+              style={[styles.attachBtn, { opacity: uploading ? 0.5 : 1 }]} 
+              hitSlop={6}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Feather name="paperclip" size={20} color={colors.textSecondary} />
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+              style={styles.attachBtn}
+              hitSlop={6}
+            >
+              <Feather name="smile" size={20} color={colors.textSecondary} />
+            </Pressable>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surfaceSecondary, color: colors.text }]}
+              placeholder={isWhatsapp ? "Balas ke WhatsApp..." : "Ketik pesan..."}
+              placeholderTextColor={colors.textSecondary}
+              value={text}
+              onChangeText={handleTextChange}
+              multiline
+              maxLength={2000}
+            />
+            {(text.trim() || pendingFile) ? (
+              <Pressable
+                onPress={send}
+                disabled={sendMutation.isPending}
+                style={({ pressed }) => [
+                  styles.sendBtn,
+                  { backgroundColor: isWhatsapp ? "#25D366" : colors.primary, opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                {sendMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="send" size={16} color="#fff" />
+                )}
+              </Pressable>
             ) : (
-              <Feather name="send" size={16} color="#fff" />
+              <Pressable
+                onPress={() => setShowVoiceRecorder(true)}
+                style={({ pressed }) => [
+                  styles.sendBtn,
+                  { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                <Feather name="mic" size={18} color={colors.textSecondary} />
+              </Pressable>
             )}
-          </Pressable>
-        </View>
+          </View>
+        )}
 
         <EmojiPicker
           visible={showEmojiPicker}

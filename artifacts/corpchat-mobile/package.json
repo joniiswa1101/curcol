@@ -60,6 +60,7 @@
   "dependencies": {
     "date-fns": "^3.6.0",
     "expo": "~54.0.33",
+    "expo-av": "^16.0.8",
     "react": "19.1.0",
     "react-native": "0.81.5"
   }

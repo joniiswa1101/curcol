@@ -1,9 +1,8 @@
-import { useCallback, useRef, useEffect } from "react"
-import { API_URL } from "@/lib/constants"
+import { useCallback, useRef } from "react"
 import { useAuthStore } from "./use-auth"
 
 export function useReadReceipts(conversationId: number | null) {
-  const { user } = useAuthStore()
+  const { user, token } = useAuthStore()
   const markingRef = useRef<Set<number>>(new Set())
 
   const markMessageAsRead = useCallback(async (messageId: number) => {
@@ -13,11 +12,13 @@ export function useReadReceipts(conversationId: number | null) {
 
     try {
       const response = await fetch(
-        `${API_URL}/api/conversations/${conversationId}/messages/${messageId}/read`,
+        `/api/conversations/${conversationId}/messages/${messageId}/read`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
       )
 
@@ -28,21 +29,23 @@ export function useReadReceipts(conversationId: number | null) {
       console.error("Failed to mark message as read:", error)
       markingRef.current.delete(messageId)
     }
-  }, [conversationId, user])
+  }, [conversationId, user, token])
 
   const markConversationAsRead = useCallback(async () => {
     if (!conversationId || !user) return
 
     try {
-      await fetch(`${API_URL}/api/conversations/${conversationId}/mark-read`, {
+      await fetch(`/api/conversations/${conversationId}/mark-read`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       })
     } catch (error) {
       console.error("Failed to mark conversation as read:", error)
     }
-  }, [conversationId, user])
+  }, [conversationId, user, token])
 
   return {
     markMessageAsRead,

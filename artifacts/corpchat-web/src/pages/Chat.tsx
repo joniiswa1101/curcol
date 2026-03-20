@@ -20,9 +20,11 @@ import { Input } from "@/components/ui/input"
 import { cn, formatMessageTime, getStatusLabel } from "@/lib/utils"
 import { validateFile } from "@/lib/upload-config"
 import {
-  Search, Send, Paperclip, Smile, MoreVertical,
+  Search, Send, Paperclip, Smile, MoreVertical, Mic,
   Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle
 } from "lucide-react"
+import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
+import { AudioPlayer } from "@/components/voice/AudioPlayer"
 
 // ─── Emoji Picker ─────────────────────────────────────────────────────────────
 
@@ -291,6 +293,7 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
   const [pendingFile, setPendingFile] = useState<UploadedFile | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -463,6 +466,81 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
     )
   }, [inputText, pendingFile, conversationId, user, sendMutation, queryClient, messagesQueryKey])
 
+  const handleVoiceRecorded = useCallback(async (blob: Blob, duration: number) => {
+    setShowVoiceRecorder(false)
+    setUploading(true)
+    try {
+      const ext = blob.type.includes("mp4") ? "m4a" : "webm"
+      const formData = new FormData()
+      formData.append("file", blob, `voice-${Date.now()}.${ext}`)
+
+      const res = await fetch("/api/files/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: "Upload gagal" }))
+        throw new Error(errorData.message || "Upload gagal")
+      }
+      const data = await res.json()
+
+      const tempId = Date.now()
+      const optimisticMessage = {
+        id: tempId,
+        conversationId,
+        senderId: user?.id || 0,
+        content: `🎤 Pesan suara (${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, "0")})`,
+        type: "file" as const,
+        createdAt: new Date().toISOString(),
+        editedAt: null,
+        isEdited: false,
+        isPinned: false,
+        replyToId: null,
+        attachments: [{ fileName: data.fileName, url: data.url, mimeType: data.mimeType }],
+        reactions: [],
+        sender: user ? { ...user, cicoStatus: null } : null,
+      }
+
+      queryClient.setQueryData(messagesQueryKey, (old: any) => {
+        if (!old) return { messages: [optimisticMessage], hasMore: false }
+        return { ...old, messages: [...old.messages, optimisticMessage] }
+      })
+
+      sendMutation.mutate(
+        {
+          conversationId,
+          data: {
+            content: `🎤 Pesan suara (${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, "0")})`,
+            type: "text",
+            attachmentIds: [data.id],
+          } as any,
+        },
+        {
+          onSuccess: (newMsg) => {
+            queryClient.setQueryData(messagesQueryKey, (old: any) => {
+              if (!old) return { messages: [newMsg], hasMore: false }
+              return { ...old, messages: old.messages.map((m: any) => m.id === tempId ? newMsg : m) }
+            })
+            queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+          },
+          onError: () => {
+            queryClient.setQueryData(messagesQueryKey, (old: any) => {
+              if (!old) return old
+              return { ...old, messages: old.messages.filter((m: any) => m.id !== tempId) }
+            })
+          },
+        }
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload gagal"
+      setUploadError(message)
+    } finally {
+      setUploading(false)
+    }
+  }, [token, conversationId, user, sendMutation, queryClient, messagesQueryKey])
+
   // ── Header info ─────────────────────────────────────────────────────────────
   let headerName = conversation?.name || "Chat"
   let headerAvatar = conversation?.avatarUrl
@@ -574,7 +652,8 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
 
             const attachments = (msg as any).attachments || []
             const imageAttachments = attachments.filter((a: any) => a.mimeType?.startsWith("image/"))
-            const fileAttachments = attachments.filter((a: any) => !a.mimeType?.startsWith("image/"))
+            const audioAttachments = attachments.filter((a: any) => a.mimeType?.startsWith("audio/"))
+            const fileAttachments = attachments.filter((a: any) => !a.mimeType?.startsWith("image/") && !a.mimeType?.startsWith("audio/"))
             
             // Get read receipts for this message (P3.4, P3.5)
             const reads = (msg as any).reads || []
@@ -611,6 +690,16 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
                         alt={att.fileName}
                         className="rounded-xl mb-2 max-w-[200px] max-h-[200px] object-cover cursor-pointer"
                         onClick={() => window.open(att.url, "_blank")}
+                      />
+                    ))}
+
+                    {/* Audio/Voice attachments (P2.5) */}
+                    {audioAttachments.map((att: any, idx: number) => (
+                      <AudioPlayer
+                        key={`audio-${idx}`}
+                        src={att.url}
+                        isMe={isMe}
+                        className="my-1"
                       />
                     ))}
 
@@ -712,76 +801,97 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
             />
           )}
 
-          <form
-            onSubmit={handleSend}
-            className="flex items-end gap-2 bg-card border border-border/60 rounded-2xl p-2 shadow-sm focus-within:ring-2 ring-primary/20 transition-all"
-          >
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar"
-              onChange={handleFileSelect}
-            />
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                "shrink-0 rounded-xl transition-colors",
-                uploading ? "opacity-50" : "text-muted-foreground hover:text-primary"
-              )}
-              title="Attach file"
+          {showVoiceRecorder ? (
+            <div className="flex items-center bg-card border border-border/60 rounded-2xl p-2 shadow-sm">
+              <VoiceRecorder
+                onRecorded={handleVoiceRecorded}
+                onCancel={() => setShowVoiceRecorder(false)}
+                disabled={uploading}
+              />
+            </div>
+          ) : (
+            <form
+              onSubmit={handleSend}
+              className="flex items-end gap-2 bg-card border border-border/60 rounded-2xl p-2 shadow-sm focus-within:ring-2 ring-primary/20 transition-all"
             >
-              {uploading ? (
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar,.mp3,.wav,.ogg,.webm,.m4a"
+                onChange={handleFileSelect}
+              />
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "shrink-0 rounded-xl transition-colors",
+                  uploading ? "opacity-50" : "text-muted-foreground hover:text-primary"
+                )}
+                title="Attach file"
+              >
+                {uploading ? (
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Paperclip className="w-5 h-5" />
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowEmoji(v => !v)}
+                className={cn(
+                  "shrink-0 rounded-xl transition-colors",
+                  showEmoji ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"
+                )}
+                title="Emoji"
+              >
+                <Smile className="w-5 h-5" />
+              </Button>
+
+              <textarea
+                ref={textareaRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={pendingFile ? "Add a caption..." : "Type a message..."}
+                rows={1}
+                className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:ring-0 py-3 px-2 text-sm custom-scrollbar"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend(e as any)
+                  }
+                }}
+              />
+
+              {canSend ? (
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="shrink-0 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md transition-transform active:scale-95"
+                >
+                  <Send className="w-4 h-4 ml-0.5" />
+                </Button>
               ) : (
-                <Paperclip className="w-5 h-5" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowVoiceRecorder(true)}
+                  className="shrink-0 rounded-xl text-muted-foreground hover:text-primary transition-colors"
+                  title="Pesan suara"
+                >
+                  <Mic className="w-5 h-5" />
+                </Button>
               )}
-            </Button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowEmoji(v => !v)}
-              className={cn(
-                "shrink-0 rounded-xl transition-colors",
-                showEmoji ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"
-              )}
-              title="Emoji"
-            >
-              <Smile className="w-5 h-5" />
-            </Button>
-
-            <textarea
-              ref={textareaRef}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={pendingFile ? "Add a caption..." : "Type a message..."}
-              rows={1}
-              className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:ring-0 py-3 px-2 text-sm custom-scrollbar"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSend(e as any)
-                }
-              }}
-            />
-
-            <Button
-              type="submit"
-              disabled={!canSend}
-              size="icon"
-              className="shrink-0 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md transition-transform active:scale-95"
-            >
-              <Send className="w-4 h-4 ml-0.5" />
-            </Button>
-          </form>
+            </form>
+          )}
         </div>
       </div>
     </>

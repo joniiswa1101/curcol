@@ -66,6 +66,28 @@ async function enrichMessages(msgs: any[]) {
     readsByMsg.get(read.messageId)!.push(read);
   }
 
+  const replyToIds = msgs.map(m => m.replyToId).filter((id): id is number => id != null);
+  const conversationIds = [...new Set(msgs.map(m => m.conversationId).filter(Boolean))];
+  let replyMessages: any[] = [];
+  if (replyToIds.length > 0) {
+    const uniqueReplyIds = [...new Set(replyToIds)];
+    const rawReplies = await db.select().from(messagesTable)
+      .where(and(
+        inArray(messagesTable.id, uniqueReplyIds),
+        conversationIds.length > 0 ? inArray(messagesTable.conversationId, conversationIds) : undefined
+      ) as any);
+    const replySenderIds = [...new Set(rawReplies.map(r => r.senderId).filter(Boolean))];
+    const replySenders = replySenderIds.length > 0
+      ? await db.select().from(usersTable).where(inArray(usersTable.id, replySenderIds as number[]))
+      : [];
+    const replySenderMap = new Map(replySenders.map(s => [s.id, s]));
+    replyMessages = rawReplies.map(r => {
+      const s = replySenderMap.get(r.senderId);
+      return { ...r, sender: s ? sanitizeUser(s) : null };
+    });
+  }
+  const replyMap = new Map(replyMessages.map(r => [r.id, r]));
+
   return msgs.map(msg => {
     const sender = senderMap.get(msg.senderId);
     const cicoStatus = sender ? cicoMap.get(sender.employeeId) || null : null;
@@ -86,6 +108,7 @@ async function enrichMessages(msgs: any[]) {
       attachments: msgAttachments,
       reactions: Object.values(reactionMap),
       reads: msgReads,
+      replyTo: msg.replyToId ? replyMap.get(msg.replyToId) || null : null,
     };
   });
 }
@@ -131,12 +154,20 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
     .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
   if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
 
+  let validatedReplyToId: number | null = null;
+  if (replyToId) {
+    const [replyMsg] = await db.select({ id: messagesTable.id })
+      .from(messagesTable)
+      .where(and(eq(messagesTable.id, replyToId), eq(messagesTable.conversationId, convId)));
+    if (replyMsg) validatedReplyToId = replyMsg.id;
+  }
+
   const [msg] = await db.insert(messagesTable).values({
     conversationId: convId,
     senderId: currentUser.id,
     content: content || null,
     type,
-    replyToId: replyToId || null,
+    replyToId: validatedReplyToId,
     createdAt: new Date(),
   }).returning();
 

@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input"
 import { cn, formatMessageTime, getStatusLabel } from "@/lib/utils"
 import { validateFile } from "@/lib/upload-config"
 import {
-  Search, Send, Paperclip, Smile, MoreVertical, Mic,
+  Search, Send, Paperclip, Smile, MoreVertical, Mic, Reply,
   Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle,
   Phone, Video
 } from "lucide-react"
@@ -309,6 +309,8 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
+  const [replyToMessage, setReplyToMessage] = useState<any>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msg: any } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -434,6 +436,8 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
     setInputText("")
     const fileToSend = pendingFile
     setPendingFile(null)
+    const currentReply = replyToMessage
+    setReplyToMessage(null)
 
     const tempId = Date.now()
     const optimisticMessage = {
@@ -446,7 +450,8 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
       editedAt: null,
       isEdited: false,
       isPinned: false,
-      replyToId: null,
+      replyToId: currentReply?.id || null,
+      replyTo: currentReply ? { id: currentReply.id, content: currentReply.content, sender: currentReply.sender } : null,
       attachments: fileToSend ? [{ fileName: fileToSend.fileName, url: fileToSend.url, mimeType: fileToSend.mimeType }] : [],
       reactions: [],
       sender: user ? { ...user, cicoStatus: null } : null,
@@ -462,6 +467,7 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
         conversationId,
         content: text || undefined,
         type: "text",
+        replyToId: currentReply?.id || undefined,
         attachmentIds: fileToSend ? [fileToSend.id] : undefined,
       })
     } else {
@@ -471,6 +477,7 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
           data: {
             content: text || undefined,
             type: "text",
+            replyToId: currentReply?.id || undefined,
             attachmentIds: fileToSend ? [fileToSend.id] : undefined,
           } as any,
         },
@@ -493,7 +500,7 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
         }
       )
     }
-  }, [inputText, pendingFile, conversationId, user, sendMutation, queryClient, messagesQueryKey, isOnline, enqueue])
+  }, [inputText, pendingFile, conversationId, user, sendMutation, queryClient, messagesQueryKey, isOnline, enqueue, replyToMessage])
 
   const handleVoiceRecorded = useCallback(async (blob: Blob, duration: number) => {
     setShowVoiceRecorder(false)
@@ -762,7 +769,7 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
             const hasReads = readCount > 0
 
             return (
-              <div key={msg.id} data-message-id={msg.id} className={cn("flex gap-3 max-w-[85%]", isMe ? "ml-auto flex-row-reverse" : "")}>
+              <div key={msg.id} id={`msg-${msg.id}`} data-message-id={msg.id} className={cn("flex gap-3 max-w-[85%] transition-all", isMe ? "ml-auto flex-row-reverse" : "")}>
                 {!isMe && (
                   <div className="w-8 shrink-0 flex flex-col justify-end">
                     {showSender && (
@@ -776,13 +783,41 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
                     <span className="text-xs font-medium text-muted-foreground ml-1">{msg.sender?.name}</span>
                   )}
 
-                  <div className={cn(
-                    "px-4 py-2.5 rounded-2xl relative group shadow-sm text-sm transition-opacity min-w-[80px]",
-                    isMe
-                      ? "bg-primary text-primary-foreground rounded-br-sm shadow-md"
-                      : "bg-muted/70 text-foreground rounded-bl-sm border border-border/40",
-                    isOptimistic && "opacity-60"
-                  )}>
+                  <div
+                    className={cn(
+                      "px-4 py-2.5 rounded-2xl relative group shadow-sm text-sm transition-opacity min-w-[80px]",
+                      isMe
+                        ? "bg-primary text-primary-foreground rounded-br-sm shadow-md"
+                        : "bg-muted/70 text-foreground rounded-bl-sm border border-border/40",
+                      isOptimistic && "opacity-60"
+                    )}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setContextMenu({ x: e.clientX, y: e.clientY, msg })
+                    }}
+                  >
+                    {msg.replyTo && (
+                      <div
+                        className={cn(
+                          "mb-2 px-3 py-1.5 rounded-lg border-l-2 cursor-pointer text-xs",
+                          isMe
+                            ? "bg-white/10 border-white/40 text-primary-foreground/80"
+                            : "bg-background/60 border-primary/40 text-muted-foreground"
+                        )}
+                        onClick={() => {
+                          const el = document.getElementById(`msg-${msg.replyTo.id}`)
+                          if (el) {
+                            el.scrollIntoView({ behavior: "smooth", block: "center" })
+                            el.classList.add("ring-2", "ring-primary/50")
+                            setTimeout(() => el.classList.remove("ring-2", "ring-primary/50"), 2000)
+                          }
+                        }}
+                      >
+                        <span className="font-medium block">{msg.replyTo.sender?.name || "Unknown"}</span>
+                        <span className="line-clamp-1 opacity-80">{msg.replyTo.content || "[attachment]"}</span>
+                      </div>
+                    )}
+
                     {/* Image attachments */}
                     {imageAttachments.map((att: any, idx: number) => (
                       <img
@@ -849,9 +884,19 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
                     </div>
 
                     <div className={cn(
-                      "absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border shadow-md rounded-lg flex items-center p-1",
-                      isMe ? "-left-12" : "-right-12"
+                      "absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border shadow-md rounded-lg flex items-center p-1 gap-0.5",
+                      isMe ? "-left-20" : "-right-20"
                     )}>
+                      <button
+                        className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground"
+                        title="Reply"
+                        onClick={() => {
+                          setReplyToMessage(msg)
+                          textareaRef.current?.focus()
+                        }}
+                      >
+                        <Reply className="w-3 h-3" />
+                      </button>
                       <button className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground">
                         <MoreVertical className="w-3 h-3" />
                       </button>
@@ -864,6 +909,31 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {contextMenu && (
+        <div
+          className="fixed inset-0 z-50"
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(e) => { e.preventDefault(); setContextMenu(null) }}
+        >
+          <div
+            className="absolute bg-popover border border-border shadow-lg rounded-lg py-1 min-w-[140px]"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+              onClick={() => {
+                setReplyToMessage(contextMenu.msg)
+                setContextMenu(null)
+                textareaRef.current?.focus()
+              }}
+            >
+              <Reply className="w-4 h-4" />
+              Reply
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="p-4 bg-background border-t border-border">
@@ -878,6 +948,22 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
             <button
               onClick={() => setUploadError(null)}
               className="text-destructive/60 hover:text-destructive transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {replyToMessage && (
+          <div className="mb-2 flex items-center gap-2 bg-muted/50 border border-border/50 rounded-lg px-3 py-2">
+            <Reply className="w-4 h-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0 border-l-2 border-primary pl-2">
+              <span className="text-xs font-medium text-primary block">{replyToMessage.sender?.name || "Unknown"}</span>
+              <span className="text-xs text-muted-foreground line-clamp-1">{replyToMessage.content || "[attachment]"}</span>
+            </div>
+            <button
+              onClick={() => setReplyToMessage(null)}
+              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
               <X className="w-4 h-4" />
             </button>

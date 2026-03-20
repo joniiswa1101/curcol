@@ -30,6 +30,7 @@ import { useOfflineQueue } from "@/hooks/use-offline-queue"
 import { useQueueSync } from "@/hooks/use-queue-sync"
 import { useTypingIndicators } from "@/hooks/use-typing-indicators"
 import { useCall } from "@/contexts/CallContext"
+import { usePresenceContext, formatLastSeen } from "@/contexts/PresenceContext"
 
 // ─── Emoji Picker ─────────────────────────────────────────────────────────────
 
@@ -151,6 +152,7 @@ function AttachmentPreview({ file, onRemove }: { file: UploadedFile; onRemove: (
 export default function Chat() {
   const [match, params] = useRoute("/chat/:id")
   const activeId = match ? parseInt(params.id) : null
+  const { getUserPresence } = usePresenceContext()
 
   const { data: convData, isLoading: convLoading } = useListConversations()
   const conversations = convData?.conversations || []
@@ -191,7 +193,7 @@ export default function Chat() {
               </div>
             ) : (
               conversations.map(conv => (
-                <ConversationItem key={conv.id} conversation={conv} isActive={activeId === conv.id} />
+                <ConversationItem key={conv.id} conversation={conv} isActive={activeId === conv.id} getUserPresence={getUserPresence} />
               ))
             )}
           </div>
@@ -200,7 +202,7 @@ export default function Chat() {
         {/* Chat Area */}
         <div className={cn("flex-1 flex flex-col bg-background relative", !match && "hidden md:flex")}>
           {activeId ? (
-            <ChatThread conversationId={activeId} conversation={activeConversation} />
+            <ChatThread conversationId={activeId} conversation={activeConversation} getUserPresence={getUserPresence} />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground bg-muted/10">
               <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 shadow-inner">
@@ -218,13 +220,14 @@ export default function Chat() {
 
 // ─── Conversation list item ────────────────────────────────────────────────────
 
-function ConversationItem({ conversation, isActive }: { conversation: Conversation; isActive: boolean }) {
+function ConversationItem({ conversation, isActive, getUserPresence }: { conversation: Conversation; isActive: boolean; getUserPresence: (userId: number) => { status: string; lastSeenAt: string | null } }) {
   const { user } = useAuthStore()
   const [, navigate] = useLocation()
 
   let displayName = conversation.name
   let displayAvatar = conversation.avatarUrl
   let cicoStatus = null
+  let otherUserId: number | null = null
 
   if (conversation.type === "direct" && conversation.members) {
     const other = conversation.members.find(m => m.userId !== user?.id)
@@ -232,8 +235,12 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
       displayName = other.user.name
       displayAvatar = other.user.avatarUrl
       cicoStatus = other.user.cicoStatus?.status
+      otherUserId = other.userId || null
     }
   }
+
+  const presence = otherUserId ? getUserPresence(otherUserId) : null
+  const presenceDotColor = presence?.status === "online" ? "bg-green-500" : presence?.status === "idle" ? "bg-yellow-500" : null
 
   return (
     <button
@@ -254,6 +261,9 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
           </div>
         ) : (
           <Avatar src={displayAvatar} fallback={displayName || "U"} size="lg" status={cicoStatus as any} />
+        )}
+        {presenceDotColor && conversation.type === "direct" && (
+          <span className={cn("absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-background", presenceDotColor)} />
         )}
       </div>
 
@@ -290,7 +300,7 @@ function ConversationItem({ conversation, isActive }: { conversation: Conversati
 
 // ─── Chat thread ───────────────────────────────────────────────────────────────
 
-function ChatThread({ conversationId, conversation }: { conversationId: number; conversation: Conversation | null }) {
+function ChatThread({ conversationId, conversation, getUserPresence: getPresence }: { conversationId: number; conversation: Conversation | null; getUserPresence: (userId: number) => { status: string; lastSeenAt: string | null } }) {
   const queryClient = useQueryClient()
   const { user, token } = useAuthStore()
   const [inputText, setInputText] = useState("")
@@ -565,6 +575,7 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
   let headerAvatar = conversation?.avatarUrl
   let cicoStatusStr: string | null = null
   let headerStatus: string | null = null
+  let otherUserId: number | null = null
 
   if (conversation?.type === "direct" && conversation.members) {
     const other = conversation.members.find(m => m.userId !== user?.id)
@@ -573,8 +584,14 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
       headerAvatar = other.user.avatarUrl
       cicoStatusStr = other.user.cicoStatus?.status || null
       headerStatus = getStatusLabel(cicoStatusStr)
+      otherUserId = other.userId || null
     }
   }
+
+  const otherPresence = otherUserId ? getPresence(otherUserId) : null
+  const presenceStatus = otherPresence?.status || "offline"
+  const presenceColor = presenceStatus === "online" ? "bg-green-500" : presenceStatus === "idle" ? "bg-yellow-500" : "bg-gray-400"
+  const presenceLabel = presenceStatus === "online" ? "Online" : presenceStatus === "idle" ? "Idle" : formatLastSeen(otherPresence?.lastSeenAt || null)
 
   const canSend = (inputText.trim().length > 0 || pendingFile !== null) && !sendMutation.isPending
 
@@ -619,6 +636,14 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
                       <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0.2s" }} />
                     </span>
                     {typingUsers.length === 1 ? "typing" : "typing"}
+                  </p>
+                ) : conversation?.type === "direct" && otherUserId ? (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                    <span className={cn("w-2 h-2 rounded-full", presenceColor)} />
+                    {presenceLabel}
+                    {headerStatus && presenceStatus !== "offline" && (
+                      <span className="text-muted-foreground/60 ml-1">· {headerStatus}</span>
+                    )}
                   </p>
                 ) : headerStatus ? (
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">

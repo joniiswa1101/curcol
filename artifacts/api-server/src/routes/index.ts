@@ -15,6 +15,7 @@ import adminWhatsappRouter from "./admin-whatsapp.js";
 import backupRouter from "./backup.js";
 import gdprRouter from "./gdpr.js";
 import callsRouter from "./calls.js";
+import presenceRouter from "./presence.js";
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use("/admin/whatsapp", adminWhatsappRouter);
 router.use("/backup", backupRouter);
 router.use("/gdpr", gdprRouter);
 router.use("/calls", callsRouter);
+router.use("/presence", presenceRouter);
 
 export default router;

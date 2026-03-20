@@ -1,6 +1,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
 import { getUserFromToken } from "./auth.js";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 
 interface AuthenticatedClient extends WebSocket {
   userId?: number;
@@ -12,6 +14,37 @@ interface AuthenticatedClient extends WebSocket {
 let wss: WebSocketServer | null = null;
 const clients = new Set<AuthenticatedClient>();
 const typingUsers = new Map<number, Set<number>>();
+const onlineUsers = new Map<number, string>();
+
+async function updatePresence(userId: number, status: "online" | "idle" | "offline") {
+  try {
+    await db.execute(sql`
+      INSERT INTO user_presence (user_id, status, last_seen_at, updated_at) 
+      VALUES (${userId}, ${status}, NOW(), NOW())
+      ON CONFLICT (user_id) DO UPDATE SET 
+        status = ${status}, 
+        last_seen_at = NOW(), 
+        updated_at = NOW()
+    `);
+  } catch (e) {
+    console.error("[Presence] DB update failed:", e);
+  }
+}
+
+function getOnlineUserIds(): number[] {
+  return Array.from(onlineUsers.keys());
+}
+
+function broadcastPresence(userId: number, status: string) {
+  broadcastToAll({
+    type: "presence_update",
+    userId,
+    status,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export { getOnlineUserIds };
 
 export function initWebSocket(server: Server) {
   wss = new WebSocketServer({ server, path: "/ws" });
@@ -31,10 +64,23 @@ export function initWebSocket(server: Server) {
       }
     } else {
       console.log(`[WebSocket] ❌ No token provided`);
+      ws.close(4001, "Authentication required");
+      return;
+    }
+
+    if (!ws.userId) {
+      ws.close(4001, "Authentication failed");
+      return;
     }
 
     ws.isAlive = true;
     clients.add(ws);
+
+    if (ws.userId) {
+      onlineUsers.set(ws.userId, "online");
+      updatePresence(ws.userId, "online");
+      broadcastPresence(ws.userId, "online");
+    }
 
     ws.on("pong", () => { ws.isAlive = true; });
 
@@ -75,6 +121,14 @@ export function initWebSocket(server: Server) {
             type: "call_end",
             fromUserId: ws.userId,
           });
+        } else if (msg.type === "presence" && ws.userId && msg.status) {
+          const newStatus = msg.status === "idle" ? "idle" : "online";
+          const currentStatus = onlineUsers.get(ws.userId);
+          if (currentStatus !== newStatus) {
+            onlineUsers.set(ws.userId, newStatus);
+            updatePresence(ws.userId, newStatus);
+            broadcastPresence(ws.userId, newStatus);
+          }
         } else if (msg.type === "typing" && ws.userId && msg.conversationId) {
           const conversationId = msg.conversationId;
           
@@ -129,6 +183,15 @@ export function initWebSocket(server: Server) {
       typingUsers.forEach((users) => {
         if (ws.userId) users.delete(ws.userId);
       });
+      
+      if (ws.userId) {
+        const stillConnected = Array.from(clients).some(c => c.userId === ws.userId && c !== ws);
+        if (!stillConnected) {
+          onlineUsers.delete(ws.userId);
+          updatePresence(ws.userId, "offline");
+          broadcastPresence(ws.userId, "offline");
+        }
+      }
       
       console.log(`[WebSocket] 🔌 Client disconnected: userId=${ws.userId}, remaining=${clients.size}`);
     });

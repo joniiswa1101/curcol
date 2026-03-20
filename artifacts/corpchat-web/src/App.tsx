@@ -6,6 +6,7 @@ import { useAuthInit, useAuthStore } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useEffect } from "react";
 import { CallProvider } from "@/contexts/CallContext";
+import { PresenceProvider } from "@/contexts/PresenceContext";
 import { IncomingCallModal } from "@/components/call/IncomingCallModal";
 import { ActiveCallOverlay } from "@/components/call/ActiveCallOverlay";
 
@@ -115,13 +116,15 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <CallProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <MainRouter />
-          </WouterRouter>
-          <IncomingCallModal />
-          <ActiveCallOverlay />
-        </CallProvider>
+        <PresenceProvider>
+          <CallProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <MainRouter />
+            </WouterRouter>
+            <IncomingCallModal />
+            <ActiveCallOverlay />
+          </CallProvider>
+        </PresenceProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

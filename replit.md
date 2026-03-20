@@ -148,3 +148,21 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
 - **API Response**: Includes `compression` object with before/after sizes and ratio
 - **Audit Logging**: All compression stats logged in audit trail
 - **Documentation**: `.local/IMAGE_COMPRESSION_GUIDE.md` (complete guide)
+
+## GDPR Data Export (March 20, 2026)
+- **Status**: ✅ Complete and operational
+- **Export Formats**: JSON and CSV
+- **Access**: Users can only export their own data
+- **Included Data**: Profile, conversations, messages, attachments, audit logs
+- **Endpoints**:
+  - `GET /api/gdpr/export/json` — Export as JSON
+  - `GET /api/gdpr/export/csv` — Export as CSV
+  - `GET /api/gdpr/info` — Public GDPR information
+  - `POST /api/gdpr/delete-request` — Request account deletion
+- **Security**: Bearer token authentication, access control enforced
+- **Compliance**: GDPR Article 15 (Right of Access), Article 20 (Data Portability), Article 17 (Erasure request)
+- **Implementation Files**:
+  - `artifacts/api-server/src/lib/gdpr-export.ts` — Export logic (600+ lines)
+  - `artifacts/api-server/src/routes/gdpr.ts` — API endpoints
+- **Audit Logging**: All exports logged with user, format, and data size
+- **Documentation**: `.local/GDPR_DATA_EXPORT_GUIDE.md` (complete guide)

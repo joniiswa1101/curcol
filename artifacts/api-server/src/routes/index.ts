@@ -13,6 +13,7 @@ import filesRouter from "./files.js";
 import webhooksRouter from "./webhooks.js";
 import adminWhatsappRouter from "./admin-whatsapp.js";
 import backupRouter from "./backup.js";
+import gdprRouter from "./gdpr.js";
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use("/files", filesRouter);
 router.use("/webhooks", webhooksRouter);
 router.use("/admin/whatsapp", adminWhatsappRouter);
 router.use("/backup", backupRouter);
+router.use("/gdpr", gdprRouter);
 
 export default router;

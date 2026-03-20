@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "9a24053f-c015-419e-84b1-de502c104b2e"
+      }
+    },
+    "android": {
+      "package": "com.joniiswa1101.workspace"
+    }
+  }
+}

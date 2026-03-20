@@ -1,9 +1,9 @@
 import { Router } from "express";
 import {
   db, messagesTable, conversationMembersTable, conversationsTable,
-  attachmentsTable, messageReactionsTable, usersTable, cicoStatusTable
+  attachmentsTable, messageReactionsTable, usersTable, cicoStatusTable, messageReadsTable
 } from "@workspace/db";
-import { eq, and, lt, desc, inArray } from "drizzle-orm";
+import { eq, and, lt, desc, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { logAudit } from "../lib/audit.js";
 import { broadcastToConversation } from "../lib/websocket.js";
@@ -19,19 +19,22 @@ async function getConversationMemberIds(conversationId: number): Promise<number[
   return members.map(m => m.userId);
 }
 
-// BATCHED enrichment - 4 queries total regardless of message count (was N*4 before)
+// BATCHED enrichment - includes read receipts (5 queries total regardless of message count)
 async function enrichMessages(msgs: any[]) {
   if (msgs.length === 0) return [];
 
   const senderIds = [...new Set(msgs.map(m => m.senderId).filter((id): id is number => id != null))];
   const msgIds = msgs.map(m => m.id).filter((id): id is number => id != null);
 
-  const [senders, attachments, reactions] = await Promise.all([
+  const [senders, attachments, reactions, reads] = await Promise.all([
     senderIds.length > 0
       ? db.select().from(usersTable).where(inArray(usersTable.id, senderIds))
       : Promise.resolve([]),
     db.select().from(attachmentsTable).where(inArray(attachmentsTable.messageId as any, msgIds)),
     db.select().from(messageReactionsTable).where(inArray(messageReactionsTable.messageId as any, msgIds)),
+    msgIds.length > 0
+      ? db.select().from(messageReadsTable).where(inArray(messageReadsTable.messageId as any, msgIds))
+      : Promise.resolve([]),
   ]);
 
   const employeeIds = senders.map(s => s.employeeId).filter(Boolean);
@@ -56,11 +59,19 @@ async function enrichMessages(msgs: any[]) {
     reactionsByMsg.get(r.messageId)!.push(r);
   }
 
+  const readsByMsg = new Map<number, any[]>();
+  for (const read of reads) {
+    if (read.messageId == null) continue;
+    if (!readsByMsg.has(read.messageId)) readsByMsg.set(read.messageId, []);
+    readsByMsg.get(read.messageId)!.push(read);
+  }
+
   return msgs.map(msg => {
     const sender = senderMap.get(msg.senderId);
     const cicoStatus = sender ? cicoMap.get(sender.employeeId) || null : null;
     const msgAttachments = attachmentsByMsg.get(msg.id) || [];
     const msgReactions = reactionsByMsg.get(msg.id) || [];
+    const msgReads = readsByMsg.get(msg.id) || [];
 
     const reactionMap: Record<string, { emoji: string; count: number; userIds: number[] }> = {};
     for (const r of msgReactions) {
@@ -74,6 +85,7 @@ async function enrichMessages(msgs: any[]) {
       sender: sender ? { ...sanitizeUser(sender), cicoStatus } : null,
       attachments: msgAttachments,
       reactions: Object.values(reactionMap),
+      reads: msgReads,
     };
   });
 }
@@ -292,6 +304,89 @@ router.patch("/:conversationId/messages/:messageId/pin", requireAuth as any, asy
   broadcastToConversation(convId, memberIds, { type: "update_message", conversationId: convId, data: enriched });
 
   res.json(enriched);
+});
+
+// P3.2 — Mark single message as read
+router.post("/:conversationId/messages/:messageId/read", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const convId = parseInt(req.params.conversationId);
+  const msgId = parseInt(req.params.messageId);
+
+  // Check membership
+  const [membership] = await db.select().from(conversationMembersTable)
+    .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
+  if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
+
+  // Check message exists in conversation
+  const [message] = await db.select().from(messagesTable)
+    .where(and(eq(messagesTable.id, msgId), eq(messagesTable.conversationId, convId)));
+  if (!message) { res.status(404).json({ error: "message not found" }); return; }
+
+  // Insert or ignore if already read
+  try {
+    await db.insert(messageReadsTable).values({
+      messageId: msgId,
+      userId: currentUser.id,
+    }).onConflictDoNothing();
+  } catch (e) {
+    // Ignore unique constraint violations
+  }
+
+  await logAudit({
+    userId: currentUser.id,
+    action: "mark_message_read",
+    resourceType: "message",
+    resourceId: msgId,
+    details: { conversationId: convId }
+  });
+
+  res.json({ success: true });
+});
+
+// P3.3 — Batch mark multiple messages as read
+router.post("/:conversationId/mark-read", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const convId = parseInt(req.params.conversationId);
+
+  // Check membership
+  const [membership] = await db.select().from(conversationMembersTable)
+    .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
+  if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
+
+  // Get all unread messages in conversation
+  const unreadMessages = await db.select({ id: messagesTable.id }).from(messagesTable)
+    .where(eq(messagesTable.conversationId, convId))
+    .leftJoin(messageReadsTable, and(
+      eq(messageReadsTable.messageId, messagesTable.id),
+      eq(messageReadsTable.userId, currentUser.id)
+    ))
+    .where(sql`${messageReadsTable.id} IS NULL`);
+
+  if (unreadMessages.length > 0) {
+    const messageIds = unreadMessages.map(m => m.id);
+    
+    // Batch insert reads
+    for (const msgId of messageIds) {
+      try {
+        await db.insert(messageReadsTable).values({
+          messageId: msgId,
+          userId: currentUser.id,
+        }).onConflictDoNothing();
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+
+    await logAudit({
+      userId: currentUser.id,
+      action: "mark_conversation_read",
+      resourceType: "conversation",
+      resourceId: convId,
+      details: { messageCount: messageIds.length }
+    });
+  }
+
+  res.json({ success: true, markedCount: unreadMessages.length });
 });
 
 export default router;

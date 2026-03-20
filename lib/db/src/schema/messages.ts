@@ -45,6 +45,17 @@ export const messageReactionsTable = pgTable("message_reactions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const messageReadsTable = pgTable("message_reads", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").notNull().references(() => messagesTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  readAt: timestamp("read_at").notNull().defaultNow(),
+}, (table) => ({
+  messageUserIdx: index("idx_message_reads_message_user").on(table.messageId, table.userId),
+  messageIdIdx: index("idx_message_reads_message_id").on(table.messageId),
+}));
+
 export type Message = typeof messagesTable.$inferSelect;
 export type Attachment = typeof attachmentsTable.$inferSelect;
 export type MessageReaction = typeof messageReactionsTable.$inferSelect;
+export type MessageRead = typeof messageReadsTable.$inferSelect;

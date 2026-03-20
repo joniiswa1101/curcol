@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-client-react"
 import { useAuthStore } from "@/hooks/use-auth"
 import { useInfiniteMessages } from "@/hooks/use-infinite-messages"
+import { useReadReceipts } from "@/hooks/use-read-receipts"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -302,6 +303,7 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
   })
 
   const sendMutation = useSendMessage()
+  const { markMessageAsRead, markConversationAsRead } = useReadReceipts(conversationId)
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -333,7 +335,7 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
     return () => clearInterval(interval)
   }, [conversationId, queryClient])
 
-  // Detect scroll to top and load older messages
+  // Detect scroll to top and load older messages, and auto-mark visible messages as read
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current) return
     
@@ -342,7 +344,21 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
     if (scrollTop < 100 && hasMore && !isLoadingMore) {
       loadOlderMessages()
     }
-  }, [hasMore, isLoadingMore, loadOlderMessages])
+    
+    // Auto-mark visible messages as read (P3.6)
+    const visibleMessages = scrollContainerRef.current.querySelectorAll("[data-message-id]")
+    visibleMessages.forEach(el => {
+      const rect = el.getBoundingClientRect()
+      const containerRect = scrollContainerRef.current!.getBoundingClientRect()
+      // Check if message is in viewport
+      if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
+        const msgId = parseInt(el.getAttribute("data-message-id") || "0")
+        if (msgId > 0) {
+          markMessageAsRead(msgId)
+        }
+      }
+    })
+  }, [hasMore, isLoadingMore, loadOlderMessages, markMessageAsRead])
 
   // ── File upload handler ────────────────────────────────────────────────────
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -559,9 +575,14 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
             const attachments = (msg as any).attachments || []
             const imageAttachments = attachments.filter((a: any) => a.mimeType?.startsWith("image/"))
             const fileAttachments = attachments.filter((a: any) => !a.mimeType?.startsWith("image/"))
+            
+            // Get read receipts for this message (P3.4, P3.5)
+            const reads = (msg as any).reads || []
+            const readCount = reads.length
+            const hasReads = readCount > 0
 
             return (
-              <div key={msg.id} className={cn("flex gap-3 max-w-[85%]", isMe ? "ml-auto flex-row-reverse" : "")}>
+              <div key={msg.id} data-message-id={msg.id} className={cn("flex gap-3 max-w-[85%]", isMe ? "ml-auto flex-row-reverse" : "")}>
                 {!isMe && (
                   <div className="w-8 shrink-0 flex flex-col justify-end">
                     {showSender && (
@@ -612,13 +633,30 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
 
                     {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
 
-                    <span className={cn(
-                      "text-[10px] mt-1 block opacity-70",
-                      isMe ? "text-right" : "text-left"
+                    <div className={cn(
+                      "flex items-center gap-1 mt-1",
+                      isMe ? "justify-end" : "justify-start"
                     )}>
-                      {format(new Date(msg.createdAt), "HH:mm")}
-                      {msg.isEdited && " (edited)"}
-                    </span>
+                      <span className={cn(
+                        "text-[10px] opacity-70",
+                        isMe ? "text-right" : "text-left"
+                      )}>
+                        {format(new Date(msg.createdAt), "HH:mm")}
+                        {msg.isEdited && " (edited)"}
+                      </span>
+                      {/* Read receipts indicator (P3.4) */}
+                      {isMe && hasReads && (
+                        <span 
+                          title={`Seen by ${readCount} people at ${reads.map((r: any) => format(new Date(r.readAt), "HH:mm")).join(", ")}`}
+                          className="text-[10px] opacity-70 text-blue-500 font-semibold"
+                        >
+                          ✓✓
+                        </span>
+                      )}
+                      {isMe && !hasReads && (
+                        <span className="text-[10px] opacity-70">✓</span>
+                      )}
+                    </div>
 
                     <div className={cn(
                       "absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border shadow-md rounded-lg flex items-center p-1",

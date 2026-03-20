@@ -521,4 +521,43 @@ router.get("/:conversationId/favorites", requireAuth as any, async (req, res) =>
   res.json({ messages: enriched, hasMore: false });
 });
 
+// ── Search messages ──────────────────────────────────────────────────────────
+router.get("/:conversationId/search", requireAuth as any, async (req, res) => {
+  const convId = parseInt(req.params.conversationId);
+  const currentUser = (req as any).user;
+  const query = (req.query.q as string || "").trim();
+  const senderId = req.query.senderId ? parseInt(req.query.senderId as string) : undefined;
+  const beforeDate = req.query.before ? new Date(req.query.before as string) : undefined;
+  const afterDate = req.query.after ? new Date(req.query.after as string) : undefined;
+  const limit = Math.min(parseInt(req.query.limit as string || "50"), 100);
+
+  if (!query) { res.status(400).json({ error: "query required" }); return; }
+
+  const [membership] = await db.select().from(conversationMembersTable)
+    .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
+  if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
+
+  const conditions: any[] = [
+    eq(messagesTable.conversationId, convId),
+    sql`${messagesTable.content} ILIKE ${`%${query}%`}`
+  ];
+
+  if (senderId) conditions.push(eq(messagesTable.senderId, senderId));
+  if (beforeDate) conditions.push(sql`${messagesTable.createdAt} < ${beforeDate}`);
+  if (afterDate) conditions.push(sql`${messagesTable.createdAt} > ${afterDate}`);
+
+  const messages = await db.select().from(messagesTable)
+    .where(and(...conditions))
+    .orderBy(desc(messagesTable.createdAt))
+    .limit(limit);
+
+  const enriched = await enrichMessages(messages);
+  res.json({ 
+    messages: enriched,
+    query,
+    filters: { senderId, beforeDate, afterDate },
+    resultCount: messages.length 
+  });
+});
+
 export default router;

@@ -312,6 +312,11 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
   const [replyToMessage, setReplyToMessage] = useState<any>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msg: any } | null>(null)
   const [showPinned, setShowPinned] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchFilters, setSearchFilters] = useState<{ senderId?: number; before?: string; after?: string }>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -427,6 +432,33 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
       setUploading(false)
     }
   }, [token])
+
+  // ── Search messages ───────────────────────────────────────────────────────
+  const handleSearch = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+
+    setSearchLoading(true)
+    try {
+      const params = new URLSearchParams({
+        q: searchQuery.trim(),
+        limit: "50",
+        ...(searchFilters.senderId && { senderId: searchFilters.senderId.toString() }),
+        ...(searchFilters.before && { before: searchFilters.before }),
+        ...(searchFilters.after && { after: searchFilters.after }),
+      })
+      const response = await fetch(`/api/conversations/${conversationId}/search?${params}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      const data = await response.json()
+      setSearchResults(data.messages || [])
+    } catch (err) {
+      console.error("Search error:", err)
+      setSearchResults([])
+    } finally {
+      setSearchLoading(false)
+    }
+  }, [searchQuery, searchFilters, conversationId, token])
 
   // ── Send message ──────────────────────────────────────────────────────────
   const handleSend = useCallback((e: React.FormEvent) => {
@@ -667,6 +699,15 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("text-muted-foreground hover:text-primary", showSearch && "text-primary bg-primary/10")}
+            onClick={() => setShowSearch(!showSearch)}
+            title="Search"
+          >
+            <Search className="w-5 h-5" />
+          </Button>
           {conversation?.type === "direct" && (
             <>
               <Button
@@ -718,11 +759,89 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
         </div>
       </div>
 
+      {/* Search panel */}
+      {showSearch && (
+        <div className="border-b border-border bg-muted/30 p-4">
+          <form onSubmit={handleSearch} className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={searchLoading || !searchQuery.trim()}>
+                {searchLoading ? "Searching..." : "Search"}
+              </Button>
+            </div>
+            <div className="flex gap-2 flex-wrap text-xs">
+              <label className="flex items-center gap-1">
+                <span>After:</span>
+                <Input
+                  type="date"
+                  value={searchFilters.after || ""}
+                  onChange={(e) => setSearchFilters(f => ({ ...f, after: e.target.value || undefined }))}
+                  className="w-40 h-8"
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                <span>Before:</span>
+                <Input
+                  type="date"
+                  value={searchFilters.before || ""}
+                  onChange={(e) => setSearchFilters(f => ({ ...f, before: e.target.value || undefined }))}
+                  className="w-40 h-8"
+                />
+              </label>
+            </div>
+            {searchResults.length > 0 && (
+              <p className="text-xs text-muted-foreground">Found {searchResults.length} result(s)</p>
+            )}
+          </form>
+        </div>
+      )}
+
+      {showSearch && searchResults.length > 0 && (
+        <div className="border-b border-border bg-muted/20 p-4 max-h-96 overflow-y-auto space-y-2">
+          {searchResults.map((msg) => {
+            const highlightedContent = msg.content ? msg.content.replace(
+              new RegExp(`(${searchQuery})`, "gi"),
+              '<mark style="background-color: #fbbf24; padding: 2px 4px; border-radius: 3px;">$1</mark>'
+            ) : "";
+            return (
+              <div
+                key={msg.id}
+                className="bg-background border border-border/50 rounded p-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => {
+                  const el = document.getElementById(`msg-${msg.id}`)
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" })
+                    el.classList.add("ring-2", "ring-primary/50")
+                    setTimeout(() => el.classList.remove("ring-2", "ring-primary/50"), 2000)
+                  }
+                  setShowSearch(false)
+                }}
+              >
+                <div className="flex items-start justify-between">
+                  <span className="text-xs font-medium text-primary">{msg.sender?.name || "Unknown"}</span>
+                  <span className="text-xs text-muted-foreground">{format(new Date(msg.createdAt), "dd MMM HH:mm")}</span>
+                </div>
+                <div 
+                  className="text-xs text-foreground line-clamp-2 mt-1"
+                  dangerouslySetInnerHTML={{ __html: highlightedContent }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Messages */}
       <div 
         ref={scrollContainerRef}
+        className={cn("flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gradient-to-b from-background to-muted/20", showSearch && "hidden")}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gradient-to-b from-background to-muted/20"
       >
         {/* Pin indicator button */}
         {messages.some(m => m.isPinned) && !showPinned && (

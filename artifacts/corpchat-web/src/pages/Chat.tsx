@@ -300,7 +300,7 @@ function ConversationItem({ conversation, isActive, getUserPresence }: { convers
 
 // ─── Chat thread ───────────────────────────────────────────────────────────────
 
-function ChatThread({ conversationId, conversation, getUserPresence: getPresence }: { conversationId: number; conversation: Conversation | null; getUserPresence: (userId: number) => { status: string; lastSeenAt: string | null } }) {
+function ChatThread({ conversationId, conversation, getUserPresence }: { conversationId: number; conversation: Conversation | null; getUserPresence: (userId: number) => { status: string; lastSeenAt: string | null } }) {
   const queryClient = useQueryClient()
   const { user, token } = useAuthStore()
   const [inputText, setInputText] = useState("")
@@ -318,7 +318,6 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchFilters, setSearchFilters] = useState<{ senderId?: number; before?: string; after?: string }>({})
   const [linkPreviews, setLinkPreviews] = useState<Record<number, any>>({})
-  const [showStickerPicker, setShowStickerPicker] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -506,11 +505,6 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
   }, [messages, detectUrls, fetchLinkPreview, linkPreviews]);
 
   // ── Send message ──────────────────────────────────────────────────────────
-  const handleSelectSticker = useCallback((sticker: string) => {
-    setInputText(sticker)
-    setShowStickerPicker(false)
-  }, [])
-
   const handleSend = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     const text = inputText.trim()
@@ -1385,9 +1379,9 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => setShowStickerPicker(true)}
+                    onClick={() => setShowEmoji(!showEmoji)}
                     className="shrink-0 rounded-xl text-muted-foreground hover:text-primary transition-colors"
-                    title="Stiker"
+                    title="Emoji"
                   >
                     <Smile className="w-5 h-5" />
                   </Button>
@@ -1407,14 +1401,6 @@ function ChatThread({ conversationId, conversation, getUserPresence: getPresence
           )}
         </div>
       </div>
-
-      {/* Sticker Picker Modal */}
-      <StickerPicker
-        isOpen={showStickerPicker}
-        onClose={() => setShowStickerPicker(false)}
-        onSelectSticker={handleSelectSticker}
-        token={token}
-      />
     </>
   )
 }

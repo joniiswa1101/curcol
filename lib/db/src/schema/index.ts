@@ -10,5 +10,6 @@ export * from "./settings";
 export * from "./login-attempts";
 export * from "./offline-queue";
 export * from "./stickers";
+export * from "./user-presence";
 
 export { messageReadsTable } from "./messages";

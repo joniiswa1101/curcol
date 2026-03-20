@@ -43,6 +43,38 @@ export function initWebSocket(server: Server) {
         const msg = JSON.parse(data.toString());
         if (msg.type === "ping") {
           ws.send(JSON.stringify({ type: "pong" }));
+        } else if (msg.type === "call_offer" && ws.userId && msg.targetUserId) {
+          broadcastToUser(msg.targetUserId, {
+            type: "call_offer",
+            callerId: ws.userId,
+            callerName: msg.callerName,
+            callerAvatar: msg.callerAvatar,
+            conversationId: msg.conversationId,
+            callType: msg.callType,
+            sdp: msg.sdp,
+          });
+        } else if (msg.type === "call_answer" && ws.userId && msg.targetUserId) {
+          broadcastToUser(msg.targetUserId, {
+            type: "call_answer",
+            answererId: ws.userId,
+            sdp: msg.sdp,
+          });
+        } else if (msg.type === "call_ice_candidate" && ws.userId && msg.targetUserId) {
+          broadcastToUser(msg.targetUserId, {
+            type: "call_ice_candidate",
+            fromUserId: ws.userId,
+            candidate: msg.candidate,
+          });
+        } else if (msg.type === "call_reject" && ws.userId && msg.targetUserId) {
+          broadcastToUser(msg.targetUserId, {
+            type: "call_reject",
+            fromUserId: ws.userId,
+          });
+        } else if (msg.type === "call_end" && ws.userId && msg.targetUserId) {
+          broadcastToUser(msg.targetUserId, {
+            type: "call_end",
+            fromUserId: ws.userId,
+          });
         } else if (msg.type === "typing" && ws.userId && msg.conversationId) {
           const conversationId = msg.conversationId;
           

@@ -22,6 +22,7 @@ import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTypingIndicators } from "@/hooks/use-typing-indicators";
+import { useCall } from "@/contexts/CallContext";
 
 function formatMsgTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -225,6 +226,7 @@ export default function ChatScreen() {
   useWebSocket(id);
 
   const { typingUsers, sendTyping } = useTypingIndicators(Number(id));
+  const callCtx = useCall();
 
   const sendMutation = useMutation({
     mutationFn: (content: string) => api.post(`/conversations/${id}/messages`, { content, type: "text" }),
@@ -536,6 +538,38 @@ export default function ChatScreen() {
             <Text style={styles.waHeaderSub}>Balasan diteruskan ke WhatsApp</Text>
           ) : null}
         </View>
+        {!isWhatsapp && (
+          <>
+            <Pressable
+              style={styles.headerAction}
+              hitSlop={8}
+              onPress={() => {
+                callCtx.initiateCall({
+                  userId: Number(id),
+                  userName: name || "Contact",
+                  conversationId: Number(id),
+                  type: "voice",
+                });
+              }}
+            >
+              <Feather name="phone" size={20} color={colors.textSecondary} />
+            </Pressable>
+            <Pressable
+              style={styles.headerAction}
+              hitSlop={8}
+              onPress={() => {
+                callCtx.initiateCall({
+                  userId: Number(id),
+                  userName: name || "Contact",
+                  conversationId: Number(id),
+                  type: "video",
+                });
+              }}
+            >
+              <Feather name="video" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </>
+        )}
         <Pressable style={styles.headerAction} hitSlop={8}>
           <Feather name="more-vertical" size={22} color={isWhatsapp ? "#fff" : colors.textSecondary} />
         </Pressable>

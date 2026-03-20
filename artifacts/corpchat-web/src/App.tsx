@@ -5,6 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthInit, useAuthStore } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useEffect } from "react";
+import { CallProvider } from "@/contexts/CallContext";
+import { IncomingCallModal } from "@/components/call/IncomingCallModal";
+import { ActiveCallOverlay } from "@/components/call/ActiveCallOverlay";
 
 // Pages
 import Login from "@/pages/Login";
@@ -112,9 +115,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <MainRouter />
-        </WouterRouter>
+        <CallProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <MainRouter />
+          </WouterRouter>
+          <IncomingCallModal />
+          <ActiveCallOverlay />
+        </CallProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

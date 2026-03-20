@@ -21,13 +21,15 @@ import { cn, formatMessageTime, getStatusLabel } from "@/lib/utils"
 import { validateFile } from "@/lib/upload-config"
 import {
   Search, Send, Paperclip, Smile, MoreVertical, Mic,
-  Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle
+  Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle,
+  Phone, Video
 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
 import { useOfflineQueue } from "@/hooks/use-offline-queue"
 import { useQueueSync } from "@/hooks/use-queue-sync"
 import { useTypingIndicators } from "@/hooks/use-typing-indicators"
+import { useCall } from "@/contexts/CallContext"
 
 // ─── Emoji Picker ─────────────────────────────────────────────────────────────
 
@@ -312,6 +314,7 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
   const { markMessageAsRead, markConversationAsRead } = useReadReceipts(conversationId)
   const { isOnline, queuedCount, enqueue, getQueuedMessages } = useOfflineQueue(conversationId)
   const { typingUsers, sendTyping } = useTypingIndicators(conversationId)
+  const callCtx = useCall()
   useQueueSync()
 
   // Auto-scroll to bottom when new messages arrive
@@ -631,6 +634,48 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {conversation?.type === "direct" && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-primary"
+                onClick={() => {
+                  const otherUser = conversation.members?.find((m: any) => m.id !== user?.id);
+                  if (otherUser) {
+                    callCtx.initiateCall({
+                      userId: otherUser.id,
+                      userName: otherUser.displayName || otherUser.employeeId,
+                      userAvatar: otherUser.avatarUrl,
+                      conversationId,
+                      type: "voice",
+                    });
+                  }
+                }}
+              >
+                <Phone className="w-5 h-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-primary"
+                onClick={() => {
+                  const otherUser = conversation.members?.find((m: any) => m.id !== user?.id);
+                  if (otherUser) {
+                    callCtx.initiateCall({
+                      userId: otherUser.id,
+                      userName: otherUser.displayName || otherUser.employeeId,
+                      userAvatar: otherUser.avatarUrl,
+                      conversationId,
+                      type: "video",
+                    });
+                  }
+                }}
+              >
+                <Video className="w-5 h-5" />
+              </Button>
+            </>
+          )}
           <Button variant="ghost" size="icon" className="text-muted-foreground">
             <Search className="w-5 h-5" />
           </Button>

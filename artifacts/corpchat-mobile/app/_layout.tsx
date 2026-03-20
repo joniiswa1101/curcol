@@ -9,6 +9,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { CallProvider } from "@/contexts/CallContext";
+import { IncomingCallModal, ActiveCallOverlay } from "@/components/CallUI";
 
 SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
@@ -53,7 +55,11 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <AuthProvider>
-              <RootLayoutNav />
+              <CallProvider>
+                <RootLayoutNav />
+                <IncomingCallModal />
+                <ActiveCallOverlay />
+              </CallProvider>
             </AuthProvider>
           </ThemeProvider>
         </QueryClientProvider>

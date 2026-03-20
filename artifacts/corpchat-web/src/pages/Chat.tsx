@@ -27,6 +27,7 @@ import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
 import { useOfflineQueue } from "@/hooks/use-offline-queue"
 import { useQueueSync } from "@/hooks/use-queue-sync"
+import { useTypingIndicators } from "@/hooks/use-typing-indicators"
 
 // ─── Emoji Picker ─────────────────────────────────────────────────────────────
 
@@ -310,6 +311,7 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
   const sendMutation = useSendMessage()
   const { markMessageAsRead, markConversationAsRead } = useReadReceipts(conversationId)
   const { isOnline, queuedCount, enqueue, getQueuedMessages } = useOfflineQueue(conversationId)
+  const { typingUsers, sendTyping } = useTypingIndicators(conversationId)
   useQueueSync()
 
   // Auto-scroll to bottom when new messages arrive
@@ -606,12 +608,21 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
                     Offline {queuedCount > 0 && `(${queuedCount} pending)`}
                   </p>
                 )}
-                {headerStatus && (
+                {typingUsers.length > 0 ? (
+                  <p className="text-xs text-blue-500 flex items-center gap-1.5 mt-0.5">
+                    <span className="flex gap-0.5">
+                      <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" />
+                      <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0.1s" }} />
+                      <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0.2s" }} />
+                    </span>
+                    {typingUsers.length === 1 ? "typing" : "typing"}
+                  </p>
+                ) : headerStatus ? (
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                     <span className={cn("w-2 h-2 rounded-full", cicoStatusStr === "present" ? "bg-status-present" : "bg-muted-foreground")} />
                     {headerStatus}
                   </p>
-                )}
+                ) : null}
                 {conversation?.type === "group" && (
                   <p className="text-xs text-muted-foreground mt-0.5">{conversation.memberCount} members</p>
                 )}
@@ -878,7 +889,13 @@ function ChatThread({ conversationId, conversation }: { conversationId: number; 
               <textarea
                 ref={textareaRef}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={(e) => {
+                  const text = e.target.value
+                  setInputText(text)
+                  if (text.trim().length > 0) {
+                    sendTyping()
+                  }
+                }}
                 placeholder={pendingFile ? "Add a caption..." : "Type a message..."}
                 rows={1}
                 className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:ring-0 py-3 px-2 text-sm custom-scrollbar"

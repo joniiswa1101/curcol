@@ -21,6 +21,7 @@ import { EmojiPicker } from "@/components/EmojiPicker";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { useTypingIndicators } from "@/hooks/use-typing-indicators";
 
 function formatMsgTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -223,6 +224,8 @@ export default function ChatScreen() {
   // Real-time WebSocket listener for instant message updates
   useWebSocket(id);
 
+  const { typingUsers, sendTyping } = useTypingIndicators(Number(id));
+
   const sendMutation = useMutation({
     mutationFn: (content: string) => api.post(`/conversations/${id}/messages`, { content, type: "text" }),
     onSuccess: (newMsg) => {
@@ -411,9 +414,9 @@ export default function ChatScreen() {
   const handleTextChange = (newText: string) => {
     setText(newText);
     
-    // Send typing notification
+    // Send typing notification via WebSocket
     if (newText.trim() && user?.id) {
-      api.post(`/conversations/${id}/typing`, {}).catch(() => {});
+      sendTyping();
     }
     
     // Reset typing timeout
@@ -527,9 +530,11 @@ export default function ChatScreen() {
         )}
         <View style={styles.headerInfo}>
           <Text style={[styles.headerName, { color: isWhatsapp ? "#fff" : colors.text }]} numberOfLines={1}>{name || "Chat"}</Text>
-          {isWhatsapp && (
+          {typingUsers.length > 0 ? (
+            <Text style={[styles.waHeaderSub, { color: isWhatsapp ? "rgba(255,255,255,0.8)" : colors.textSecondary }]}>typing...</Text>
+          ) : isWhatsapp ? (
             <Text style={styles.waHeaderSub}>Balasan diteruskan ke WhatsApp</Text>
-          )}
+          ) : null}
         </View>
         <Pressable style={styles.headerAction} hitSlop={8}>
           <Feather name="more-vertical" size={22} color={isWhatsapp ? "#fff" : colors.textSecondary} />

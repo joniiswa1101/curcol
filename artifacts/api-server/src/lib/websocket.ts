@@ -6,10 +6,12 @@ interface AuthenticatedClient extends WebSocket {
   userId?: number;
   employeeId?: string;
   isAlive?: boolean;
+  typingTimeouts?: Map<number, NodeJS.Timeout>;
 }
 
 let wss: WebSocketServer | null = null;
 const clients = new Set<AuthenticatedClient>();
+const typingUsers = new Map<number, Set<number>>();
 
 export function initWebSocket(server: Server) {
   wss = new WebSocketServer({ server, path: "/ws" });
@@ -39,12 +41,63 @@ export function initWebSocket(server: Server) {
     ws.on("message", (data) => {
       try {
         const msg = JSON.parse(data.toString());
-        if (msg.type === "ping") ws.send(JSON.stringify({ type: "pong" }));
+        if (msg.type === "ping") {
+          ws.send(JSON.stringify({ type: "pong" }));
+        } else if (msg.type === "typing" && ws.userId && msg.conversationId) {
+          const conversationId = msg.conversationId;
+          
+          if (!typingUsers.has(conversationId)) {
+            typingUsers.set(conversationId, new Set());
+          }
+          
+          if (!typingUsers.get(conversationId)!.has(ws.userId)) {
+            typingUsers.get(conversationId)!.add(ws.userId);
+            
+            const typingList = Array.from(typingUsers.get(conversationId) || []);
+            broadcastToConversation(conversationId, msg.userIds || [], {
+              type: "typing",
+              conversationId,
+              typingUsers: typingList
+            });
+          }
+          
+          if (!ws.typingTimeouts) ws.typingTimeouts = new Map();
+          
+          const existingTimeout = ws.typingTimeouts.get(conversationId);
+          if (existingTimeout) clearTimeout(existingTimeout);
+          
+          ws.typingTimeouts.set(
+            conversationId,
+            setTimeout(() => {
+              typingUsers.get(conversationId)?.delete(ws.userId!);
+              if (typingUsers.get(conversationId)?.size === 0) {
+                typingUsers.delete(conversationId);
+              }
+              const remaining = Array.from(typingUsers.get(conversationId) || []);
+              broadcastToConversation(conversationId, msg.userIds || [], {
+                type: "typing",
+                conversationId,
+                typingUsers: remaining
+              });
+              ws.typingTimeouts?.delete(conversationId);
+            }, 3000)
+          );
+        }
       } catch {}
     });
 
     ws.on("close", () => { 
-      clients.delete(ws); 
+      clients.delete(ws);
+      
+      if (ws.typingTimeouts) {
+        ws.typingTimeouts.forEach(timeout => clearTimeout(timeout));
+        ws.typingTimeouts.clear();
+      }
+      
+      typingUsers.forEach((users) => {
+        if (ws.userId) users.delete(ws.userId);
+      });
+      
       console.log(`[WebSocket] 🔌 Client disconnected: userId=${ws.userId}, remaining=${clients.size}`);
     });
     ws.on("error", (err) => { 

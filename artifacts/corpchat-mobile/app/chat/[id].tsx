@@ -206,7 +206,6 @@ export default function ChatScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [editingMsgId, setEditingMsgId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
-  const [typingUsers, setTypingUsers] = useState<Map<number, string>>(new Map());
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const [pendingFile, setPendingFile] = useState<any>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);

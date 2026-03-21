@@ -99,6 +99,13 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
 - **Security Headers**: API server uses Helmet middleware for HTTPS security headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, CORS whitelisting).
 - **Mobile File Upload**: Full file picker with validation, preview, and error feedback. Supports images, videos, audio, PDFs, Office docs, and archives. 10 MB file size limit. Real-time validation with blocking of executable files (.exe, .bat, .sh, .php, .py, etc.). Error alerts in Indonesian (e.g., "Tipe file '.exe' tidak diizinkan"). File preview before send with emoji icon and file size display.
 - **Link Previews (P11.1-P11.3)**: Auto-detects URLs in message content via regex. Backend endpoint fetches Open Graph metadata (title, description, image, domain) using Cheerio HTML parser. Frontend displays interactive preview cards with optional image thumbnail, title, description, and domain attribution. Cards open links in new tabs. Supports dark/light mode styling with hover effects.
+- **Smart Task Management (March 21, 2026)**: Full-featured task management system with Kanban board and list views. Supports task creation with title, description, priority (low/medium/high/urgent), assignee, due date, and labels. Task detail panel with status transitions, inline editing, and comment threads. Real-time notifications via WebSocket when tasks are assigned. Access control enforced: only creator, assignee, or admin can view/edit/comment on tasks. Stats dashboard showing counts by status/priority and overdue tasks. Filter by priority, assignee, and "my tasks" view. Responsive design with mobile-friendly layout.
+  - **Database Tables**: `tasks`, `task_comments`, `task_labels`
+  - **API Endpoints**: `GET/POST /api/tasks`, `GET/PATCH/DELETE /api/tasks/:id`, `GET/POST /api/tasks/:id/comments`, `GET /api/tasks/stats`
+  - **Frontend**: `artifacts/corpchat-web/src/pages/Tasks.tsx` — Board + List views, create dialog, detail panel
+  - **Schema**: `lib/db/src/schema/tasks.ts`
+  - **Routes**: `artifacts/api-server/src/routes/tasks.ts`
+  - **Navigation**: Tasks item in sidebar (ClipboardList icon), route at `/tasks`
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

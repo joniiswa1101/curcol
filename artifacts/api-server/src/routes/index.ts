@@ -17,6 +17,7 @@ import gdprRouter from "./gdpr.js";
 import callsRouter from "./calls.js";
 import presenceRouter from "./presence.js";
 import stickersRouter from "./stickers.js";
+import tasksRouter from "./tasks.js";
 
 const router = Router();
 
@@ -39,5 +40,6 @@ router.use("/gdpr", gdprRouter);
 router.use("/calls", callsRouter);
 router.use("/presence", presenceRouter);
 router.use("/stickers", stickersRouter);
+router.use("/tasks", tasksRouter);
 
 export default router;

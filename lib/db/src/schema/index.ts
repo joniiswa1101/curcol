@@ -11,5 +11,6 @@ export * from "./login-attempts";
 export * from "./offline-queue";
 export * from "./stickers";
 export * from "./user-presence";
+export * from "./tasks";
 
 export { messageReadsTable } from "./messages";

@@ -210,6 +210,7 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [boardName, setBoardName] = useState(board.name);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -711,13 +712,13 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
     setTextInput("");
   }, [editingText, textInput, tool, style, elements.length, board.id, pushUndo, sendWs]);
 
-  const handleClear = useCallback(async () => {
-    if (!window.confirm("Hapus semua elemen di board ini?")) return;
+  const doClear = useCallback(async () => {
     pushUndo();
+    const els = [...elementsRef.current];
     setElements([]);
     sendWs({ type: "canvas_clear", boardId: board.id });
+    setShowClearConfirm(false);
     try {
-      const els = elementsRef.current;
       for (const el of els) {
         if (el.id) await apiDelete(`/canvas/boards/${board.id}/elements/${el.id}`);
       }
@@ -813,7 +814,7 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
           <Button variant="ghost" size="icon" onClick={handleExport} title="Export PNG">
             <Download className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleClear} title="Clear All" className="text-destructive">
+          <Button variant="ghost" size="icon" onClick={() => setShowClearConfirm(true)} title="Clear All" className="text-destructive">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -957,22 +958,77 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
           )}
         </div>
       </div>
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowClearConfirm(false)}>
+          <div className="bg-card border border-border rounded-xl p-6 w-80 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Hapus Semua?</h3>
+            <p className="text-sm text-muted-foreground mb-4">Semua elemen di board ini akan dihapus. Aksi ini tidak bisa dibatalkan.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setShowClearConfirm(false)}>Batal</Button>
+              <Button variant="destructive" onClick={doClear}>Hapus</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreateBoardDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (board: CanvasBoard) => void }) {
+  const [name, setName] = useState("Board Baru");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setLoading(true);
+    try {
+      const board = await apiPost("/canvas/boards", { name: name.trim() });
+      if (board?.id) {
+        onCreated(board);
+        setName("Board Baru");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl p-6 w-96 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Buat Board Baru</h3>
+        <form onSubmit={handleSubmit}>
+          <Input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Nama board..."
+            className="mb-4"
+            autoFocus
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>Batal</Button>
+            <Button type="submit" disabled={loading || !name.trim()}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buat"}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
 
 export default function CanvasPage() {
   const [selectedBoard, setSelectedBoard] = useState<CanvasBoard | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { toast } = useToast();
 
-  const handleCreate = async () => {
-    const name = window.prompt("Nama board baru:", "Board Baru");
-    if (!name) return;
-    const board = await apiPost("/canvas/boards", { name });
-    if (board?.id) {
-      setSelectedBoard(board);
-      toast({ title: "Board dibuat" });
-    }
+  const handleCreated = (board: CanvasBoard) => {
+    setShowCreateDialog(false);
+    setSelectedBoard(board);
+    toast({ title: "Board dibuat" });
   };
 
   return (
@@ -985,10 +1041,15 @@ export default function CanvasPage() {
           />
         ) : (
           <div className="p-6 h-full overflow-auto">
-            <BoardList onSelect={setSelectedBoard} onCreate={handleCreate} />
+            <BoardList onSelect={setSelectedBoard} onCreate={() => setShowCreateDialog(true)} />
           </div>
         )}
       </div>
+      <CreateBoardDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onCreated={handleCreated}
+      />
     </AppLayout>
   );
 }

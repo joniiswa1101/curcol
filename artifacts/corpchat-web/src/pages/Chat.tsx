@@ -1301,7 +1301,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           ) : (
             <form
               onSubmit={handleSend}
-              className="flex items-end gap-2 bg-card border border-border/60 rounded-2xl p-2 shadow-sm focus-within:ring-2 ring-primary/20 transition-all"
+              className="flex items-end gap-1 sm:gap-2 bg-card border border-border/60 rounded-2xl p-1.5 sm:p-2 shadow-sm focus-within:ring-2 ring-primary/20 transition-all"
             >
               <input
                 ref={fileInputRef}
@@ -1318,15 +1318,15 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                 disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
-                  "shrink-0 rounded-xl transition-colors",
+                  "shrink-0 rounded-lg h-8 w-8 sm:h-10 sm:w-10 sm:rounded-xl transition-colors",
                   uploading ? "opacity-50" : "text-muted-foreground hover:text-primary"
                 )}
                 title="Attach file"
               >
                 {uploading ? (
-                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <Paperclip className="w-5 h-5" />
+                  <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}
               </Button>
 
@@ -1336,12 +1336,12 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                 size="icon"
                 onClick={() => setShowEmoji(v => !v)}
                 className={cn(
-                  "shrink-0 rounded-xl transition-colors",
+                  "shrink-0 rounded-lg h-8 w-8 sm:h-10 sm:w-10 sm:rounded-xl hidden sm:inline-flex transition-colors",
                   showEmoji ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"
                 )}
                 title="Emoji"
               >
-                <Smile className="w-5 h-5" />
+                <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
 
               <textarea
@@ -1356,7 +1356,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                 }}
                 placeholder={pendingFile ? "Add a caption..." : "Type a message..."}
                 rows={1}
-                className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:ring-0 py-3 px-2 text-sm custom-scrollbar"
+                className="flex-1 max-h-32 min-h-[36px] sm:min-h-[44px] bg-transparent border-none resize-none focus:ring-0 py-2 sm:py-3 px-2 text-xs sm:text-sm custom-scrollbar"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
@@ -1369,9 +1369,9 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                 <Button
                   type="submit"
                   size="icon"
-                  className="shrink-0 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md transition-transform active:scale-95"
+                  className="shrink-0 h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md transition-transform active:scale-95"
                 >
-                  <Send className="w-4 h-4 ml-0.5" />
+                  <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               ) : (
                 <>
@@ -1380,20 +1380,20 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowEmoji(!showEmoji)}
-                    className="shrink-0 rounded-xl text-muted-foreground hover:text-primary transition-colors"
+                    className="shrink-0 rounded-lg h-8 w-8 sm:h-10 sm:w-10 sm:rounded-xl sm:hidden text-muted-foreground hover:text-primary transition-colors"
                     title="Emoji"
                   >
-                    <Smile className="w-5 h-5" />
+                    <Smile className="w-4 h-4" />
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowVoiceRecorder(true)}
-                    className="shrink-0 rounded-xl text-muted-foreground hover:text-primary transition-colors"
+                    className="shrink-0 rounded-lg h-8 w-8 sm:h-10 sm:w-10 sm:rounded-xl hidden sm:inline-flex text-muted-foreground hover:text-primary transition-colors"
                     title="Pesan suara"
                   >
-                    <Mic className="w-5 h-5" />
+                    <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                 </>
               )}

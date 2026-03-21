@@ -21,7 +21,7 @@ export function usePresence() {
       const token = await AsyncStorage.getItem("curcol_token");
       if (!token || cancelled) return;
 
-      const ws = new WebSocket(`${WS_BASE_URL}/ws?token=${token}`);
+      const ws = new WebSocket(`${WS_BASE_URL}/api/ws?token=${token}`);
       wsRef.current = ws;
 
       ws.onmessage = (event) => {

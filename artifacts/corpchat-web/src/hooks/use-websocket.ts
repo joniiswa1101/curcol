@@ -20,7 +20,7 @@ export function useWebSocket() {
     if (!token) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws?token=${token}`;
+    const wsUrl = `${protocol}//${window.location.host}/api/ws?token=${token}`;
 
     let reconnectTimer: ReturnType<typeof setTimeout>;
     let isDestroyed = false;

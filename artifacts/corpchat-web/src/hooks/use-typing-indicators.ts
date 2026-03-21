@@ -20,7 +20,7 @@ export function useTypingIndicators(conversationId: number): TypingIndicatorsSta
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const domain = window.location.hostname;
       const port = window.location.port ? `:${window.location.port}` : "";
-      const url = `${protocol}//${domain}${port}/ws?token=${token}`;
+      const url = `${protocol}//${domain}${port}/api/ws?token=${token}`;
 
       const newWs = new WebSocket(url);
 

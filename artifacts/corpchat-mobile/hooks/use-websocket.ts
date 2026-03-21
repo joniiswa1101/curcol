@@ -37,7 +37,7 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
       const domain = process.env.EXPO_PUBLIC_DOMAIN;
       const wsProtocol = domain ? 'wss:' : 'ws:';
       const wsHost = domain ? domain : 'localhost:8080';
-      const wsUrl = `${wsProtocol}//${wsHost}/ws?token=${token}`;
+      const wsUrl = `${wsProtocol}//${wsHost}/api/ws?token=${token}`;
 
       console.log('[WebSocket] Connecting to:', wsUrl);
 

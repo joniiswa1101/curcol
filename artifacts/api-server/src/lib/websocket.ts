@@ -47,7 +47,7 @@ function broadcastPresence(userId: number, status: string) {
 export { getOnlineUserIds };
 
 export function initWebSocket(server: Server) {
-  wss = new WebSocketServer({ server, path: "/ws" });
+  wss = new WebSocketServer({ server, path: "/api/ws" });
 
   wss.on("connection", async (ws: AuthenticatedClient, req) => {
     const url = new URL(req.url || "", "ws://localhost");

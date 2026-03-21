@@ -118,6 +118,14 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
   - **Schema**: `lib/db/src/schema/compliance.ts`
   - **Access**: Admin-only for dashboard + flag management; all authenticated users for scanner; server-side admin checks on sensitive endpoints
   - **Navigation**: Shield icon in admin sidebar section, route at `/compliance`
+- **Voice/Video Call System (March 21, 2026)**: WebRTC-based 1-on-1 voice and video calling.
+  - **Architecture**: Uses `call-signal-bus.ts` singleton for routing call signals between main WebSocket and CallContext. NO separate WebSocket for calls — shares main connection.
+  - **Signal Bus** (`artifacts/corpchat-web/src/lib/call-signal-bus.ts`): `onCallSignal()` for subscribing, `emitCallSignal()` for dispatching, `sendCallMessage()` for sending, `registerWsSend()` for registration by main WS.
+  - **WebSocket Path**: `/api/ws` (NOT `/ws`!) — CRITICAL: Must be under `/api/` prefix so deployment proxy routes it to API server. Path `/ws` goes to static file server in production and WebSocket connections FAIL.
+  - **All WebSocket URLs** (web: use-websocket.ts, PresenceContext.tsx, use-typing-indicators.ts; mobile: use-websocket.ts, use-presence.ts, CallContext.tsx) use `/api/ws`.
+  - **Server**: `WebSocketServer({ server, path: "/api/ws" })` in `artifacts/api-server/src/lib/websocket.ts`. Handles `call_offer`, `call_answer`, `call_ice_candidate`, `call_reject`, `call_end` with logging.
+  - **Vite Proxy**: `"/api/ws": { target: "ws://localhost:8080", ws: true }` in vite.config.ts.
+  - **Components**: `IncomingCallModal.tsx` (incoming popup), `ActiveCallOverlay.tsx` (active call UI).
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

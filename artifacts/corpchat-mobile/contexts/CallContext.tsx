@@ -148,7 +148,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
     if (!domain) return;
 
-    const url = `wss://${domain}/ws?token=${token}`;
+    const url = `wss://${domain}/api/ws?token=${token}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 

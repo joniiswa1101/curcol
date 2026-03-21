@@ -37,7 +37,7 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
-    const ws = new WebSocket(`${protocol}//${host}/ws?token=${token}`);
+    const ws = new WebSocket(`${protocol}//${host}/api/ws?token=${token}`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {

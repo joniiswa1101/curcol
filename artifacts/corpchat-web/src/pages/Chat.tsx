@@ -160,10 +160,10 @@ export default function Chat() {
 
   return (
     <AppLayout>
-      <div className="flex h-full w-full bg-background">
+      <div className="flex h-full w-full bg-background overflow-hidden">
         {/* Sidebar */}
         <div className={cn(
-          "w-full md:w-80 lg:w-96 border-r border-border bg-card/30 flex flex-col",
+          "flex-shrink-0 w-full md:w-80 lg:w-96 border-r border-border bg-card/30 flex flex-col",
           match ? "hidden md:flex" : "flex"
         )}>
           <div className="p-4 border-b border-border/50">
@@ -200,7 +200,7 @@ export default function Chat() {
         </div>
 
         {/* Chat Area */}
-        <div className={cn("flex-1 flex flex-col bg-background relative", !match && "hidden md:flex")}>
+        <div className={cn("flex-1 flex flex-col bg-background relative min-w-0", !match && "hidden md:flex")}>
           {activeId ? (
             <ChatThread conversationId={activeId} conversation={activeConversation} getUserPresence={getUserPresence} />
           ) : (

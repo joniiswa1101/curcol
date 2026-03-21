@@ -129,7 +129,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               alt="CurCol Logo"
               className="w-72 h-22 shrink-0 rounded-xl"
             />
-            <span className="text-xs text-sidebar-foreground/50">v1.7.6</span>
+            <span className="text-xs text-sidebar-foreground/50">v1.7.7</span>
           </div>
 
           <div className="flex flex-col w-full gap-2">
@@ -168,7 +168,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <Clock className="h-5 w-5 shrink-0 group-hover:text-accent transition-colors" />
             <span className="hidden lg:block text-sm">
-              {user?.cicoStatus?.status === "present" || user?.cicoStatus?.status === "wfh"
+              {user?.cicoStatus?.status === "present" ||
+              user?.cicoStatus?.status === "wfh"
                 ? "Check Out"
                 : "Check In"}
             </span>

@@ -10,7 +10,7 @@
 |----------|-----|--------|-----|
 | Chat Dasar | ✅ | ✅ | Minimal |
 | Group Chat Management | ✅ Full | ✅ Full | OK |
-| PII / Compliance | ✅ Full | ❌ Tidak ada | **BESAR** |
+| PII / Compliance | ✅ Full | ✅ Full | OK |
 | Task Management | ✅ Full | ❌ Tidak ada | **BESAR** |
 | Admin Dashboard | ✅ Full | ❌ Tidak ada | **BESAR** |
 | Admin User Management | ✅ Full | ❌ Tidak ada | **BESAR** |
@@ -47,14 +47,14 @@
 
 ---
 
-### GAP-02: Compliance / PII Detection
+### GAP-02: Compliance / PII Detection ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-02.1 | Client-side PII detection sebelum kirim pesan | HIGH | 1-2d | ⬜ |
-| GAP-02.2 | Warning banner saat PII terdeteksi (confirm/cancel) | HIGH | 1d | ⬜ |
-| GAP-02.3 | Handle server 400 error (PII blocked di group) | HIGH | 0.5d | ⬜ |
+| GAP-02.1 | Client-side PII detection sebelum kirim pesan | HIGH | 1-2d | ✅ |
+| GAP-02.2 | Warning banner saat PII terdeteksi (confirm/cancel) | HIGH | 1d | ✅ |
+| GAP-02.3 | Handle server 400 error (PII blocked di group) | HIGH | 0.5d | ✅ |
 
-**Catatan**: Server-side blocking sudah aktif, tapi mobile tidak menampilkan warning atau error message yang user-friendly.
+**Selesai**: `lib/pii-detection.ts` (deteksi 6 pola PII Indonesia), `app/chat/[id].tsx` (warning banner + error handling), `app/(tabs)/profile.tsx` (Compliance navigation button), `app/compliance.tsx` (3-tab compliance screen). Diimplementasikan 21 Maret 2026.
 
 ---
 

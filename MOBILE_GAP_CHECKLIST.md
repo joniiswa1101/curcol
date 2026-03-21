@@ -9,7 +9,7 @@
 | Kategori | Web | Mobile | Gap |
 |----------|-----|--------|-----|
 | Chat Dasar | ✅ | ✅ | Minimal |
-| Group Chat Management | ✅ Full | ⚠️ Partial | **BESAR** |
+| Group Chat Management | ✅ Full | ✅ Full | OK |
 | PII / Compliance | ✅ Full | ❌ Tidak ada | **BESAR** |
 | Task Management | ✅ Full | ❌ Tidak ada | **BESAR** |
 | Admin Dashboard | ✅ Full | ❌ Tidak ada | **BESAR** |
@@ -31,19 +31,19 @@
 
 ## Detail Gap: Fitur di Web yang TIDAK ADA di Mobile
 
-### GAP-01: Group Chat Management
+### GAP-01: Group Chat Management ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-01.1 | Create group (nama + pilih member) | CRITICAL | 2-3d | ⬜ |
-| GAP-01.2 | Group info panel (lihat member, admin badges) | HIGH | 2-3d | ⬜ |
-| GAP-01.3 | Add/remove members dari group | HIGH | 1-2d | ⬜ |
-| GAP-01.4 | Promote/demote admin group | MEDIUM | 1d | ⬜ |
-| GAP-01.5 | Rename group | LOW | 0.5d | ⬜ |
-| GAP-01.6 | Mute group notifications | LOW | 0.5d | ⬜ |
-| GAP-01.7 | Leave group | MEDIUM | 0.5d | ⬜ |
-| GAP-01.8 | Delete group (admin only) | LOW | 0.5d | ⬜ |
+| GAP-01.1 | Create group (nama + pilih member) | CRITICAL | 2-3d | ✅ |
+| GAP-01.2 | Group info panel (lihat member, admin badges) | HIGH | 2-3d | ✅ |
+| GAP-01.3 | Add/remove members dari group | HIGH | 1-2d | ✅ |
+| GAP-01.4 | Promote/demote admin group | MEDIUM | 1d | ✅ |
+| GAP-01.5 | Rename group | LOW | 0.5d | ✅ |
+| GAP-01.6 | Mute group notifications | LOW | 0.5d | ✅ |
+| GAP-01.7 | Leave group | MEDIUM | 0.5d | ✅ |
+| GAP-01.8 | Delete group (admin only) | LOW | 0.5d | ✅ |
 
-**Catatan**: Mobile saat ini bisa mengirim pesan ke group chat yang sudah dibuat dari web, tapi tidak bisa membuat atau mengelola group.
+**Selesai**: `app/new-group.tsx` (buat grup + pilih member), `app/group-info.tsx` (kelola grup lengkap). Navigasi dari new-chat dan chat header sudah terpasang. Group avatar icon di conversation list.
 
 ---
 
@@ -152,7 +152,7 @@
 ### Gelombang 1 — CRITICAL (minggu pertama)
 | ID | Gap | Effort Total |
 |----|-----|-------------|
-| GAP-01 | Group Chat Management | 5-7d |
+| GAP-01 | ~~Group Chat Management~~ ✅ SELESAI | ~~5-7d~~ |
 | GAP-02 | PII/Compliance Warning | 2-3d |
 | GAP-06 | Offline Queue & Sync | 3-5d |
 
@@ -186,4 +186,4 @@
 | MEDIUM priority | 12 |
 | LOW priority | 7 |
 | Estimasi total effort | 45-65 hari kerja |
-| Gap terbesar | Task Management (GAP-03), Group Chat (GAP-01) |
+| Gap terbesar | Task Management (GAP-03) |

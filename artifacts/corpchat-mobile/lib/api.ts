@@ -31,9 +31,11 @@ async function clearTokens() {
 }
 
 export class APIError extends Error {
-  constructor(public status: number, message: string) {
+  public errorCode?: string;
+  constructor(public status: number, message: string, errorCode?: string) {
     super(message);
     this.name = "APIError";
+    this.errorCode = errorCode;
   }
 }
 
@@ -91,7 +93,7 @@ async function apiFetch(path: string, options: RequestInit = {}, retried = false
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: "Request failed" }));
-    throw new APIError(res.status, err.message || "Request failed");
+    throw new APIError(res.status, err.message || "Request failed", err.error);
   }
   return res.json();
 }

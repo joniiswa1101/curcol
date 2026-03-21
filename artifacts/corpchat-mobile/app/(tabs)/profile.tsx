@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, Pressable, ScrollView,
   useColorScheme, Alert, ActivityIndicator, TextInput, Modal,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -84,6 +85,7 @@ export default function ProfileTab() {
   const colors = Colors[theme === "dark" ? "dark" : "light"];
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const router = useRouter();
   const { user, logout, refreshUser } = useAuth();
   const queryClient = useQueryClient();
 
@@ -245,6 +247,33 @@ export default function ProfileTab() {
 
       {/* Theme Toggle */}
       <ThemeToggleSection colors={colors} />
+
+      {/* Compliance */}
+      <Pressable
+        onPress={() => router.push("/compliance")}
+        style={({ pressed }) => [
+          styles.section,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Feather name="shield" size={20} color={colors.primary} />
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>Compliance</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: "Inter_400Regular" }}>
+              {user.role === "admin" ? "Dashboard & PII Scanner" : "PII Scanner"}
+            </Text>
+          </View>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.textSecondary} />
+      </Pressable>
 
       {/* Version */}
       <View style={[styles.versionSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>

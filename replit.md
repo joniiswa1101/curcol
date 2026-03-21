@@ -114,10 +114,11 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
 - **Compliance Assistant (March 21, 2026)**: Enterprise PII detection and compliance monitoring system. Scans all chat messages for Indonesian PII patterns (NIK/KTP, email, phone, credit card, NPWP, BPJS, bank account, passport). Blocks PII in group/announcement channels (400 error), flags in DMs. Auto-redacts sensitive data. Admin-only dashboard with stats overview, flagged message review (approve/dismiss/escalate), and PII scanner tool. Client-side PII warning banner in chat before sending. Server-side compliance scanning on both send and edit.
   - **Database**: `compliance_flags` table (raw SQL migration)
   - **Backend**: `artifacts/api-server/src/lib/compliance.ts` (PII detection engine), `artifacts/api-server/src/routes/compliance.ts` (API routes: GET /flags, GET /stats, PATCH /flags/:id, POST /scan)
-  - **Frontend**: `artifacts/corpchat-web/src/pages/Compliance.tsx` (3-tab dashboard: Overview, Flagged Messages, Scanner), Chat.tsx PII warning banner with confirm/cancel
+  - **Frontend Web**: `artifacts/corpchat-web/src/pages/Compliance.tsx` (3-tab dashboard: Overview, Flagged Messages, Scanner), Chat.tsx PII warning banner with confirm/cancel
+  - **Frontend Mobile**: `artifacts/corpchat-mobile/app/compliance.tsx` (3-tab screen: Overview, Flags, Scanner — Overview/Flags admin-only), `lib/pii-detection.ts` (client-side PII patterns), PII warning banner in chat input with confirm/cancel, `pii_blocked` error handling in sendMutation
   - **Schema**: `lib/db/src/schema/compliance.ts`
   - **Access**: Admin-only for dashboard + flag management; all authenticated users for scanner; server-side admin checks on sensitive endpoints
-  - **Navigation**: Shield icon in admin sidebar section, route at `/compliance`
+  - **Navigation**: Web: Shield icon in admin sidebar section, route at `/compliance`. Mobile: Shield button in profile page, route at `/compliance`
 - **Voice/Video Call System (March 21, 2026)**: WebRTC-based 1-on-1 voice and video calling.
   - **Architecture**: Uses `call-signal-bus.ts` singleton for routing call signals between main WebSocket and CallContext. NO separate WebSocket for calls — shares main connection.
   - **Signal Bus** (`artifacts/corpchat-web/src/lib/call-signal-bus.ts`): `onCallSignal()` for subscribing, `emitCallSignal()` for dispatching, `sendCallMessage()` for sending, `registerWsSend()` for registration by main WS.

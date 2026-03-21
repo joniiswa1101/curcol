@@ -23,6 +23,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTypingIndicators } from "@/hooks/use-typing-indicators";
 import { useCall } from "@/contexts/CallContext";
+import { detectPII } from "@/lib/pii-detection";
 
 function formatMsgTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -211,6 +212,8 @@ export default function ChatScreen() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [piiWarning, setPiiWarning] = useState<{ types: string[] } | null>(null);
+  const piiConfirmedRef = useRef(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const flatRef = useRef<FlatList>(null);
 
@@ -246,7 +249,13 @@ export default function ChatScreen() {
       // Remove optimistic message on failure
       setOptimisticMessages(prev => prev.filter(m => m.content !== content || !m.id.toString().includes('.')));
       // Handle 429 rate limit error
-      if (error instanceof APIError && error.status === 429) {
+      if (error instanceof APIError && (error.errorCode === "pii_blocked" || (error.status === 400 && error.message?.toLowerCase().includes("pii")))) {
+        Alert.alert(
+          "Pesan Diblokir",
+          "Pesan mengandung data sensitif (PII) dan tidak dapat dikirim ke channel grup/pengumuman.",
+          [{ text: "OK" }]
+        );
+      } else if (error instanceof APIError && error.status === 429) {
         Alert.alert(
           "Terlalu Banyak Pesan",
           "Anda telah mengirim terlalu banyak pesan dalam waktu singkat. Coba lagi dalam beberapa detik.",
@@ -388,40 +397,12 @@ export default function ChatScreen() {
 
   const displayItems = messagesWithSeparators();
 
-  // Handle text input with typing indicator
-  const handleSend = useCallback(() => {
-    const content = text.trim();
-    if (!content && !pendingFile) return;
-    if (sendMutation.isPending) return;
-
-    const msgData = {
-      content: content || (pendingFile ? `📎 ${pendingFile.fileName}` : ""),
-      type: "text",
-    };
-
-    setText("");
-    const fileToSend = pendingFile;
-    setPendingFile(null);
-
-    const tempId = Date.now() + Math.random();
-    const optimisticMessage: Message = {
-      id: tempId - 0.5,
-      senderId: user?.id || 0,
-      content: msgData.content,
-      type: "text",
-      isEdited: false,
-      isDeleted: false,
-      isPinned: false,
-      createdAt: new Date().toISOString(),
-      sender: { name: user?.name || "You" },
-    };
-
-    setOptimisticMessages((prev) => [...prev, optimisticMessage]);
-    sendMutation.mutate(msgData.content);
-  }, [text, pendingFile, sendMutation, user]);
-
   const handleTextChange = (newText: string) => {
     setText(newText);
+    if (piiWarning) {
+      setPiiWarning(null);
+      piiConfirmedRef.current = false;
+    }
     
     // Send typing notification via WebSocket
     if (newText.trim() && user?.id) {
@@ -440,7 +421,18 @@ export default function ChatScreen() {
   function send() {
     const trimmed = text.trim();
     if (!trimmed) return;
+
+    if (!piiConfirmedRef.current) {
+      const piiResult = detectPII(trimmed);
+      if (piiResult.hasPII) {
+        setPiiWarning({ types: piiResult.types });
+        return;
+      }
+    }
+
     setText("");
+    setPiiWarning(null);
+    piiConfirmedRef.current = false;
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     api.post(`/conversations/${id}/typing/stop`, {}).catch(() => {});
     
@@ -689,6 +681,30 @@ export default function ChatScreen() {
             <Text style={styles.waInputHintText}>Pesan akan dikirim ke WhatsApp kontak</Text>
           </View>
         )}
+        {piiWarning && (
+          <View style={[styles.piiWarningBanner, { backgroundColor: "#FEF3C7", borderColor: "#FCD34D" }]}>
+            <View style={styles.piiWarningHeader}>
+              <Feather name="alert-triangle" size={16} color="#D97706" />
+              <Text style={styles.piiWarningTitle}>Data Sensitif Terdeteksi</Text>
+            </View>
+            <Text style={styles.piiWarningTypes}>Terdeteksi: {piiWarning.types.join(", ")}</Text>
+            <Text style={styles.piiWarningNote}>PII akan diblokir di channel grup/pengumuman.</Text>
+            <View style={styles.piiWarningActions}>
+              <Pressable
+                onPress={() => { setPiiWarning(null); piiConfirmedRef.current = false; }}
+                style={[styles.piiBtn, { backgroundColor: "#E5E7EB" }]}
+              >
+                <Text style={[styles.piiBtnText, { color: "#374151" }]}>Ubah Pesan</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { piiConfirmedRef.current = true; setPiiWarning(null); send(); }}
+                style={[styles.piiBtn, { backgroundColor: "#D97706" }]}
+              >
+                <Text style={[styles.piiBtnText, { color: "#fff" }]}>Kirim Tetap</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
         {showVoiceRecorder ? (
           <VoiceRecorder
             onRecorded={handleVoiceRecorded}
@@ -873,4 +889,12 @@ const styles = StyleSheet.create({
   typingText: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
   dateSeparator: { alignItems: "center", justifyContent: "center", marginVertical: 16 },
   dateSeparatorText: { fontSize: 12, fontFamily: "Inter_500Medium", letterSpacing: 0.3, textTransform: "capitalize" },
+  piiWarningBanner: { marginHorizontal: 12, marginTop: 8, marginBottom: 4, padding: 12, borderRadius: 10, borderWidth: 1 },
+  piiWarningHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  piiWarningTitle: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#92400E" },
+  piiWarningTypes: { fontSize: 12, fontFamily: "Inter_500Medium", color: "#B45309", marginBottom: 2 },
+  piiWarningNote: { fontSize: 11, fontFamily: "Inter_400Regular", color: "#92400E", marginBottom: 8 },
+  piiWarningActions: { flexDirection: "row", gap: 8 },
+  piiBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: "center" },
+  piiBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });

@@ -158,11 +158,12 @@ interface BubbleProps {
   colors: any;
   showAvatar: boolean;
   queueStatus?: "pending" | "sending" | "failed";
+  isHighlighted?: boolean;
   onRetry?: () => void;
   onDiscard?: () => void;
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPin, queueStatus, onRetry, onDiscard }: BubbleProps & { onEdit?: (msg: Message) => void; onDelete?: (msgId: number) => void; onPin?: (msgId: number) => void }) {
+function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPin, queueStatus, isHighlighted, onRetry, onDiscard }: BubbleProps & { onEdit?: (msg: Message) => void; onDelete?: (msgId: number) => void; onPin?: (msgId: number) => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
@@ -174,7 +175,7 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPi
       : colors.bubble.other;
 
   return (
-    <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine]}>
+    <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine, isHighlighted && styles.highlightedBubble]}>
       {!isMine && showAvatar ? (
         isFromWa ? (
           <View style={styles.waAvatarSmall}>
@@ -341,6 +342,12 @@ export default function ChatScreen() {
   const [uploading, setUploading] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [piiWarning, setPiiWarning] = useState<{ types: string[] } | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Message[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null);
+  const searchInputRef = useRef<TextInput>(null);
   const offlineQueue = useOfflineQueue(user?.id, () => {
     queryClient.invalidateQueries({ queryKey: ["messages", id] });
   });
@@ -379,6 +386,21 @@ export default function ChatScreen() {
 
   const { typingUsers, sendTyping } = useTypingIndicators(Number(id));
   const callCtx = useCall();
+
+  const handleMessageSearch = useCallback(async () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    setSearchLoading(true);
+    try {
+      const params = new URLSearchParams({ q, limit: "50" });
+      const result = await api.get(`/conversations/${id}/search?${params}`);
+      setSearchResults(result.messages || []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [searchQuery, id]);
 
   const sendMutation = useMutation({
     mutationFn: (content: string) => api.post(`/conversations/${id}/messages`, { content, type: "text" }),
@@ -553,6 +575,19 @@ export default function ChatScreen() {
   }, [allMessages]);
 
   const displayItems = messagesWithSeparators();
+
+  const scrollToMessage = useCallback((msgId: number) => {
+    const reversed = [...displayItems].reverse();
+    const idx = reversed.findIndex((item: any) => item.type !== "date_separator" && item.id === msgId);
+    if (idx >= 0 && flatRef.current) {
+      flatRef.current.scrollToIndex({ index: idx, animated: true, viewPosition: 0.5 });
+      setHighlightedMsgId(msgId);
+      setTimeout(() => setHighlightedMsgId(null), 2500);
+    }
+    setShowSearch(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  }, [displayItems]);
 
   const handleTextChange = (newText: string) => {
     setText(newText);
@@ -743,10 +778,79 @@ export default function ChatScreen() {
             <Feather name="info" size={20} color={colors.textSecondary} />
           </Pressable>
         )}
+        <Pressable
+          style={styles.headerAction}
+          hitSlop={8}
+          onPress={() => {
+            setShowSearch(s => !s);
+            if (!showSearch) setTimeout(() => searchInputRef.current?.focus(), 100);
+            else { setSearchQuery(""); setSearchResults([]); }
+          }}
+        >
+          <Feather name="search" size={20} color={showSearch ? colors.primary : (isWhatsapp ? "#fff" : colors.textSecondary)} />
+        </Pressable>
         <Pressable style={styles.headerAction} hitSlop={8}>
           <Feather name="more-vertical" size={22} color={isWhatsapp ? "#fff" : colors.textSecondary} />
         </Pressable>
       </View>
+
+      {showSearch && (
+        <View style={[styles.searchPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <View style={[styles.searchInputRow, { backgroundColor: colors.surfaceSecondary }]}>
+            <Feather name="search" size={15} color={colors.textSecondary} />
+            <TextInput
+              ref={searchInputRef}
+              style={[styles.searchTextInput, { color: colors.text }]}
+              placeholder="Cari pesan..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleMessageSearch}
+              returnKeyType="search"
+              autoFocus
+            />
+            {searchLoading && <ActivityIndicator size="small" color={colors.primary} />}
+            {!!searchQuery && !searchLoading && (
+              <Pressable onPress={() => { setSearchQuery(""); setSearchResults([]); }}>
+                <Feather name="x" size={16} color={colors.textSecondary} />
+              </Pressable>
+            )}
+          </View>
+          {searchResults.length > 0 && (
+            <Text style={[styles.searchCount, { color: colors.textSecondary }]}>
+              {searchResults.length} hasil ditemukan
+            </Text>
+          )}
+          {searchResults.length > 0 && (
+            <ScrollView style={styles.searchResultsScroll} keyboardShouldPersistTaps="handled">
+              {searchResults.map((msg) => (
+                <Pressable
+                  key={msg.id}
+                  style={({ pressed }) => [styles.searchResultItem, { backgroundColor: pressed ? colors.surfaceSecondary : "transparent" }]}
+                  onPress={() => scrollToMessage(msg.id)}
+                >
+                  <View style={styles.searchResultHeader}>
+                    <Text style={[styles.searchResultSender, { color: colors.primary }]} numberOfLines={1}>
+                      {msg.sender?.name || "Unknown"}
+                    </Text>
+                    <Text style={[styles.searchResultTime, { color: colors.textSecondary }]}>
+                      {format(new Date(msg.createdAt), "dd MMM HH:mm")}
+                    </Text>
+                  </View>
+                  <Text style={[styles.searchResultContent, { color: colors.text }]} numberOfLines={2}>
+                    {msg.content}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+          {!searchLoading && searchQuery && searchResults.length === 0 && (
+            <Text style={[styles.searchNoResult, { color: colors.textSecondary }]}>
+              Tidak ada hasil untuk "{searchQuery}"
+            </Text>
+          )}
+        </View>
+      )}
 
       {isLoading ? (
         <View style={styles.center}>
@@ -787,6 +891,7 @@ export default function ChatScreen() {
                 colors={colors}
                 showAvatar={showAvatar}
                 queueStatus={qStatus}
+                isHighlighted={highlightedMsgId === item.id}
                 onRetry={qId ? () => offlineQueue.retryMessage(qId) : undefined}
                 onDiscard={qId ? () => offlineQueue.discardMessage(qId) : undefined}
                 onEdit={(msg) => {
@@ -799,6 +904,11 @@ export default function ChatScreen() {
             );
           }}
           onLayout={() => flatRef.current?.scrollToOffset({ offset: 0, animated: false })}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              flatRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
+            }, 300);
+          }}
           ListEmptyComponent={() => (
             <View style={[styles.center, { transform: [{ scaleY: -1 }] }]}>
               <Feather name="message-circle" size={40} color={colors.border} />
@@ -1079,6 +1189,18 @@ const styles = StyleSheet.create({
   piiBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: "center" },
   piiBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   readCheck: { fontSize: 10, fontFamily: "Inter_700Bold", marginLeft: 2 },
+  highlightedBubble: { backgroundColor: "rgba(59, 130, 246, 0.15)", borderRadius: 12, marginHorizontal: -4, paddingHorizontal: 4 },
+  searchPanel: { paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 0.5, maxHeight: 300 },
+  searchInputRow: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  searchTextInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0 },
+  searchCount: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 6, marginLeft: 4 },
+  searchResultsScroll: { maxHeight: 200, marginTop: 6 },
+  searchResultItem: { paddingVertical: 8, paddingHorizontal: 8, borderRadius: 8 },
+  searchResultHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  searchResultSender: { fontSize: 12, fontFamily: "Inter_600SemiBold", flex: 1 },
+  searchResultTime: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  searchResultContent: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  searchNoResult: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 16 },
   offlineBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: "#6b7280" },
   offlineBannerText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   queueFailedActions: { flexDirection: "row", gap: 12, marginTop: 4, paddingTop: 4, borderTopWidth: 0.5, borderTopColor: "rgba(0,0,0,0.1)" },

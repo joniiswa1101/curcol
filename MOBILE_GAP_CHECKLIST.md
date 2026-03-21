@@ -21,7 +21,7 @@
 | Link Previews | ✅ | ✅ Full | OK |
 | Offline Queue | ✅ | ✅ Full | OK |
 | Read Receipts | ✅ | ✅ Full | OK |
-| Message Search | ⚠️ Basic | ❌ Tidak ada | **KECIL** |
+| Message Search | ⚠️ Basic | ✅ Full | OK |
 | File Upload Validation | ✅ Full | ✅ Full | OK |
 | Dark/Light Theme | ✅ | ✅ | OK |
 | CICO Toggle | ✅ Sidebar | ✅ Profile Tab | OK |
@@ -129,9 +129,12 @@
 ### GAP-08: Message Search
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-08.1 | Search bar di conversation list | MEDIUM | 1d | ⬜ |
-| GAP-08.2 | Search dalam chat (cari pesan spesifik) | MEDIUM | 1-2d | ⬜ |
-| GAP-08.3 | Highlight dan scroll ke hasil search | LOW | 1d | ⬜ |
+| GAP-08.1 | Search bar di conversation list | MEDIUM | 1d | ✅ |
+| GAP-08.2 | Search dalam chat (cari pesan spesifik) | MEDIUM | 1-2d | ✅ |
+| GAP-08.3 | Highlight dan scroll ke hasil search | LOW | 1d | ✅ |
+
+**Catatan**:
+- GAP-08 ✅ Selesai: Search bar di conversation list sudah ada (filter by name). In-chat search via search icon di header → search panel → `GET /conversations/:id/search?q=...` API. Hasil ditampilkan sebagai list (sender + time + content preview). Tap hasil → scroll ke pesan + blue highlight 2.5 detik. Clear search saat tutup panel (21 Maret 2026).
 
 ---
 

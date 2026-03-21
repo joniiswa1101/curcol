@@ -24,3 +24,9 @@ id = "uph6Hp_eCWZPBI05q4was"
 uri = "file://.local/curcol-web-checklist.md"
 type = "text"
 title = "CurCol — Total Audit & Feature Roadmap v2.0"
+
+[[outputs]]
+id = "XRWjRfQyf5xD2P0tXpGoE"
+uri = "file://MOBILE_GAP_CHECKLIST.md"
+type = "text"
+title = "CurCol — Mobile vs Web Gap Analysis Checklist"

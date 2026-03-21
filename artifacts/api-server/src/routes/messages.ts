@@ -22,13 +22,13 @@ async function getConversationMemberIds(conversationId: number): Promise<number[
 }
 
 // BATCHED enrichment - includes read receipts (5 queries total regardless of message count)
-async function enrichMessages(msgs: any[]) {
+async function enrichMessages(msgs: any[], currentUserId?: number) {
   if (msgs.length === 0) return [];
 
   const senderIds = [...new Set(msgs.map(m => m.senderId).filter((id): id is number => id != null))];
   const msgIds = msgs.map(m => m.id).filter((id): id is number => id != null);
 
-  const [senders, attachments, reactions, reads] = await Promise.all([
+  const [senders, attachments, reactions, reads, favorites] = await Promise.all([
     senderIds.length > 0
       ? db.select().from(usersTable).where(inArray(usersTable.id, senderIds))
       : Promise.resolve([]),
@@ -36,6 +36,10 @@ async function enrichMessages(msgs: any[]) {
     db.select().from(messageReactionsTable).where(inArray(messageReactionsTable.messageId as any, msgIds)),
     msgIds.length > 0
       ? db.select().from(messageReadsTable).where(inArray(messageReadsTable.messageId as any, msgIds))
+      : Promise.resolve([]),
+    currentUserId && msgIds.length > 0
+      ? db.select().from(messageFavoritesTable)
+          .where(and(inArray(messageFavoritesTable.messageId as any, msgIds), eq(messageFavoritesTable.userId, currentUserId)))
       : Promise.resolve([]),
   ]);
 
@@ -67,6 +71,8 @@ async function enrichMessages(msgs: any[]) {
     if (!readsByMsg.has(read.messageId)) readsByMsg.set(read.messageId, []);
     readsByMsg.get(read.messageId)!.push(read);
   }
+
+  const favoriteSet = new Set((favorites as any[]).map(f => f.messageId));
 
   const replyToIds = msgs.map(m => m.replyToId).filter((id): id is number => id != null);
   const conversationIds = [...new Set(msgs.map(m => m.conversationId).filter(Boolean))];
@@ -111,6 +117,7 @@ async function enrichMessages(msgs: any[]) {
       reactions: Object.values(reactionMap),
       reads: msgReads,
       replyTo: msg.replyToId ? replyMap.get(msg.replyToId) || null : null,
+      isFavorited: favoriteSet.has(msg.id),
     };
   });
 }
@@ -137,7 +144,7 @@ router.get("/:conversationId/messages", requireAuth as any, async (req, res) => 
   const slice = messages.slice(0, limit);
 
   // Batch enrich — single set of queries for all messages
-  const enriched = await enrichMessages(slice);
+  const enriched = await enrichMessages(slice, currentUser.id);
 
   // Update last read in background (don't await)
   db.update(conversationMembersTable).set({ lastReadAt: new Date() })
@@ -237,7 +244,7 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
     });
   }
 
-  const [enriched] = await enrichMessages([msg]);
+  const [enriched] = await enrichMessages([msg], currentUser.id);
   const memberIds = await getConversationMemberIds(convId);
   broadcastToConversation(convId, memberIds, { type: "new_message", conversationId: convId, data: enriched });
 
@@ -246,9 +253,10 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
 
 router.get("/:conversationId/pinned", requireAuth as any, async (req, res) => {
   const convId = parseInt(req.params.conversationId);
+  const currentUser = (req as any).user;
   const pinned = await db.select().from(messagesTable)
     .where(and(eq(messagesTable.conversationId, convId), eq(messagesTable.isPinned, true)));
-  const enriched = await enrichMessages(pinned);
+  const enriched = await enrichMessages(pinned, currentUser.id);
   res.json({ messages: enriched, hasMore: false });
 });
 
@@ -359,7 +367,7 @@ router.patch("/:conversationId/messages/:messageId", requireAuth as any, async (
 
   await logAudit({ userId: currentUser.id, action: "edit_message", entityType: "message", entityId: msgId, req });
 
-  const [enriched] = await enrichMessages([updated]);
+  const [enriched] = await enrichMessages([updated], currentUser.id);
   const memberIds = await getConversationMemberIds(convId);
   broadcastToConversation(convId, memberIds, { type: "update_message", conversationId: convId, data: enriched });
 
@@ -398,7 +406,7 @@ router.delete("/:conversationId/messages/:messageId", requireAuth as any, async 
 
   await logAudit({ userId: currentUser.id, action: "delete_message", entityType: "message", entityId: msgId, req });
 
-  const [enriched] = await enrichMessages([deleted]);
+  const [enriched] = await enrichMessages([deleted], currentUser.id);
   const memberIds = await getConversationMemberIds(convId);
   broadcastToConversation(convId, memberIds, { type: "update_message", conversationId: convId, data: enriched });
 
@@ -428,7 +436,7 @@ router.patch("/:conversationId/messages/:messageId/pin", requireAuth as any, asy
 
   await logAudit({ userId: currentUser.id, action: newPinState ? "pin_message" : "unpin_message", entityType: "message", entityId: msgId, req });
 
-  const [enriched] = await enrichMessages([updated]);
+  const [enriched] = await enrichMessages([updated], currentUser.id);
   const memberIds = await getConversationMemberIds(convId);
   broadcastToConversation(convId, memberIds, { type: "update_message", conversationId: convId, data: enriched });
 
@@ -542,7 +550,7 @@ router.post("/:conversationId/messages/:messageId/pin", requireAuth as any, asyn
     req
   });
 
-  const [enriched] = await enrichMessages([{ ...msg, isPinned: newPinState }]);
+  const [enriched] = await enrichMessages([{ ...msg, isPinned: newPinState }], currentUser.id);
   const memberIds = await getConversationMemberIds(convId);
   broadcastToConversation(convId, memberIds, { type: newPinState ? "message_pinned" : "message_unpinned", conversationId: convId, data: enriched });
 
@@ -615,7 +623,7 @@ router.get("/:conversationId/favorites", requireAuth as any, async (req, res) =>
   const msgIds = favorites.map(f => f.messageId).filter(Boolean);
   const messages = await db.select().from(messagesTable).where(inArray(messagesTable.id, msgIds));
 
-  const enriched = await enrichMessages(messages);
+  const enriched = await enrichMessages(messages, currentUser.id);
   res.json({ messages: enriched, hasMore: false });
 });
 
@@ -649,7 +657,7 @@ router.get("/:conversationId/search", requireAuth as any, async (req, res) => {
     .orderBy(desc(messagesTable.createdAt))
     .limit(limit);
 
-  const enriched = await enrichMessages(messages);
+  const enriched = await enrichMessages(messages, currentUser.id);
   res.json({ 
     messages: enriched,
     query,

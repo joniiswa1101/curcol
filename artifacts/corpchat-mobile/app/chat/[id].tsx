@@ -2,8 +2,9 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import {
   View, Text, FlatList, Pressable, TextInput, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform, useColorScheme, Alert,
-  ScrollView, Image, Linking,
+  ScrollView, Image, Linking, Modal,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -151,6 +152,7 @@ interface Message {
   reactions?: { emoji: string; count: number; userIds: number[] }[];
   attachments?: Attachment[];
   reads?: MessageRead[];
+  isFavorited?: boolean;
 }
 
 interface BubbleProps {
@@ -160,12 +162,12 @@ interface BubbleProps {
   showAvatar: boolean;
   queueStatus?: "pending" | "sending" | "failed";
   isHighlighted?: boolean;
+  onLongPress?: (msg: Message) => void;
   onRetry?: () => void;
   onDiscard?: () => void;
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPin, queueStatus, isHighlighted, onRetry, onDiscard }: BubbleProps & { onEdit?: (msg: Message) => void; onDelete?: (msgId: number) => void; onPin?: (msgId: number) => void }) {
-  const [showMenu, setShowMenu] = useState(false);
+function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlighted, onLongPress, onRetry, onDiscard }: BubbleProps) {
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
 
@@ -189,7 +191,7 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPi
         <View style={{ width: 30 }} />
       ) : null}
 
-      <Pressable onLongPress={() => setShowMenu(true)} style={[styles.bubbleWrap, isMine && styles.bubbleWrapMine]}>
+      <Pressable onLongPress={() => !msg.isDeleted && !queueStatus && onLongPress?.(msg)} style={[styles.bubbleWrap, isMine && styles.bubbleWrapMine]}>
         {!isMine && showAvatar && (
           <Text style={[styles.senderName, { color: colors.textSecondary }]}>
             {isFromWa ? `📱 ${msg.sender?.name || "WhatsApp"}` : (msg.sender?.name || "")}
@@ -291,37 +293,6 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPi
         )}
       </Pressable>
 
-      {showMenu && isMine && (
-        <View style={styles.menuBtns}>
-          <Feather
-            name="edit-2"
-            size={16}
-            color={colors.primary}
-            onPress={() => {
-              onEdit?.(msg);
-              setShowMenu(false);
-            }}
-          />
-          <Feather
-            name={msg.isPinned ? "pin" : "pin"}
-            size={16}
-            color={msg.isPinned ? "#f59e0b" : colors.textSecondary}
-            onPress={() => {
-              onPin?.(msg.id);
-              setShowMenu(false);
-            }}
-          />
-          <Feather
-            name="trash-2"
-            size={16}
-            color="#ef4444"
-            onPress={() => {
-              onDelete?.(msg.id);
-              setShowMenu(false);
-            }}
-          />
-        </View>
-      )}
     </View>
   );
 }
@@ -348,6 +319,8 @@ export default function ChatScreen() {
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null);
+  const [contextMenuMsg, setContextMenuMsg] = useState<Message | null>(null);
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const searchInputRef = useRef<TextInput>(null);
   const offlineQueue = useOfflineQueue(user?.id, () => {
     queryClient.invalidateQueries({ queryKey: ["messages", id] });
@@ -415,15 +388,14 @@ export default function ChatScreen() {
   }, [searchQuery, id]);
 
   const sendMutation = useMutation({
-    mutationFn: (content: string) => api.post(`/conversations/${id}/messages`, { content, type: "text" }),
+    mutationFn: (payload: { content: string; replyToId?: number }) =>
+      api.post(`/conversations/${id}/messages`, { content: payload.content, type: "text", replyToId: payload.replyToId }),
     onSuccess: (newMsg) => {
-      // Replace optimistic message with real one
       setOptimisticMessages(prev => prev.filter(m => m.id !== (newMsg.id - 0.5)));
       queryClient.invalidateQueries({ queryKey: ["messages", id] });
     },
-    onError: (error, content) => {
-      // Remove optimistic message on failure
-      setOptimisticMessages(prev => prev.filter(m => m.content !== content || !m.id.toString().includes('.')));
+    onError: (error, payload) => {
+      setOptimisticMessages(prev => prev.filter(m => m.content !== payload.content || !m.id.toString().includes('.')));
       // Handle 429 rate limit error
       if (error instanceof APIError && (error.errorCode === "pii_blocked" || (error.status === 400 && error.message?.toLowerCase().includes("pii")))) {
         Alert.alert(
@@ -463,6 +435,11 @@ export default function ChatScreen() {
         Alert.alert("Terlalu Banyak Permintaan", "Coba lagi dalam beberapa detik.", [{ text: "OK" }]);
       }
     },
+  });
+
+  const favoriteMutation = useMutation({
+    mutationFn: (msgId: number) => api.post(`/conversations/${id}/messages/${msgId}/favorite`, {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages", id] }),
   });
 
   const pinMutation = useMutation({
@@ -640,15 +617,18 @@ export default function ChatScreen() {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     api.post(`/conversations/${id}/typing/stop`, {}).catch(() => {});
 
+    const currentReply = replyToMessage;
+
     if (!offlineQueue.isOnline) {
       offlineQueue.enqueue({
         conversationId: Number(id),
         content: trimmed,
         type: "text",
+        replyToId: currentReply?.id,
       });
+      setReplyToMessage(null);
       return;
     }
-    
     const optimisticMsg: Message = {
       id: Math.random() * -1,
       senderId: user?.id || 0,
@@ -660,10 +640,12 @@ export default function ChatScreen() {
       createdAt: new Date().toISOString(),
       sender: user ? { name: user.name, avatarUrl: user.avatarUrl, cicoStatus: null } : undefined,
       reactions: [],
+      replyTo: currentReply || undefined,
     };
     
     setOptimisticMessages(prev => [...prev, optimisticMsg]);
-    sendMutation.mutate(trimmed);
+    setReplyToMessage(null);
+    sendMutation.mutate({ content: trimmed, replyToId: currentReply?.id });
   }
 
   const handleVoiceRecorded = useCallback(async (uri: string, duration: number, mimeType: string) => {
@@ -726,6 +708,7 @@ export default function ChatScreen() {
   }, [user, id, queryClient]);
 
   return (
+    <>
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -911,14 +894,9 @@ export default function ChatScreen() {
                 showAvatar={showAvatar}
                 queueStatus={qStatus}
                 isHighlighted={highlightedMsgId === item.id}
+                onLongPress={(m) => setContextMenuMsg(m)}
                 onRetry={qId ? () => offlineQueue.retryMessage(qId) : undefined}
                 onDiscard={qId ? () => offlineQueue.discardMessage(qId) : undefined}
-                onEdit={(msg) => {
-                  setEditingMsgId(msg.id);
-                  setEditText(msg.content || "");
-                }}
-                onDelete={(msgId) => deleteMutation.mutate(msgId)}
-                onPin={(msgId) => pinMutation.mutate(msgId)}
               />
             );
           }}
@@ -953,6 +931,23 @@ export default function ChatScreen() {
             Offline — pesan akan dikirim otomatis saat online
             {offlineQueue.queuedCount > 0 ? ` (${offlineQueue.queuedCount} antrian)` : ""}
           </Text>
+        </View>
+      )}
+
+      {/* Reply bar */}
+      {replyToMessage && (
+        <View style={[styles.replyBarInput, { backgroundColor: colors.surfaceSecondary, borderLeftColor: colors.primary }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.replyBarName, { color: colors.primary }]} numberOfLines={1}>
+              {replyToMessage.sender?.name || "Unknown"}
+            </Text>
+            <Text style={[styles.replyBarContent, { color: colors.textSecondary }]} numberOfLines={1}>
+              {replyToMessage.content || ""}
+            </Text>
+          </View>
+          <Pressable onPress={() => setReplyToMessage(null)} hitSlop={8}>
+            <Feather name="x" size={18} color={colors.textSecondary} />
+          </Pressable>
         </View>
       )}
 
@@ -1128,6 +1123,119 @@ export default function ChatScreen() {
         </View>
       )}
     </KeyboardAvoidingView>
+
+    {/* Context Menu Modal */}
+    <Modal
+      visible={!!contextMenuMsg}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setContextMenuMsg(null)}
+    >
+      <Pressable style={styles.contextOverlay} onPress={() => setContextMenuMsg(null)}>
+        <View style={[styles.contextSheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 12 }]}>
+          {contextMenuMsg && (
+            <View style={[styles.contextPreview, { backgroundColor: colors.surfaceSecondary }]}>
+              <Text style={[styles.contextPreviewSender, { color: colors.primary }]} numberOfLines={1}>
+                {contextMenuMsg.sender?.name || "Unknown"}
+              </Text>
+              <Text style={[styles.contextPreviewText, { color: colors.text }]} numberOfLines={2}>
+                {contextMenuMsg.content}
+              </Text>
+            </View>
+          )}
+
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => {
+              setReplyToMessage(contextMenuMsg);
+              setContextMenuMsg(null);
+            }}
+          >
+            <Feather name="corner-up-left" size={18} color={colors.text} />
+            <Text style={[styles.contextItemText, { color: colors.text }]}>Balas</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.contextItem}
+            onPress={async () => {
+              if (contextMenuMsg?.content) {
+                await Clipboard.setStringAsync(contextMenuMsg.content);
+              }
+              setContextMenuMsg(null);
+            }}
+          >
+            <Feather name="copy" size={18} color={colors.text} />
+            <Text style={[styles.contextItemText, { color: colors.text }]}>Salin</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => {
+              if (contextMenuMsg) pinMutation.mutate(contextMenuMsg.id);
+              setContextMenuMsg(null);
+            }}
+          >
+            <Feather name="bookmark" size={18} color={contextMenuMsg?.isPinned ? "#f59e0b" : colors.text} />
+            <Text style={[styles.contextItemText, { color: colors.text }]}>
+              {contextMenuMsg?.isPinned ? "Lepas Pin" : "Pin"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => {
+              if (contextMenuMsg) favoriteMutation.mutate(contextMenuMsg.id);
+              setContextMenuMsg(null);
+            }}
+          >
+            <Feather name="heart" size={18} color={contextMenuMsg?.isFavorited ? "#ef4444" : colors.text} />
+            <Text style={[styles.contextItemText, { color: colors.text }]}>
+              {contextMenuMsg?.isFavorited ? "Hapus Favorit" : "Favorit"}
+            </Text>
+          </Pressable>
+
+          {contextMenuMsg?.senderId === user?.id && (
+            <>
+              <View style={[styles.contextSeparator, { backgroundColor: colors.border }]} />
+              <Pressable
+                style={styles.contextItem}
+                onPress={() => {
+                  if (contextMenuMsg) {
+                    setEditingMsgId(contextMenuMsg.id);
+                    setEditText(contextMenuMsg.content || "");
+                  }
+                  setContextMenuMsg(null);
+                }}
+              >
+                <Feather name="edit-2" size={18} color={colors.primary} />
+                <Text style={[styles.contextItemText, { color: colors.primary }]}>Edit</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.contextItem}
+                onPress={() => {
+                  Alert.alert("Hapus Pesan", "Yakin ingin menghapus pesan ini?", [
+                    { text: "Batal", style: "cancel" },
+                    {
+                      text: "Hapus",
+                      style: "destructive",
+                      onPress: () => {
+                        if (contextMenuMsg) deleteMutation.mutate(contextMenuMsg.id);
+                        setContextMenuMsg(null);
+                      },
+                    },
+                  ]);
+                }}
+              >
+                <Feather name="trash-2" size={18} color="#ef4444" />
+                <Text style={[styles.contextItemText, { color: "#ef4444" }]}>Hapus</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      </Pressable>
+    </Modal>
+    </>
   );
 }
 
@@ -1223,6 +1331,17 @@ const styles = StyleSheet.create({
   presenceRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
   presenceDotSmall: { width: 7, height: 7, borderRadius: 3.5 },
   presenceText: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  contextOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  contextSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingHorizontal: 8 },
+  contextPreview: { marginHorizontal: 8, marginBottom: 8, padding: 10, borderRadius: 10 },
+  contextPreviewSender: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  contextPreviewText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  contextItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 10 },
+  contextItemText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  contextSeparator: { height: 0.5, marginHorizontal: 16, marginVertical: 2 },
+  replyBarInput: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 8, borderLeftWidth: 3, marginHorizontal: 8, marginBottom: 2, borderRadius: 6 },
+  replyBarName: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  replyBarContent: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 1 },
   offlineBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: "#6b7280" },
   offlineBannerText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   queueFailedActions: { flexDirection: "row", gap: 12, marginTop: 4, paddingTop: 4, borderTopWidth: 0.5, borderTopColor: "rgba(0,0,0,0.1)" },

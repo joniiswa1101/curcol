@@ -20,7 +20,7 @@
 | Voice/Video Call | ✅ | ✅ | OK |
 | Link Previews | ✅ | ✅ Full | OK |
 | Offline Queue | ✅ | ✅ Full | OK |
-| Read Receipts | ✅ | ❌ Tidak ada | **SEDANG** |
+| Read Receipts | ✅ | ✅ Full | OK |
 | Message Search | ⚠️ Basic | ❌ Tidak ada | **KECIL** |
 | File Upload Validation | ✅ Full | ✅ Full | OK |
 | Dark/Light Theme | ✅ | ✅ | OK |
@@ -117,11 +117,12 @@
 ### GAP-07: Read Receipts
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-07.1 | Kirim read receipt saat buka chat | HIGH | 1d | ⬜ |
-| GAP-07.2 | Tampilkan status read (✓✓) di pesan terkirim | HIGH | 1d | ⬜ |
-| GAP-07.3 | Unread count badge di conversation list | MEDIUM | 0.5d | ⬜ |
+| GAP-07.1 | Kirim read receipt saat buka chat | HIGH | 1d | ✅ |
+| GAP-07.2 | Tampilkan status read (✓✓) di pesan terkirim | HIGH | 1d | ✅ |
+| GAP-07.3 | Unread count badge di conversation list | MEDIUM | 0.5d | ✅ |
 
-**Catatan**: Web sudah memiliki read receipts penuh. Mobile perlu menyusul.
+**Catatan**:
+- GAP-07 ✅ Selesai: `POST /conversations/:id/mark-read` dipanggil saat masuk chat + saat ada pesan baru. Read receipt indicators: ✓ (terkirim, abu-abu), ✓✓ (dibaca, biru #3b82f6) di pesan terkirim sendiri. Unread badge sudah ada di conversation list (`unreadCount` dari API). Invalidate conversations query saat mark-read untuk update badge count (21 Maret 2026).
 
 ---
 

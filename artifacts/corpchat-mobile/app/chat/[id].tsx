@@ -130,6 +130,11 @@ interface Attachment {
   mimeType: string;
 }
 
+interface MessageRead {
+  userId: number;
+  readAt: string;
+}
+
 interface Message {
   id: number;
   senderId: number;
@@ -144,6 +149,7 @@ interface Message {
   replyTo?: Message;
   reactions?: { emoji: string; count: number; userIds: number[] }[];
   attachments?: Attachment[];
+  reads?: MessageRead[];
 }
 
 interface BubbleProps {
@@ -240,6 +246,14 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPi
             {msg.isEdited && !msg.isDeleted && (
               <Text style={[styles.edited, { color: isMine ? "rgba(255,255,255,0.6)" : colors.textSecondary }]}>diedit</Text>
             )}
+            {(() => {
+              if (!isMine || queueStatus || msg.isDeleted || typeof msg.id !== "number" || msg.id <= 0) return null;
+              const othersRead = (msg.reads || []).filter(r => r.userId !== msg.senderId);
+              if (othersRead.length > 0) {
+                return <Text style={[styles.readCheck, { color: "#3b82f6" }]}>✓✓</Text>;
+              }
+              return <Text style={[styles.readCheck, { color: "rgba(255,255,255,0.5)" }]}>✓</Text>;
+            })()}
             {queueStatus === "pending" && (
               <Feather name="clock" size={11} color={isMine ? "rgba(255,255,255,0.5)" : colors.textSecondary} />
             )}
@@ -348,6 +362,17 @@ export default function ChatScreen() {
     queryFn: () => api.get(`/conversations/${id}/messages`),
     refetchInterval: 30000,
   });
+
+  const lastMsgCountRef = useRef(0);
+  useEffect(() => {
+    if (!id || !data?.messages) return;
+    const count = data.messages.length;
+    if (count === lastMsgCountRef.current && lastMsgCountRef.current > 0) return;
+    lastMsgCountRef.current = count;
+    api.post(`/conversations/${id}/mark-read`, {}).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    }).catch(() => {});
+  }, [id, data?.messages?.length, queryClient]);
 
   // Real-time WebSocket listener for instant message updates
   useWebSocket(id);
@@ -1053,6 +1078,7 @@ const styles = StyleSheet.create({
   piiWarningActions: { flexDirection: "row", gap: 8 },
   piiBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: "center" },
   piiBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  readCheck: { fontSize: 10, fontFamily: "Inter_700Bold", marginLeft: 2 },
   offlineBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: "#6b7280" },
   offlineBannerText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   queueFailedActions: { flexDirection: "row", gap: 12, marginTop: 4, paddingTop: 4, borderTopWidth: 0.5, borderTopColor: "rgba(0,0,0,0.1)" },

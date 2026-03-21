@@ -24,7 +24,8 @@ import {
   Search, Send, Paperclip, Smile, MoreVertical, Mic, Reply,
   Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle,
   Phone, Video, Pin, Heart, Users, Plus, UserPlus, Crown, Shield,
-  ShieldOff, LogOut, Trash2, BellOff, Bell, Settings, Check, ShieldAlert
+  ShieldOff, LogOut, Trash2, BellOff, Bell, Settings, Check, ShieldAlert,
+  Pencil
 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
@@ -911,6 +912,8 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const [piiConfirmed, setPiiConfirmed] = useState(false)
   const [replyToMessage, setReplyToMessage] = useState<any>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msg: any } | null>(null)
+  const [editingMessage, setEditingMessage] = useState<any>(null)
+  const [editText, setEditText] = useState("")
   const [showPinned, setShowPinned] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -951,11 +954,13 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
     }
   }, [messages.length])
 
-  // Reset state when conversation changes
   useEffect(() => {
     setInputText("")
     setPendingFile(null)
     setShowEmoji(false)
+    setEditingMessage(null)
+    setEditText("")
+    setReplyToMessage(null)
     textareaRef.current?.focus()
   }, [conversationId])
 
@@ -1105,6 +1110,43 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
       }
     });
   }, [messages, detectUrls, fetchLinkPreview, linkPreviews]);
+
+  // ── Edit message ──────────────────────────────────────────────────────────
+  const handleEditMessage = useCallback(async (messageId: number, newContent: string) => {
+    if (!newContent.trim()) return
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages/${messageId}`, {
+        method: "PATCH",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newContent.trim() })
+      })
+      if (!res.ok) {
+        console.error("Edit failed:", res.status)
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(conversationId, {}) })
+      setEditingMessage(null)
+      setEditText("")
+    } catch (err) {
+      console.error("Edit error:", err)
+    }
+  }, [conversationId, token, queryClient])
+
+  const handleDeleteMessage = useCallback(async (messageId: number) => {
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages/${messageId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      if (!res.ok) {
+        console.error("Delete failed:", res.status)
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(conversationId, {}) })
+    } catch (err) {
+      console.error("Delete error:", err)
+    }
+  }, [conversationId, token, queryClient])
 
   // ── Send message ──────────────────────────────────────────────────────────
   const handleSend = useCallback((e: React.FormEvent) => {
@@ -1704,7 +1746,10 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
 
                     {msg.content && (
                       <div>
-                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        <p className="whitespace-pre-wrap break-words">
+                          {msg.content}
+                          {msg.isEdited && <span className="text-[10px] text-muted-foreground ml-1.5 italic">(edited)</span>}
+                        </p>
                         {linkPreviews[msg.id] && (
                           <a
                             href={linkPreviews[msg.id].url}
@@ -1801,6 +1846,29 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                       >
                         <Heart className={cn("w-3 h-3", msg.isFavorited && "fill-red-500 text-red-500")} />
                       </button>
+                      {isMe && !msg.isDeleted && (
+                        <>
+                          <button
+                            className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground"
+                            title="Edit"
+                            onClick={() => {
+                              setEditingMessage(msg)
+                              setEditText(msg.content || "")
+                            }}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-destructive"
+                            title="Delete"
+                            onClick={() => {
+                              if (confirm("Hapus pesan ini?")) handleDeleteMessage(msg.id)
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1862,6 +1930,35 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
               <Heart className="w-4 h-4" />
               {contextMenu.msg.isFavorited ? "Unfavorite" : "Favorite"}
             </button>
+            {contextMenu.msg.senderId === user?.id && !contextMenu.msg.isDeleted && (
+              <>
+                <div className="border-t border-border my-1" />
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                  onClick={() => {
+                    setEditingMessage(contextMenu.msg)
+                    setEditText(contextMenu.msg.content || "")
+                    setContextMenu(null)
+                    textareaRef.current?.focus()
+                  }}
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left text-destructive"
+                  onClick={() => {
+                    if (confirm("Hapus pesan ini?")) {
+                      handleDeleteMessage(contextMenu.msg.id)
+                    }
+                    setContextMenu(null)
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Hapus
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1885,7 +1982,23 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           </div>
         )}
 
-        {replyToMessage && (
+        {editingMessage && (
+          <div className="mb-2 flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">
+            <Pencil className="w-4 h-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0 border-l-2 border-primary pl-2">
+              <span className="text-xs font-medium text-primary block">Mengedit pesan</span>
+              <span className="text-xs text-muted-foreground line-clamp-1">{editingMessage.content}</span>
+            </div>
+            <button
+              onClick={() => { setEditingMessage(null); setEditText("") }}
+              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {replyToMessage && !editingMessage && (
           <div className="mb-2 flex items-center gap-2 bg-muted/50 border border-border/50 rounded-lg px-3 py-2">
             <Reply className="w-4 h-4 text-primary shrink-0" />
             <div className="flex-1 min-w-0 border-l-2 border-primary pl-2">
@@ -1912,7 +2025,11 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           {showEmoji && (
             <EmojiPicker
               onSelect={(emoji) => {
-                setInputText(prev => prev + emoji)
+                if (editingMessage) {
+                  setEditText(prev => prev + emoji)
+                } else {
+                  setInputText(prev => prev + emoji)
+                }
                 textareaRef.current?.focus()
               }}
               onClose={() => setShowEmoji(false)}
@@ -1972,7 +2089,14 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           ) : (
             <form
               ref={composerFormRef}
-              onSubmit={handleSend}
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (editingMessage) {
+                  handleEditMessage(editingMessage.id, editText)
+                } else {
+                  handleSend(e)
+                }
+              }}
               className="flex items-end gap-1 sm:gap-2 bg-card border border-border/60 rounded-2xl p-1.5 sm:p-2 shadow-sm focus-within:ring-2 ring-primary/20 transition-all"
             >
               <input
@@ -2018,27 +2142,48 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
 
               <textarea
                 ref={textareaRef}
-                value={inputText}
+                value={editingMessage ? editText : inputText}
                 onChange={(e) => {
                   const text = e.target.value
-                  setInputText(text)
-                  if (piiWarning) { setPiiWarning(null); setPiiConfirmed(false) }
-                  if (text.trim().length > 0) {
-                    sendTyping()
+                  if (editingMessage) {
+                    setEditText(text)
+                  } else {
+                    setInputText(text)
+                    if (piiWarning) { setPiiWarning(null); setPiiConfirmed(false) }
+                    if (text.trim().length > 0) {
+                      sendTyping()
+                    }
                   }
                 }}
-                placeholder={pendingFile ? "Add a caption..." : "Type a message..."}
+                placeholder={editingMessage ? "Edit pesan..." : pendingFile ? "Add a caption..." : "Type a message..."}
                 rows={1}
                 className="flex-1 max-h-32 min-h-[36px] sm:min-h-[44px] bg-transparent border-none resize-none focus:ring-0 py-2 sm:py-3 px-2 text-xs sm:text-sm custom-scrollbar"
                 onKeyDown={(e) => {
+                  if (e.key === "Escape" && editingMessage) {
+                    setEditingMessage(null)
+                    setEditText("")
+                    return
+                  }
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
-                    handleSend(e as any)
+                    if (editingMessage) {
+                      handleEditMessage(editingMessage.id, editText)
+                    } else {
+                      handleSend(e as any)
+                    }
                   }
                 }}
               />
 
-              {canSend ? (
+              {editingMessage ? (
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="shrink-0 h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md transition-transform active:scale-95"
+                >
+                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </Button>
+              ) : canSend ? (
                 <Button
                   type="submit"
                   size="icon"

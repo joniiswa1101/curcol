@@ -297,6 +297,11 @@ router.patch("/:conversationId/messages/:messageId", requireAuth as any, async (
     return;
   }
 
+  if (message.conversationId !== convId) {
+    res.status(404).json({ error: "Message not found in this conversation" });
+    return;
+  }
+
   if (message.senderId !== currentUser.id) {
     res.status(403).json({ error: "Can only edit own messages" });
     return;
@@ -369,6 +374,11 @@ router.delete("/:conversationId/messages/:messageId", requireAuth as any, async 
   const [message] = await db.select().from(messagesTable).where(eq(messagesTable.id, msgId));
   if (!message) {
     res.status(404).json({ error: "Message not found" });
+    return;
+  }
+
+  if (message.conversationId !== convId) {
+    res.status(404).json({ error: "Message not found in this conversation" });
     return;
   }
 

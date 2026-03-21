@@ -26,7 +26,7 @@
 | Dark/Light Theme | ✅ | ✅ | OK |
 | CICO Toggle | ✅ Sidebar | ✅ Profile Tab | OK |
 | Presence/Online Status | ✅ | ✅ Full | OK |
-| Canvas | ✅ Full | ✅ Partial | **Sedang** |
+| Canvas | ✅ Full | ✅ Full | OK |
 | **AI Summarization (TL;DR)** | ✅ Full | ❌ Tidak ada | **BARU** |
 | **AI Digest (Harian/Mingguan)** | ✅ Full | ❌ Tidak ada | **BARU** |
 | **Translation & Language Learning** | ✅ Full | ❌ Tidak ada | **BARU** |
@@ -149,19 +149,25 @@
 
 ---
 
-### GAP-10: Canvas Cross-Platform Sharing ⚠️ PARTIAL
+### GAP-10: Canvas Cross-Platform Sharing ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-10.0 | Canvas bisa dibagi antar web ↔ mobile (shared API) | HIGH | 0 | ✅ |
 | GAP-10.1 | Real-time WS sync antar platform saat ada perubahan | HIGH | 1d | ✅ |
-| GAP-10.2 | Mobile canvas UI terlihat sama dengan web (zoom, pan, color picker) | MEDIUM | 2-3d | ⚠️ |
-| GAP-10.3 | Export PNG di mobile (sama seperti web) | LOW | 1-2d | ❓ |
+| GAP-10.2 | Mobile canvas UI terlihat sama dengan web (zoom, pan, color picker) | MEDIUM | 2-3d | ✅ |
+| GAP-10.3 | Export PNG di mobile (sama seperti web) | LOW | 1-2d | ✅ |
 
-**Catatan**: Canvas di web dan mobile **sama-sama menggunakan API `/api/canvas/*` yang sama**, jadi mereka bisa saling berbagi & edit secara real-time via WebSocket. Tapi **UI-nya berbeda**:
-- **Web**: Tool lengkap (pensil, garis, shapes, text, color picker, undo/redo, zoom/pan, export PNG)
-- **Mobile**: UI lebih sederhana (belum jelas semua fitur ada atau tidak)
-
-**Rekomendasi**: Verifikasi bahwa mobile punya semua tool utama, terutama export PNG. Kalau ada yang kurang, tambahkan supaya experience sama antar platform.
+**Selesai**: Mobile canvas sekarang punya feature parity dengan web:
+- **Zoom/Pan**: Zoom in/out buttons di header + Ctrl/Cmd+scroll, pan tool + Alt+drag/scroll, zoom level indicator
+- **Undo/Redo**: Undo/redo buttons di header, stack 30 aksi terakhir
+- **Export PNG**: Download button di header, export sebagai PNG
+- **Color picker**: 6 warna di toolbar bawah dengan visual selection
+- **Tools**: Pensil, Kotak, Lingkaran, Teks, Sticky Note, Hapus, Geser (7 tools)
+- **Board Settings**: Settings button di header → bottom sheet modal dengan visibility toggle (publik/privat) + member management (search, add, remove, role selector)
+- **Create Board**: Inline modal (bukan window.prompt) dengan input nama
+- **Clear Canvas**: Confirm dialog (bukan window.confirm)
+- **Text/Sticky Input**: Inline modal (bukan window.prompt yang blocked di iframe)
+- Semua menggunakan API `/api/canvas/*` yang sama → cross-platform sharing berfungsi. Diimplementasikan 21 Maret 2026.
 
 ---
 

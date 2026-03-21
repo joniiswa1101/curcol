@@ -6,14 +6,18 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 import { api } from "@/lib/api";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  }),
-});
+const isNative = Platform.OS !== "web";
+
+if (isNative) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+    }),
+  });
+}
 
 if (Platform.OS === "android") {
   Notifications.setNotificationChannelAsync("messages", {
@@ -71,6 +75,8 @@ export function usePushNotifications(userId: number | undefined) {
   const responseListener = useRef<Notifications.EventSubscription>();
 
   useEffect(() => {
+    if (!isNative) return;
+
     if (!userId) {
       if (prevUserIdRef.current && tokenRef.current) {
         api.post("/push-tokens/unregister", { token: tokenRef.current }).catch(() => {});
@@ -108,13 +114,13 @@ export function usePushNotifications(userId: number | undefined) {
 
     return () => {
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, [userId]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!isNative || !userId) return;
 
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {

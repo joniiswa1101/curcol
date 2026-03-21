@@ -18,7 +18,7 @@
 | Announcements | ✅ Full | ✅ Full | OK |
 | Directory | ✅ | ✅ | OK |
 | Voice/Video Call | ✅ | ✅ | OK |
-| Link Previews | ✅ | ❌ Tidak ada | **SEDANG** |
+| Link Previews | ✅ | ✅ Full | OK |
 | Offline Queue | ✅ | ❌ Tidak ada | **SEDANG** |
 | Read Receipts | ✅ | ❌ Tidak ada | **SEDANG** |
 | Message Search | ⚠️ Basic | ❌ Tidak ada | **KECIL** |
@@ -93,9 +93,12 @@
 ### GAP-05: Link Previews
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-05.1 | Deteksi URL dalam pesan | MEDIUM | 0.5d | ⬜ |
-| GAP-05.2 | Fetch Open Graph metadata (title, desc, image) | MEDIUM | 1d | ⬜ |
-| GAP-05.3 | Render preview card di chat bubble | MEDIUM | 1-2d | ⬜ |
+| GAP-05.1 | Deteksi URL dalam pesan | MEDIUM | 0.5d | ✅ |
+| GAP-05.2 | Fetch Open Graph metadata (title, desc, image) | MEDIUM | 1d | ✅ |
+| GAP-05.3 | Render preview card di chat bubble | MEDIUM | 1-2d | ✅ |
+
+**Catatan**:
+- GAP-05 ✅ Selesai: `detectUrls()` regex di `app/chat/[id].tsx`, `LinkPreviewCard` component dengan in-memory cache. Fetch via `POST /api/messages/link-preview` (existing server endpoint). Card menampilkan OG image, title, description, domain. Tap membuka URL via `Linking.openURL`. Hanya 1 preview per pesan, skip deleted messages (21 Maret 2026).
 
 ---
 

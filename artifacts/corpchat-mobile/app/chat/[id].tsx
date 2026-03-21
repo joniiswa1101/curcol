@@ -1,8 +1,8 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   View, Text, FlatList, Pressable, TextInput, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform, useColorScheme, Alert,
-  ScrollView, Image,
+  ScrollView, Image, Linking,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +35,92 @@ function formatDayLabel(dateStr: string) {
   if (isToday(d)) return "Hari Ini";
   if (isYesterday(d)) return "Kemarin";
   return format(d, "d MMMM yyyy", { locale: idLocale });
+}
+
+const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi;
+
+function detectUrls(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(URL_REGEX);
+  if (!matches) return [];
+  return [...new Set(matches.map(u => u.replace(/[.,;:!?)]+$/, "")))];
+}
+
+interface LinkPreview {
+  url: string;
+  title: string;
+  description: string;
+  image: string;
+  domain: string;
+}
+
+const linkPreviewCache = new Map<string, LinkPreview | null>();
+const linkPreviewInFlight = new Map<string, Promise<LinkPreview | null>>();
+
+function fetchPreview(url: string): Promise<LinkPreview | null> {
+  if (linkPreviewCache.has(url)) return Promise.resolve(linkPreviewCache.get(url)!);
+  if (linkPreviewInFlight.has(url)) return linkPreviewInFlight.get(url)!;
+  const p = api.post("/messages/link-preview", { url })
+    .then((data: any) => {
+      const result = data?.title ? data as LinkPreview : null;
+      linkPreviewCache.set(url, result);
+      return result;
+    })
+    .catch(() => {
+      linkPreviewCache.set(url, null);
+      return null;
+    })
+    .finally(() => linkPreviewInFlight.delete(url));
+  linkPreviewInFlight.set(url, p);
+  return p;
+}
+
+function LinkPreviewCard({ url, isMine, colors }: { url: string; isMine: boolean; colors: any }) {
+  const [preview, setPreview] = useState<LinkPreview | null>(linkPreviewCache.get(url) || null);
+  const [loading, setLoading] = useState(!linkPreviewCache.has(url));
+
+  useEffect(() => {
+    if (linkPreviewCache.has(url)) {
+      setPreview(linkPreviewCache.get(url) || null);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    fetchPreview(url).then(result => {
+      if (!cancelled) {
+        setPreview(result);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [url]);
+
+  if (loading) return null;
+  if (!preview) return null;
+
+  const cardBg = isMine ? "rgba(255,255,255,0.15)" : (colors.surfaceSecondary || "#f3f4f6");
+
+  return (
+    <Pressable
+      onPress={() => Linking.openURL(preview.url)}
+      style={[styles.linkPreviewCard, { backgroundColor: cardBg, borderColor: isMine ? "rgba(255,255,255,0.2)" : colors.border }]}
+    >
+      {preview.image ? (
+        <Image source={{ uri: preview.image }} style={styles.linkPreviewImage} resizeMode="cover" />
+      ) : null}
+      <View style={styles.linkPreviewBody}>
+        <Text style={[styles.linkPreviewTitle, { color: isMine ? "#fff" : colors.text }]} numberOfLines={1}>{preview.title}</Text>
+        {preview.description ? (
+          <Text style={[styles.linkPreviewDesc, { color: isMine ? "rgba(255,255,255,0.7)" : colors.textSecondary }]} numberOfLines={2}>
+            {preview.description}
+          </Text>
+        ) : null}
+        <Text style={[styles.linkPreviewDomain, { color: isMine ? "rgba(255,255,255,0.5)" : colors.textSecondary }]} numberOfLines={1}>
+          {preview.domain}
+        </Text>
+      </View>
+    </Pressable>
+  );
 }
 
 interface Attachment {
@@ -140,6 +226,9 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPi
               {content}
             </Text>
           )}
+          {!msg.isDeleted && detectUrls(content).slice(0, 1).map(url => (
+            <LinkPreviewCard key={url} url={url} isMine={isMine} colors={colors} />
+          ))}
           <View style={styles.msgMeta}>
             <Text style={[styles.msgTime, { color: isMine ? "rgba(255,255,255,0.6)" : colors.textSecondary }]}>
               {formatMsgTime(msg.createdAt)}
@@ -897,4 +986,10 @@ const styles = StyleSheet.create({
   piiWarningActions: { flexDirection: "row", gap: 8 },
   piiBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: "center" },
   piiBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  linkPreviewCard: { flexDirection: "row", borderRadius: 10, overflow: "hidden", marginTop: 6, borderWidth: 0.5 },
+  linkPreviewImage: { width: 72, height: 72 },
+  linkPreviewBody: { flex: 1, padding: 8, gap: 2, justifyContent: "center" },
+  linkPreviewTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  linkPreviewDesc: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 15 },
+  linkPreviewDomain: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

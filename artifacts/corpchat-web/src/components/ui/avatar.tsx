@@ -5,7 +5,7 @@ interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
   src?: string | null
   alt?: string
   fallback?: string
-  size?: "sm" | "md" | "lg" | "xl"
+  size?: "xs" | "sm" | "md" | "lg" | "xl"
   status?: "present" | "break" | "wfh" | "absent" | "off" | null
 }
 
@@ -13,6 +13,7 @@ export function Avatar({ src, alt, fallback, size = "md", status, className, ...
   const [error, setError] = React.useState(false)
 
   const sizes = {
+    xs: "w-6 h-6 text-[10px]",
     sm: "w-8 h-8 text-xs",
     md: "w-10 h-10 text-sm",
     lg: "w-12 h-12 text-base",

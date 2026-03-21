@@ -106,6 +106,10 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
   - **Schema**: `lib/db/src/schema/tasks.ts`
   - **Routes**: `artifacts/api-server/src/routes/tasks.ts`
   - **Navigation**: Tasks item in sidebar (ClipboardList icon), route at `/tasks`
+- **Group Chat (March 21, 2026)**: Full group chat management feature. Create groups with name and member selection. Multi-admin support (promote/demote). Group info side panel with member list, admin badges (Crown for creator, Shield for admins), add/remove members, rename group, mute notifications, leave group, and hard-delete group (admin only, deletes all messages). WebSocket broadcasts for real-time updates (group_created, group_deleted, members_changed, conversation_updated). System messages for member events. Authorization: membership required for all member management routes, admin-only for add/remove/promote/demote.
+  - **API Endpoints**: `POST /api/conversations` (group creation), `POST/DELETE /:id/members`, `POST /:id/members/:userId/promote`, `POST /:id/members/:userId/demote`, `POST /:id/leave`, `DELETE /:id` (hard delete), `POST /:id/mute`
+  - **Frontend**: CreateGroupDialog, MemberRow, GroupInfoPanel components in `artifacts/corpchat-web/src/pages/Chat.tsx`
+  - **Schema**: Uses existing `conversation_members` with role enum ("admin"/"member"), isMuted, isPinned fields
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

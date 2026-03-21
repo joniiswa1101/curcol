@@ -7,6 +7,7 @@ import {
   useListConversations,
   useListMessages,
   useSendMessage,
+  useListUsers,
   getListMessagesQueryKey,
   getListConversationsQueryKey,
   Conversation
@@ -22,7 +23,8 @@ import { validateFile } from "@/lib/upload-config"
 import {
   Search, Send, Paperclip, Smile, MoreVertical, Mic, Reply,
   Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle,
-  Phone, Video, Pin, Heart
+  Phone, Video, Pin, Heart, Users, Plus, UserPlus, Crown, Shield,
+  ShieldOff, LogOut, Trash2, BellOff, Bell, Settings, Check
 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
@@ -147,12 +149,560 @@ function AttachmentPreview({ file, onRemove }: { file: UploadedFile; onRemove: (
   )
 }
 
+// ─── Create Group Dialog ────────────────────────────────────────────────────────
+
+function CreateGroupDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (convId: number) => void }) {
+  const { token } = useAuthStore()
+  const { data: usersData } = useListUsers()
+  const { user: currentUser } = useAuthStore()
+  const [groupName, setGroupName] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([])
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const allUsers = (usersData as any)?.users || usersData || []
+  const filteredUsers = allUsers.filter((u: any) =>
+    u.id !== currentUser?.id &&
+    u.isActive !== false &&
+    (u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     u.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     u.email?.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
+
+  const toggleUser = (userId: number) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    )
+  }
+
+  const handleCreate = async () => {
+    if (!groupName.trim()) { setError("Nama grup harus diisi"); return }
+    if (selectedUsers.length === 0) { setError("Pilih minimal 1 anggota"); return }
+
+    setCreating(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type: "group", name: groupName.trim(), memberIds: selectedUsers }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || "Gagal membuat grup")
+      }
+      const conv = await res.json()
+      onCreated(conv.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal membuat grup")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h3 className="text-lg font-bold">Buat Grup Baru</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4 flex-1 overflow-hidden flex flex-col">
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1.5 block">Nama Grup</label>
+            <Input
+              value={groupName}
+              onChange={e => setGroupName(e.target.value)}
+              placeholder="Contoh: Tim Marketing"
+              className="bg-background"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex-1 min-h-0 flex flex-col">
+            <label className="text-sm font-medium text-foreground mb-1.5 block">
+              Tambah Anggota {selectedUsers.length > 0 && <span className="text-primary">({selectedUsers.length} dipilih)</span>}
+            </label>
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Cari karyawan..."
+                className="pl-9 bg-background"
+              />
+            </div>
+
+            {selectedUsers.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedUsers.map(uid => {
+                  const u = allUsers.find((u: any) => u.id === uid)
+                  return (
+                    <span key={uid} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-2.5 py-1 rounded-full">
+                      {u?.name || "Unknown"}
+                      <button onClick={() => toggleUser(uid)} className="hover:text-primary/70">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto space-y-1 min-h-0 max-h-[280px]">
+              {filteredUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Tidak ada karyawan ditemukan</p>
+              ) : (
+                filteredUsers.map((u: any) => (
+                  <button
+                    key={u.id}
+                    onClick={() => toggleUser(u.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-2.5 rounded-xl transition-all text-left",
+                      selectedUsers.includes(u.id) ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-muted/50"
+                    )}
+                  >
+                    <Avatar src={u.avatarUrl} fallback={u.name || "U"} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{u.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.department || u.position || u.email}</p>
+                    </div>
+                    {selectedUsers.includes(u.id) && (
+                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-sm text-destructive flex items-center gap-1.5">
+              <AlertCircle className="w-4 h-4" /> {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-3 p-5 border-t border-border">
+          <Button variant="outline" onClick={onClose} className="flex-1">Batal</Button>
+          <Button
+            onClick={handleCreate}
+            disabled={creating || !groupName.trim() || selectedUsers.length === 0}
+            className="flex-1"
+          >
+            {creating ? "Membuat..." : "Buat Grup"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Member Row ──────────────────────────────────────────────────────────────────
+
+function MemberRow({ member, isCreator, isMe, canManage, onPromote, onDemote, onRemove }: {
+  member: any; isCreator: boolean; isMe: boolean; canManage: boolean;
+  onPromote: () => void; onDemote: () => void; onRemove: () => void;
+}) {
+  const [showMenu, setShowMenu] = useState(false)
+  const isMemberAdmin = member.role === "admin"
+
+  return (
+    <div className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-muted/50 transition-colors group relative">
+      <Avatar src={member.user?.avatarUrl} fallback={member.user?.name || "U"} size="sm" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-medium truncate">{member.user?.name || "Unknown"}</span>
+          {isMe && <span className="text-[10px] text-muted-foreground">(Anda)</span>}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {isCreator && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+              <Crown className="w-3 h-3" /> Pembuat
+            </span>
+          )}
+          {isMemberAdmin && !isCreator && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+              <Shield className="w-3 h-3" /> Admin
+            </span>
+          )}
+          {member.user?.department && (
+            <span className="text-[10px] text-muted-foreground">{member.user.department}</span>
+          )}
+        </div>
+      </div>
+
+      {canManage && (
+        <div className="relative">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+          {showMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+              <div className="absolute right-0 top-8 z-50 bg-popover border border-border shadow-lg rounded-lg py-1 min-w-[160px]">
+                {isMemberAdmin ? (
+                  <button
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors text-left"
+                    onClick={() => { onDemote(); setShowMenu(false) }}
+                  >
+                    <ShieldOff className="w-3.5 h-3.5" /> Cabut Admin
+                  </button>
+                ) : (
+                  <button
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors text-left"
+                    onClick={() => { onPromote(); setShowMenu(false) }}
+                  >
+                    <Shield className="w-3.5 h-3.5" /> Jadikan Admin
+                  </button>
+                )}
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-destructive/10 text-destructive transition-colors text-left"
+                  onClick={() => { onRemove(); setShowMenu(false) }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Keluarkan
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Group Info Panel ────────────────────────────────────────────────────────────
+
+function GroupInfoPanel({
+  conversation, onClose, onNavigate
+}: {
+  conversation: any;
+  onClose: () => void;
+  onNavigate: (path: string) => void;
+}) {
+  const { token, user: currentUser } = useAuthStore()
+  const queryClient = useQueryClient()
+  const { data: usersData } = useListUsers()
+  const [showAddMembers, setShowAddMembers] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedNewMembers, setSelectedNewMembers] = useState<number[]>([])
+  const [editingName, setEditingName] = useState(false)
+  const [newName, setNewName] = useState(conversation?.name || "")
+  const [loading, setLoading] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [members, setMembers] = useState<any[]>(conversation?.members || [])
+
+  const myMembership = members.find((m: any) => m.userId === currentUser?.id)
+  const isAdmin = myMembership?.role === "admin"
+  const isCreator = conversation?.createdById === currentUser?.id
+
+  useEffect(() => {
+    fetchMembers()
+  }, [conversation?.id])
+
+  const fetchMembers = async () => {
+    if (!conversation?.id) return
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/members`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (data.members) setMembers(data.members)
+    } catch (err) { console.error("Fetch members error:", err) }
+  }
+
+  const allUsers = (usersData as any)?.users || usersData || []
+  const memberIds = new Set(members.map((m: any) => m.userId))
+  const nonMembers = allUsers.filter((u: any) =>
+    u.id !== currentUser?.id &&
+    !memberIds.has(u.id) &&
+    u.isActive !== false &&
+    (u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     u.department?.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
+
+  const handleAddMembers = async () => {
+    if (selectedNewMembers.length === 0) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userIds: selectedNewMembers }),
+      })
+      if (!res.ok) return
+      setSelectedNewMembers([])
+      setShowAddMembers(false)
+      setSearchTerm("")
+      await fetchMembers()
+      queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+    } catch (err) { console.error(err) }
+    finally { setLoading(false) }
+  }
+
+  const handleRemoveMember = async (userId: number) => {
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/members/${userId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      await fetchMembers()
+      queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+    } catch (err) { console.error(err) }
+  }
+
+  const handlePromote = async (userId: number) => {
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/members/${userId}/promote`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      await fetchMembers()
+    } catch (err) { console.error(err) }
+  }
+
+  const handleDemote = async (userId: number) => {
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/members/${userId}/demote`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      await fetchMembers()
+    } catch (err) { console.error(err) }
+  }
+
+  const handleLeave = async () => {
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/leave`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+      onNavigate("/chat")
+      onClose()
+    } catch (err) { console.error(err) }
+  }
+
+  const handleDeleteGroup = async () => {
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+      onNavigate("/chat")
+      onClose()
+    } catch (err) { console.error(err) }
+  }
+
+  const handleUpdateName = async () => {
+    if (!newName.trim()) return
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: newName.trim() }),
+      })
+      if (!res.ok) return
+      setEditingName(false)
+      queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+    } catch (err) { console.error(err) }
+  }
+
+  const handleMuteToggle = async () => {
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/mute`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+    } catch (err) { console.error(err) }
+  }
+
+  const sortedMembers = [...members].sort((a, b) => {
+    if (a.userId === conversation?.createdById) return -1
+    if (b.userId === conversation?.createdById) return 1
+    if (a.role === "admin" && b.role !== "admin") return -1
+    if (a.role !== "admin" && b.role === "admin") return 1
+    return 0
+  })
+
+  return (
+    <div className="w-80 border-l border-border bg-card/50 flex flex-col h-full overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <h4 className="font-bold text-sm">Info Grup</h4>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-4 flex flex-col items-center border-b border-border">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg mb-3">
+            <Hash className="w-10 h-10" />
+          </div>
+          {editingName ? (
+            <div className="flex items-center gap-2 w-full">
+              <Input
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                className="text-center text-sm"
+                autoFocus
+                onKeyDown={e => { if (e.key === "Enter") handleUpdateName(); if (e.key === "Escape") setEditingName(false) }}
+              />
+              <Button size="sm" onClick={handleUpdateName}><Check className="w-3 h-3" /></Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}><X className="w-3 h-3" /></Button>
+            </div>
+          ) : (
+            <h3 className="font-bold text-lg text-center group flex items-center gap-2">
+              {conversation?.name}
+              {isAdmin && (
+                <button onClick={() => { setNewName(conversation?.name || ""); setEditingName(true) }}
+                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-all">
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </h3>
+          )}
+          <p className="text-xs text-muted-foreground mt-1">{members.length} anggota</p>
+        </div>
+
+        <div className="p-3 border-b border-border space-y-1">
+          <button
+            onClick={handleMuteToggle}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm hover:bg-muted/50 transition-colors"
+          >
+            {conversation?.isMuted ? <Bell className="w-4 h-4 text-muted-foreground" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+            <span>{conversation?.isMuted ? "Aktifkan Notifikasi" : "Bisukan Notifikasi"}</span>
+          </button>
+          {!isCreator && (
+            <button
+              onClick={handleLeave}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm hover:bg-destructive/10 text-destructive transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Keluar Grup</span>
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm hover:bg-destructive/10 text-destructive transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Hapus Grup</span>
+            </button>
+          )}
+        </div>
+
+        <div className="p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Anggota ({members.length})</h5>
+            {isAdmin && (
+              <button
+                onClick={() => setShowAddMembers(!showAddMembers)}
+                className="text-primary hover:text-primary/80 transition-colors"
+                title="Tambah Anggota"
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {showAddMembers && (
+            <div className="mb-3 p-3 bg-muted/30 rounded-xl border border-border/50 space-y-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Cari karyawan..."
+                  className="pl-8 h-8 text-xs bg-background"
+                />
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-0.5">
+                {nonMembers.slice(0, 20).map((u: any) => (
+                  <button
+                    key={u.id}
+                    onClick={() => setSelectedNewMembers(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                    className={cn(
+                      "w-full flex items-center gap-2 p-1.5 rounded-lg text-left transition-colors text-xs",
+                      selectedNewMembers.includes(u.id) ? "bg-primary/10" : "hover:bg-muted/50"
+                    )}
+                  >
+                    <Avatar src={u.avatarUrl} fallback={u.name || "U"} size="xs" />
+                    <span className="truncate flex-1">{u.name}</span>
+                    {selectedNewMembers.includes(u.id) && <Check className="w-3 h-3 text-primary" />}
+                  </button>
+                ))}
+              </div>
+              {selectedNewMembers.length > 0 && (
+                <Button size="sm" onClick={handleAddMembers} disabled={loading} className="w-full h-7 text-xs">
+                  {loading ? "Menambahkan..." : `Tambah ${selectedNewMembers.length} Anggota`}
+                </Button>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-0.5">
+            {sortedMembers.map((m: any) => (
+              <MemberRow
+                key={m.userId}
+                member={m}
+                isCreator={m.userId === conversation?.createdById}
+                isMe={m.userId === currentUser?.id}
+                canManage={isAdmin && m.userId !== currentUser?.id && m.userId !== conversation?.createdById}
+                onPromote={() => handlePromote(m.userId)}
+                onDemote={() => handleDemote(m.userId)}
+                onRemove={() => handleRemoveMember(m.userId)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {showDeleteConfirm && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl shadow-xl p-5 mx-4 max-w-sm w-full">
+            <h4 className="font-bold text-lg mb-2">Hapus Grup?</h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              Semua pesan akan dihapus permanen dan tidak bisa dikembalikan.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} className="flex-1">Batal</Button>
+              <Button variant="destructive" onClick={handleDeleteGroup} className="flex-1">Hapus</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Chat page ────────────────────────────────────────────────────────────
 
 export default function Chat() {
   const [match, params] = useRoute("/chat/:id")
   const activeId = match ? parseInt(params.id) : null
   const { getUserPresence } = usePresenceContext()
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [, navigate] = useLocation()
+  const queryClient = useQueryClient()
 
   const { data: convData, isLoading: convLoading } = useListConversations()
   const conversations = convData?.conversations || []
@@ -169,6 +719,15 @@ export default function Chat() {
           <div className="p-4 border-b border-border/50">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-display font-bold">Messages</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowCreateGroup(true)}
+                className="text-muted-foreground hover:text-primary"
+                title="Buat Grup Baru"
+              >
+                <Users className="w-5 h-5" />
+              </Button>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -210,10 +769,29 @@ export default function Chat() {
               </div>
               <h3 className="text-2xl font-display font-bold text-foreground">Select a conversation</h3>
               <p className="mt-2">Choose an existing chat or start a new one</p>
+              <Button
+                variant="outline"
+                className="mt-4 gap-2"
+                onClick={() => setShowCreateGroup(true)}
+              >
+                <Users className="w-4 h-4" />
+                Buat Grup Baru
+              </Button>
             </div>
           )}
         </div>
       </div>
+
+      {showCreateGroup && (
+        <CreateGroupDialog
+          onClose={() => setShowCreateGroup(false)}
+          onCreated={(convId) => {
+            setShowCreateGroup(false)
+            queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
+            navigate(`/chat/${convId}`)
+          }}
+        />
+      )}
     </AppLayout>
   )
 }
@@ -303,6 +881,7 @@ function ConversationItem({ conversation, isActive, getUserPresence }: { convers
 function ChatThread({ conversationId, conversation, getUserPresence }: { conversationId: number; conversation: Conversation | null; getUserPresence: (userId: number) => { status: string; lastSeenAt: string | null } }) {
   const queryClient = useQueryClient()
   const { user, token } = useAuthStore()
+  const [, navigate] = useLocation()
   const [inputText, setInputText] = useState("")
   const [showEmoji, setShowEmoji] = useState(false)
   const [pendingFile, setPendingFile] = useState<UploadedFile | null>(null)
@@ -318,6 +897,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchFilters, setSearchFilters] = useState<{ senderId?: number; before?: string; after?: string }>({})
   const [linkPreviews, setLinkPreviews] = useState<Record<number, any>>({})
+  const [showGroupInfo, setShowGroupInfo] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -680,9 +1260,11 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const canSend = (inputText.trim().length > 0 || pendingFile !== null) && !sendMutation.isPending
 
   const isWhatsapp = conversation?.type === "whatsapp"
+  const isGroup = conversation?.type === "group"
 
   return (
-    <>
+    <div className="flex h-full w-full">
+    <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
       <div className={cn(
         "h-16 border-b border-border flex items-center justify-between px-6 backdrop-blur-md sticky top-0 z-10",
@@ -736,7 +1318,12 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                   </p>
                 ) : null}
                 {conversation?.type === "group" && (
-                  <p className="text-xs text-muted-foreground mt-0.5">{conversation.memberCount} members</p>
+                  <p
+                    className="text-xs text-muted-foreground mt-0.5 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => setShowGroupInfo(!showGroupInfo)}
+                  >
+                    {conversation.memberCount} anggota · Klik untuk info
+                  </p>
                 )}
               </>
             )}
@@ -794,12 +1381,17 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
               </Button>
             </>
           )}
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Search className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Info className="w-5 h-5" />
-          </Button>
+          {conversation?.type === "group" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("text-muted-foreground hover:text-primary", showGroupInfo && "text-primary bg-primary/10")}
+              onClick={() => setShowGroupInfo(!showGroupInfo)}
+              title="Info Grup"
+            >
+              <Users className="w-5 h-5" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1401,6 +1993,15 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           )}
         </div>
       </div>
-    </>
+    </div>
+
+    {showGroupInfo && isGroup && conversation && (
+      <GroupInfoPanel
+        conversation={conversation}
+        onClose={() => setShowGroupInfo(false)}
+        onNavigate={navigate}
+      />
+    )}
+    </div>
   )
 }

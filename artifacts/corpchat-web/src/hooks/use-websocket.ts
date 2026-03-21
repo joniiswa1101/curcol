@@ -3,13 +3,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from './use-auth';
 import { getListMessagesQueryKey, getListConversationsQueryKey } from '@workspace/api-client-react';
 
-let sharedWs: WebSocket | null = null;
+let mainWsRef: { ws: WebSocket | null } = { ws: null };
 
-export function getSharedWebSocket(): WebSocket | null {
-  return sharedWs;
+export function sendViaMainWebSocket(data: object) {
+  if (mainWsRef.ws?.readyState === WebSocket.OPEN) {
+    mainWsRef.ws.send(JSON.stringify(data));
+  } else {
+    console.error('[WebSocket] Main WebSocket not available for sending:', data);
+  }
 }
-
-const CALL_MSG_TYPES = ['call_offer', 'call_answer', 'call_ice_candidate', 'call_reject', 'call_end'];
 
 export function useWebSocket() {
   const ws = useRef<WebSocket | null>(null);
@@ -39,12 +41,12 @@ export function useWebSocket() {
 
       console.log(`[WebSocket] Connecting to: ${wsUrl} (attempt ${retryCountRef.current + 1}/${maxRetries})`);
       ws.current = new WebSocket(wsUrl);
-      sharedWs = ws.current;
 
       let pingTimer: ReturnType<typeof setInterval>;
 
       ws.current.onopen = () => {
         console.log('[WebSocket] ✅ Connected');
+        mainWsRef.ws = ws.current;
         retryCountRef.current = 0;
         pingTimer = setInterval(() => {
           if (ws.current?.readyState === WebSocket.OPEN) {
@@ -57,11 +59,6 @@ export function useWebSocket() {
         try {
           const data = JSON.parse(event.data);
           console.log('[WebSocket] Message received:', data.type);
-
-          if (CALL_MSG_TYPES.includes(data.type)) {
-            window.dispatchEvent(new CustomEvent('call-signal', { detail: data }));
-            return;
-          }
 
           if (data.type === 'new_message' && data.conversationId && data.data) {
             const newMsg = data.data;
@@ -110,6 +107,11 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
             useAuthStore.getState().checkAuth();
           }
+
+          // Dispatch call-related messages as custom events for CallContext
+          if (['call_offer', 'call_answer', 'call_ice_candidate', 'call_reject', 'call_end'].includes(data.type)) {
+            window.dispatchEvent(new CustomEvent('call-signal', { detail: data }));
+          }
         } catch (err) {
           console.error('[WebSocket] Message parse error', err);
         }
@@ -117,7 +119,6 @@ export function useWebSocket() {
 
       ws.current.onclose = () => {
         clearInterval(pingTimer);
-        sharedWs = null;
         
         if (retryCountRef.current < maxRetries) {
           const delay = getBackoffDelay(retryCountRef.current);
@@ -145,7 +146,6 @@ export function useWebSocket() {
       isDestroyed = true;
       clearTimeout(reconnectTimer);
       ws.current?.close();
-      sharedWs = null;
     };
   }, [token, queryClient]);
 

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { useAuthStore } from "@/hooks/use-auth";
-import { getSharedWebSocket } from "@/hooks/use-websocket";
+import { sendViaMainWebSocket } from "@/hooks/use-websocket";
 
 type CallType = "voice" | "video";
 type CallStatus = "idle" | "ringing" | "outgoing" | "connected" | "ended";
@@ -93,12 +93,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sendWs = useCallback((data: object) => {
-    const ws = getSharedWebSocket();
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    } else {
-      console.error("[Call] WebSocket not available for sending");
-    }
+    sendViaMainWebSocket(data);
   }, []);
 
   const createPeerConnection = useCallback((remoteUserId: number) => {
@@ -269,11 +264,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, isSpeaker: !prev.isSpeaker }));
   }, []);
 
+  // Listen to call-signal custom events from main WebSocket
   useEffect(() => {
-    if (!user) return;
-
     const handleCallSignal = async (event: Event) => {
-      const msg = (event as CustomEvent).detail;
+      const customEvent = event as CustomEvent;
+      const msg = customEvent.detail;
+
       try {
         switch (msg.type) {
           case "call_offer": {
@@ -333,15 +329,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (err) {
-        console.error("[Call] Signal handling error:", err);
+        console.error("[Call] Signal processing error:", err);
       }
     };
 
     window.addEventListener('call-signal', handleCallSignal);
-    return () => {
-      window.removeEventListener('call-signal', handleCallSignal);
-    };
-  }, [user, createPeerConnection, startDurationTimer, cleanup, sendWs]);
+    return () => window.removeEventListener('call-signal', handleCallSignal);
+  }, [createPeerConnection, startDurationTimer, cleanup, sendWs]);
 
   return (
     <CallContext.Provider value={{

@@ -14,5 +14,6 @@ export * from "./user-presence";
 export * from "./tasks";
 export * from "./compliance";
 export * from "./push-tokens";
+export * from "./canvas";
 
 export { messageReadsTable } from "./messages";

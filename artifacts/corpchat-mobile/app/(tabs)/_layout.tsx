@@ -58,6 +58,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="canvas"
+        options={{
+          title: "Canvas",
+          tabBarIcon: ({ color, size }) => <Feather name="edit-3" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profil",

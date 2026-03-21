@@ -20,6 +20,7 @@ import stickersRouter from "./stickers.js";
 import tasksRouter from "./tasks.js";
 import complianceRouter from "./compliance.js";
 import pushTokensRouter from "./push-tokens.js";
+import canvasRouter from "./canvas.js";
 
 const router = Router();
 
@@ -45,5 +46,6 @@ router.use("/stickers", stickersRouter);
 router.use("/tasks", tasksRouter);
 router.use("/compliance", complianceRouter);
 router.use("/push-tokens", pushTokensRouter);
+router.use("/canvas", canvasRouter);
 
 export default router;

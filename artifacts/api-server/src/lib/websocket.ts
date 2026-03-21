@@ -9,6 +9,7 @@ interface AuthenticatedClient extends WebSocket {
   employeeId?: string;
   isAlive?: boolean;
   typingTimeouts?: Map<number, NodeJS.Timeout>;
+  canvasBoards?: Set<number>;
 }
 
 let wss: WebSocketServer | null = null;
@@ -150,6 +151,44 @@ export function initWebSocket(server: Server) {
             updatePresence(ws.userId, newStatus);
             broadcastPresence(ws.userId, newStatus);
           }
+        } else if (msg.type === "canvas_join" && ws.userId && msg.boardId) {
+          if (!ws.canvasBoards) ws.canvasBoards = new Set();
+          ws.canvasBoards.add(msg.boardId);
+          broadcastToBoard(msg.boardId, {
+            type: "canvas_user_joined",
+            userId: ws.userId,
+            boardId: msg.boardId,
+          }, ws.userId);
+        } else if (msg.type === "canvas_leave" && ws.userId && msg.boardId) {
+          ws.canvasBoards?.delete(msg.boardId);
+          broadcastToBoard(msg.boardId, {
+            type: "canvas_user_left",
+            userId: ws.userId,
+            boardId: msg.boardId,
+          }, ws.userId);
+        } else if (msg.type === "canvas_draw" && ws.userId && msg.boardId) {
+          broadcastToBoard(msg.boardId, {
+            type: "canvas_draw",
+            userId: ws.userId,
+            boardId: msg.boardId,
+            element: msg.element,
+            action: msg.action,
+          }, ws.userId);
+        } else if (msg.type === "canvas_cursor" && ws.userId && msg.boardId) {
+          broadcastToBoard(msg.boardId, {
+            type: "canvas_cursor",
+            userId: ws.userId,
+            userName: msg.userName,
+            x: msg.x,
+            y: msg.y,
+            boardId: msg.boardId,
+          }, ws.userId);
+        } else if (msg.type === "canvas_clear" && ws.userId && msg.boardId) {
+          broadcastToBoard(msg.boardId, {
+            type: "canvas_clear",
+            userId: ws.userId,
+            boardId: msg.boardId,
+          }, ws.userId);
         } else if (msg.type === "typing" && ws.userId && msg.conversationId) {
           const conversationId = msg.conversationId;
           
@@ -201,6 +240,17 @@ export function initWebSocket(server: Server) {
         ws.typingTimeouts.clear();
       }
       
+      if (ws.canvasBoards && ws.userId) {
+        ws.canvasBoards.forEach(boardId => {
+          broadcastToBoard(boardId, {
+            type: "canvas_user_left",
+            userId: ws.userId,
+            boardId,
+          }, ws.userId);
+        });
+        ws.canvasBoards.clear();
+      }
+      
       typingUsers.forEach((users) => {
         if (ws.userId) users.delete(ws.userId);
       });
@@ -237,6 +287,15 @@ export function initWebSocket(server: Server) {
   wss.on("close", () => clearInterval(interval));
 
   return wss;
+}
+
+function broadcastToBoard(boardId: number, data: object, excludeUserId?: number) {
+  const msg = JSON.stringify(data);
+  clients.forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN && ws.canvasBoards?.has(boardId) && ws.userId !== excludeUserId) {
+      ws.send(msg);
+    }
+  });
 }
 
 export function broadcastToAll(data: object) {

@@ -2,16 +2,11 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from './use-auth';
 import { getListMessagesQueryKey, getListConversationsQueryKey } from '@workspace/api-client-react';
+import { emitCallSignal, registerWsSend } from '@/lib/call-signal-bus';
 
-let mainWsRef: { ws: WebSocket | null } = { ws: null };
-
-export function sendViaMainWebSocket(data: object) {
-  if (mainWsRef.ws?.readyState === WebSocket.OPEN) {
-    mainWsRef.ws.send(JSON.stringify(data));
-  } else {
-    console.error('[WebSocket] Main WebSocket not available for sending:', data);
-  }
-}
+const CALL_TYPES = new Set([
+  'call_offer', 'call_answer', 'call_ice_candidate', 'call_reject', 'call_end'
+]);
 
 export function useWebSocket() {
   const ws = useRef<WebSocket | null>(null);
@@ -39,15 +34,24 @@ export function useWebSocket() {
     const connect = () => {
       if (isDestroyed) return;
 
-      console.log(`[WebSocket] Connecting to: ${wsUrl} (attempt ${retryCountRef.current + 1}/${maxRetries})`);
+      console.log(`[WS] Connecting (attempt ${retryCountRef.current + 1}/${maxRetries})`);
       ws.current = new WebSocket(wsUrl);
 
       let pingTimer: ReturnType<typeof setInterval>;
 
       ws.current.onopen = () => {
-        console.log('[WebSocket] ✅ Connected');
-        mainWsRef.ws = ws.current;
+        console.log('[WS] ✅ Connected');
         retryCountRef.current = 0;
+
+        registerWsSend((data: object) => {
+          if (ws.current?.readyState === WebSocket.OPEN) {
+            console.log('[WS] Sending:', (data as any).type);
+            ws.current.send(JSON.stringify(data));
+          } else {
+            console.error('[WS] Cannot send, not OPEN:', (data as any).type);
+          }
+        });
+
         pingTimer = setInterval(() => {
           if (ws.current?.readyState === WebSocket.OPEN) {
             ws.current.send(JSON.stringify({ type: 'ping' }));
@@ -58,12 +62,19 @@ export function useWebSocket() {
       ws.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[WebSocket] Message received:', data.type);
+
+          if (data.type !== 'pong') {
+            console.log('[WS] Received:', data.type);
+          }
+
+          if (CALL_TYPES.has(data.type)) {
+            emitCallSignal(data);
+            return;
+          }
 
           if (data.type === 'new_message' && data.conversationId && data.data) {
             const newMsg = data.data;
             const qKey = getListMessagesQueryKey(data.conversationId);
-            console.log('[WebSocket] Updating cache with new message:', newMsg.id);
 
             queryClient.setQueryData(qKey, (old: any) => {
               if (!old) return { messages: [newMsg], hasMore: false };
@@ -107,35 +118,30 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
             useAuthStore.getState().checkAuth();
           }
-
-          // Dispatch call-related messages as custom events for CallContext
-          if (['call_offer', 'call_answer', 'call_ice_candidate', 'call_reject', 'call_end'].includes(data.type)) {
-            window.dispatchEvent(new CustomEvent('call-signal', { detail: data }));
-          }
         } catch (err) {
-          console.error('[WebSocket] Message parse error', err);
+          console.error('[WS] Message parse error', err);
         }
       };
 
       ws.current.onclose = () => {
         clearInterval(pingTimer);
-        
+
         if (retryCountRef.current < maxRetries) {
           const delay = getBackoffDelay(retryCountRef.current);
-          console.log(`[WebSocket] ❌ Disconnected, reconnecting in ${delay / 1000}s (attempt ${retryCountRef.current + 1}/${maxRetries})`);
+          console.log(`[WS] Disconnected, reconnecting in ${delay / 1000}s`);
           retryCountRef.current++;
-          
+
           if (!isDestroyed) {
             reconnectTimer = setTimeout(connect, delay);
           }
         } else {
-          console.error(`[WebSocket] Failed to reconnect after ${maxRetries} attempts. Giving up.`);
+          console.error(`[WS] Failed to reconnect after ${maxRetries} attempts.`);
         }
       };
 
       ws.current.onerror = (err) => {
         clearInterval(pingTimer);
-        console.error('[WebSocket] Error:', err);
+        console.error('[WS] Error:', err);
         ws.current?.close();
       };
     };

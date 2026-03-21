@@ -90,7 +90,8 @@ export function initWebSocket(server: Server) {
         if (msg.type === "ping") {
           ws.send(JSON.stringify({ type: "pong" }));
         } else if (msg.type === "call_offer" && ws.userId && msg.targetUserId) {
-          broadcastToUser(msg.targetUserId, {
+          console.log(`[Call] 📞 call_offer from userId=${ws.userId} to targetUserId=${msg.targetUserId}`);
+          const sent = broadcastToUser(msg.targetUserId, {
             type: "call_offer",
             callerId: ws.userId,
             callerName: msg.callerName,
@@ -99,7 +100,9 @@ export function initWebSocket(server: Server) {
             callType: msg.callType,
             sdp: msg.sdp,
           });
+          console.log(`[Call] 📞 call_offer relayed to ${sent} connection(s) of userId=${msg.targetUserId}`);
         } else if (msg.type === "call_answer" && ws.userId && msg.targetUserId) {
+          console.log(`[Call] 📞 call_answer from userId=${ws.userId} to targetUserId=${msg.targetUserId}`);
           broadcastToUser(msg.targetUserId, {
             type: "call_answer",
             answererId: ws.userId,
@@ -112,11 +115,13 @@ export function initWebSocket(server: Server) {
             candidate: msg.candidate,
           });
         } else if (msg.type === "call_reject" && ws.userId && msg.targetUserId) {
+          console.log(`[Call] 📞 call_reject from userId=${ws.userId} to targetUserId=${msg.targetUserId}`);
           broadcastToUser(msg.targetUserId, {
             type: "call_reject",
             fromUserId: ws.userId,
           });
         } else if (msg.type === "call_end" && ws.userId && msg.targetUserId) {
+          console.log(`[Call] 📞 call_end from userId=${ws.userId} to targetUserId=${msg.targetUserId}`);
           broadcastToUser(msg.targetUserId, {
             type: "call_end",
             fromUserId: ws.userId,
@@ -237,11 +242,14 @@ export function broadcastToConversation(conversationId: number, userIds: number[
   console.log(`[WebSocket] Broadcast to conversation #${conversationId}: sent to ${sent}/${userIds.length} users`);
 }
 
-export function broadcastToUser(userId: number, data: object) {
+export function broadcastToUser(userId: number, data: object): number {
   const msg = JSON.stringify(data);
+  let sent = 0;
   clients.forEach((ws) => {
     if (ws.readyState === WebSocket.OPEN && ws.userId === userId) {
       ws.send(msg);
+      sent++;
     }
   });
+  return sent;
 }

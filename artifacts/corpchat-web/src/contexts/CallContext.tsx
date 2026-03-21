@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { useAuthStore } from "@/hooks/use-auth";
-import { sendViaMainWebSocket } from "@/hooks/use-websocket";
+import { onCallSignal, sendCallMessage } from "@/lib/call-signal-bus";
 
 type CallType = "voice" | "video";
 type CallStatus = "idle" | "ringing" | "outgoing" | "connected" | "ended";
 
 interface CallState {
   status: CallStatus;
-  callId: number | null;
   callType: CallType;
   remoteUserId: number | null;
   remoteUserName: string | null;
@@ -15,7 +14,6 @@ interface CallState {
   conversationId: number | null;
   isMuted: boolean;
   isVideoOff: boolean;
-  isSpeaker: boolean;
   duration: number;
 }
 
@@ -44,9 +42,8 @@ const ICE_SERVERS = [
   { urls: "stun:stun1.l.google.com:19302" },
 ];
 
-const initialState: CallState = {
+const INITIAL: CallState = {
   status: "idle",
-  callId: null,
   callType: "voice",
   remoteUserId: null,
   remoteUserName: null,
@@ -54,25 +51,24 @@ const initialState: CallState = {
   conversationId: null,
   isMuted: false,
   isVideoOff: false,
-  isSpeaker: true,
   duration: 0,
 };
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
-  const [state, setState] = useState<CallState>(initialState);
+  const [state, setState] = useState<CallState>(INITIAL);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const remoteStreamRef = useRef<MediaStream | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
-  const callStateRef = useRef(state);
-  callStateRef.current = state;
+  const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const iceCandidateQueue = useRef<RTCIceCandidateInit[]>([]);
 
   const cleanup = useCallback(() => {
+    console.log("[Call] Cleanup");
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
@@ -82,50 +78,54 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       pcRef.current.close();
       pcRef.current = null;
     }
-    remoteStreamRef.current = null;
     setRemoteStream(null);
-    pendingCandidatesRef.current = [];
-    if (durationIntervalRef.current) {
-      clearInterval(durationIntervalRef.current);
-      durationIntervalRef.current = null;
+    iceCandidateQueue.current = [];
+    if (durationRef.current) {
+      clearInterval(durationRef.current);
+      durationRef.current = null;
     }
-    setState(initialState);
+    setState(INITIAL);
   }, []);
 
-  const sendWs = useCallback((data: object) => {
-    sendViaMainWebSocket(data);
+  const send = useCallback((data: object) => {
+    console.log("[Call] Sending:", (data as any).type);
+    sendCallMessage(data);
   }, []);
 
-  const createPeerConnection = useCallback((remoteUserId: number) => {
+  const makePeerConnection = useCallback((targetUserId: number) => {
+    console.log("[Call] Creating PeerConnection for user:", targetUserId);
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        sendWs({
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        send({
           type: "call_ice_candidate",
-          targetUserId: remoteUserId,
-          candidate: event.candidate.toJSON(),
+          targetUserId,
+          candidate: e.candidate.toJSON(),
         });
       }
     };
 
-    pc.ontrack = (event) => {
-      remoteStreamRef.current = event.streams[0];
-      setRemoteStream(event.streams[0]);
+    pc.ontrack = (e) => {
+      console.log("[Call] Remote track received");
+      setRemoteStream(e.streams[0]);
     };
 
     pc.oniceconnectionstatechange = () => {
+      console.log("[Call] ICE state:", pc.iceConnectionState);
       if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
-        endCall();
+        const remote = stateRef.current.remoteUserId;
+        if (remote) send({ type: "call_end", targetUserId: remote });
+        cleanup();
       }
     };
 
     pcRef.current = pc;
     return pc;
-  }, [sendWs]);
+  }, [send, cleanup]);
 
-  const startDurationTimer = useCallback(() => {
-    durationIntervalRef.current = setInterval(() => {
+  const startTimer = useCallback(() => {
+    durationRef.current = setInterval(() => {
       setState(prev => ({ ...prev, duration: prev.duration + 1 }));
     }, 1000);
   }, []);
@@ -137,6 +137,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     conversationId: number;
     type: CallType;
   }) => {
+    console.log("[Call] Initiating call to user:", params.userId, "type:", params.type);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -147,7 +148,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
       setState({
         status: "outgoing",
-        callId: Date.now(),
         callType: params.type,
         remoteUserId: params.userId,
         remoteUserName: params.userName,
@@ -155,17 +155,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         conversationId: params.conversationId,
         isMuted: false,
         isVideoOff: false,
-        isSpeaker: true,
         duration: 0,
       });
 
-      const pc = createPeerConnection(params.userId);
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      const pc = makePeerConnection(params.userId);
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      sendWs({
+      send({
         type: "call_offer",
         targetUserId: params.userId,
         conversationId: params.conversationId,
@@ -174,18 +173,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         callerName: user?.name || user?.displayName || "Unknown",
         callerAvatar: user?.avatarUrl || null,
       });
+
+      console.log("[Call] Offer sent to user:", params.userId);
     } catch (err) {
-      console.error("[Call] Failed to initiate:", err);
+      console.error("[Call] initiateCall failed:", err);
       cleanup();
     }
-  }, [createPeerConnection, sendWs, cleanup, user]);
+  }, [makePeerConnection, send, cleanup, user]);
 
   const acceptCall = useCallback(async () => {
-    try {
-      const callType = callStateRef.current.callType;
-      const remoteUserId = callStateRef.current.remoteUserId;
-      if (!remoteUserId) return;
+    const { callType, remoteUserId } = stateRef.current;
+    if (!remoteUserId) return;
+    console.log("[Call] Accepting call from user:", remoteUserId);
 
+    try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: callType === "video",
@@ -194,90 +195,76 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setLocalStream(stream);
 
       const pc = pcRef.current;
-      if (!pc) return;
+      if (!pc) { console.error("[Call] No PeerConnection!"); return; }
 
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      sendWs({
+      send({
         type: "call_answer",
         targetUserId: remoteUserId,
         sdp: answer.sdp,
       });
 
-      for (const candidate of pendingCandidatesRef.current) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      for (const c of iceCandidateQueue.current) {
+        await pc.addIceCandidate(new RTCIceCandidate(c));
       }
-      pendingCandidatesRef.current = [];
+      iceCandidateQueue.current = [];
 
       setState(prev => ({ ...prev, status: "connected" }));
-      startDurationTimer();
+      startTimer();
+      console.log("[Call] Call accepted and connected");
     } catch (err) {
-      console.error("[Call] Failed to accept:", err);
+      console.error("[Call] acceptCall failed:", err);
       cleanup();
     }
-  }, [sendWs, startDurationTimer, cleanup]);
+  }, [send, startTimer, cleanup]);
 
   const rejectCall = useCallback(() => {
-    const remoteUserId = callStateRef.current.remoteUserId;
-    if (remoteUserId) {
-      sendWs({
-        type: "call_reject",
-        targetUserId: remoteUserId,
-      });
-    }
+    const remote = stateRef.current.remoteUserId;
+    console.log("[Call] Rejecting call from:", remote);
+    if (remote) send({ type: "call_reject", targetUserId: remote });
     cleanup();
-  }, [sendWs, cleanup]);
+  }, [send, cleanup]);
 
   const endCall = useCallback(() => {
-    const remoteUserId = callStateRef.current.remoteUserId;
-    if (remoteUserId) {
-      sendWs({
-        type: "call_end",
-        targetUserId: remoteUserId,
-      });
-    }
+    const remote = stateRef.current.remoteUserId;
+    console.log("[Call] Ending call with:", remote);
+    if (remote) send({ type: "call_end", targetUserId: remote });
     cleanup();
-  }, [sendWs, cleanup]);
+  }, [send, cleanup]);
 
   const toggleMute = useCallback(() => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(t => {
-        t.enabled = !t.enabled;
-      });
-      setState(prev => ({ ...prev, isMuted: !prev.isMuted }));
-    }
+    localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
+    setState(prev => ({ ...prev, isMuted: !prev.isMuted }));
   }, []);
 
   const toggleVideo = useCallback(() => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach(t => {
-        t.enabled = !t.enabled;
-      });
-      setState(prev => ({ ...prev, isVideoOff: !prev.isVideoOff }));
-    }
+    localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
+    setState(prev => ({ ...prev, isVideoOff: !prev.isVideoOff }));
   }, []);
 
-  const toggleSpeaker = useCallback(() => {
-    setState(prev => ({ ...prev, isSpeaker: !prev.isSpeaker }));
-  }, []);
+  const toggleSpeaker = useCallback(() => {}, []);
 
-  // Listen to call-signal custom events from main WebSocket
   useEffect(() => {
-    const handleCallSignal = async (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const msg = customEvent.detail;
+    console.log("[Call] Setting up call signal handler");
+
+    const unsubscribe = onCallSignal(async (msg) => {
+      console.log("[Call] Received signal:", msg.type, "current status:", stateRef.current.status);
 
       try {
         switch (msg.type) {
           case "call_offer": {
-            if (callStateRef.current.status !== "idle") {
-              sendWs({ type: "call_reject", targetUserId: msg.callerId });
+            if (stateRef.current.status !== "idle") {
+              console.log("[Call] Busy, auto-rejecting");
+              send({ type: "call_reject", targetUserId: msg.callerId });
               return;
             }
-            const pc = createPeerConnection(msg.callerId);
+
+            console.log("[Call] Incoming call from:", msg.callerName, "(userId:", msg.callerId, ")");
+            const pc = makePeerConnection(msg.callerId);
             await pc.setRemoteDescription(new RTCSessionDescription({
               type: "offer",
               sdp: msg.sdp,
@@ -285,7 +272,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
             setState({
               status: "ringing",
-              callId: Date.now(),
               callType: msg.callType || "voice",
               remoteUserId: msg.callerId,
               remoteUserName: msg.callerName || "Unknown",
@@ -293,13 +279,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
               conversationId: msg.conversationId,
               isMuted: false,
               isVideoOff: false,
-              isSpeaker: true,
               duration: 0,
             });
+            console.log("[Call] State set to RINGING");
             break;
           }
 
           case "call_answer": {
+            console.log("[Call] Received answer");
             const pc = pcRef.current;
             if (pc) {
               await pc.setRemoteDescription(new RTCSessionDescription({
@@ -307,35 +294,36 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 sdp: msg.sdp,
               }));
               setState(prev => ({ ...prev, status: "connected" }));
-              startDurationTimer();
+              startTimer();
+              console.log("[Call] Call connected");
             }
             break;
           }
 
           case "call_ice_candidate": {
             const pc = pcRef.current;
-            if (pc && pc.remoteDescription) {
+            if (pc?.remoteDescription) {
               await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
             } else {
-              pendingCandidatesRef.current.push(msg.candidate);
+              iceCandidateQueue.current.push(msg.candidate);
             }
             break;
           }
 
           case "call_reject":
           case "call_end": {
+            console.log("[Call] Remote ended/rejected");
             cleanup();
             break;
           }
         }
       } catch (err) {
-        console.error("[Call] Signal processing error:", err);
+        console.error("[Call] Signal handler error:", err);
       }
-    };
+    });
 
-    window.addEventListener('call-signal', handleCallSignal);
-    return () => window.removeEventListener('call-signal', handleCallSignal);
-  }, [createPeerConnection, startDurationTimer, cleanup, sendWs]);
+    return unsubscribe;
+  }, [makePeerConnection, startTimer, cleanup, send]);
 
   return (
     <CallContext.Provider value={{

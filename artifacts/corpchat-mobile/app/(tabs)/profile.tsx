@@ -308,7 +308,7 @@ export default function ProfileTab() {
       {/* Version */}
       <View style={[styles.versionSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.versionLabel, { color: colors.textSecondary }]}>Versi Aplikasi</Text>
-        <Text style={[styles.versionNumber, { color: colors.text }]}>v1.1.0</Text>
+        <Text style={[styles.versionNumber, { color: colors.text }]}>v1.7.9</Text>
       </View>
 
       {/* Logout */}

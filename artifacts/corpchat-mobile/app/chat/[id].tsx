@@ -629,7 +629,7 @@ export default function ChatScreen() {
           }}
           onLayout={() => flatRef.current?.scrollToOffset({ offset: 0, animated: false })}
           ListEmptyComponent={() => (
-            <View style={styles.center}>
+            <View style={[styles.center, { transform: [{ scaleY: -1 }] }]}>
               <Feather name="message-circle" size={40} color={colors.border} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Mulai percakapan</Text>
             </View>

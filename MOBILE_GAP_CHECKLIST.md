@@ -72,16 +72,18 @@
 
 ---
 
-### GAP-04: Admin Features
+### GAP-04: Admin Features (Mobile)
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-04.1 | Admin dashboard (stats, charts, audit log) | LOW | 3-5d | ⬜ |
 | GAP-04.2 | User management (add, edit, activate/deactivate) | LOW | 3-4d | ⬜ |
 | GAP-04.3 | Bulk CSV import users | LOW | 2-3d | ⬜ |
-| GAP-04.4 | Compliance dashboard (flags, review, scanner) | LOW | 3-4d | ⬜ |
+| GAP-04.4 | Compliance dashboard (flags, review, scanner) | LOW | 3-4d | ✅ |
 | GAP-04.5 | WhatsApp inbox management | LOW | 2-3d | ⬜ |
 
-**Catatan**: Admin features umumnya lebih cocok di desktop/web. Ini prioritas rendah untuk mobile kecuali user secara eksplisit meminta.
+**Catatan**: 
+- GAP-04.4 ✅ Selesai: `app/compliance.tsx` (3-tab: Overview admin-only, Flags admin-only, Scanner all users). Deteksi 6 pola PII Indonesia. Integrasi dengan chat warning banner (21 Maret 2026).
+- Admin features lainnya (dashboard, user management, WhatsApp inbox) umumnya lebih cocok di desktop/web. Ini prioritas rendah untuk mobile kecuali user secara eksplisit meminta.
 
 ---
 

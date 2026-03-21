@@ -275,6 +275,36 @@ export default function ProfileTab() {
         <Feather name="chevron-right" size={18} color={colors.textSecondary} />
       </Pressable>
 
+      {user.role === "admin" && (
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Admin Panel</Text>
+          {[
+            { route: "/admin-dashboard", icon: "bar-chart-2", label: "Dashboard", desc: "Statistik & Audit Log" },
+            { route: "/admin-users", icon: "users", label: "Kelola Pengguna", desc: "Tambah, Import CSV, Nonaktifkan" },
+            { route: "/admin-whatsapp", icon: "phone", label: "WhatsApp Inbox", desc: "Assign, Resolve, Manage" },
+          ].map((item, idx) => (
+            <Pressable
+              key={item.route}
+              onPress={() => router.push(item.route as any)}
+              style={({ pressed }) => [
+                styles.adminRow,
+                idx < 2 && { borderBottomWidth: 0.5, borderBottomColor: colors.border },
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <View style={[styles.adminIcon, { backgroundColor: colors.primary + "15" }]}>
+                <Feather name={item.icon as any} size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.adminLabel, { color: colors.text }]}>{item.label}</Text>
+                <Text style={[styles.adminDesc, { color: colors.textSecondary }]}>{item.desc}</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.textSecondary} />
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       {/* Version */}
       <View style={[styles.versionSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.versionLabel, { color: colors.textSecondary }]}>Versi Aplikasi</Text>
@@ -406,4 +436,8 @@ const styles = StyleSheet.create({
   fieldHint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18 },
   clearBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
   clearBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  adminRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, paddingVertical: 12 },
+  adminIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  adminLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  adminDesc: { fontSize: 12, fontFamily: "Inter_400Regular" },
 });

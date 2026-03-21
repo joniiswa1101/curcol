@@ -12,9 +12,9 @@
 | Group Chat Management | ✅ Full | ✅ Full | OK |
 | PII / Compliance | ✅ Full | ✅ Full | OK |
 | Task Management | ✅ Full | ❌ Tidak ada | **BESAR** |
-| Admin Dashboard | ✅ Full | ❌ Tidak ada | **BESAR** |
-| Admin User Management | ✅ Full | ❌ Tidak ada | **BESAR** |
-| Admin WhatsApp Inbox | ✅ Full | ❌ Tidak ada | **SEDANG** |
+| Admin Dashboard | ✅ Full | ✅ Full | OK |
+| Admin User Management | ✅ Full | ✅ Full | OK |
+| Admin WhatsApp Inbox | ✅ Full | ✅ Full | OK |
 | Announcements | ✅ Full | ✅ Full | OK |
 | Directory | ✅ | ✅ | OK |
 | Voice/Video Call | ✅ | ✅ | OK |
@@ -75,15 +75,18 @@
 ### GAP-04: Admin Features (Mobile)
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-04.1 | Admin dashboard (stats, charts, audit log) | LOW | 3-5d | ⬜ |
-| GAP-04.2 | User management (add, edit, activate/deactivate) | LOW | 3-4d | ⬜ |
-| GAP-04.3 | Bulk CSV import users | LOW | 2-3d | ⬜ |
+| GAP-04.1 | Admin dashboard (stats, charts, audit log) | LOW | 3-5d | ✅ |
+| GAP-04.2 | User management (add, edit, activate/deactivate) | LOW | 3-4d | ✅ |
+| GAP-04.3 | Bulk CSV import users | LOW | 2-3d | ✅ |
 | GAP-04.4 | Compliance dashboard (flags, review, scanner) | LOW | 3-4d | ✅ |
-| GAP-04.5 | WhatsApp inbox management | LOW | 2-3d | ⬜ |
+| GAP-04.5 | WhatsApp inbox management | LOW | 2-3d | ✅ |
 
 **Catatan**: 
 - GAP-04.4 ✅ Selesai: `app/compliance.tsx` (3-tab: Overview admin-only, Flags admin-only, Scanner all users). Deteksi 6 pola PII Indonesia. Integrasi dengan chat warning banner (21 Maret 2026).
-- Admin features lainnya (dashboard, user management, WhatsApp inbox) umumnya lebih cocok di desktop/web. Ini prioritas rendah untuk mobile kecuali user secara eksplisit meminta.
+- GAP-04.1 ✅ Selesai: `app/admin-dashboard.tsx` — 2-tab (Overview: stats grid + trend card + top users, Audit Log: paginated list with color-coded action badges). Admin-only access check (21 Maret 2026).
+- GAP-04.2 + GAP-04.3 ✅ Selesai: `app/admin-users.tsx` — Searchable user list, add user modal (form + role selector), CSV import (expo-document-picker + expo-file-system, parseCSV, mapCSVRow, preview + results), reset password, activate/deactivate (21 Maret 2026).
+- GAP-04.5 ✅ Selesai: `app/admin-whatsapp.tsx` — 3-tab inbox (Unassigned/Ditangani/Selesai), claim/resolve/unassign actions, Twilio status bar (21 Maret 2026).
+- Navigasi admin: Admin Panel section di `app/(tabs)/profile.tsx` — 3 link (Dashboard, Kelola Pengguna, WhatsApp Inbox), hanya visible untuk admin users.
 
 ---
 

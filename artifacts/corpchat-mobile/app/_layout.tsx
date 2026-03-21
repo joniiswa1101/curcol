@@ -37,6 +37,9 @@ function RootLayoutNav() {
       <Stack.Screen name="new-group" options={{ animation: "slide_from_bottom" }} />
       <Stack.Screen name="group-info" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="compliance" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="admin-dashboard" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="admin-users" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="admin-whatsapp" options={{ animation: "slide_from_right" }} />
     </Stack>
   );
 }

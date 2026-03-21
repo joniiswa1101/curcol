@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
-  useColorScheme, Alert, ActivityIndicator, TextInput, Modal,
+  useColorScheme, Alert, ActivityIndicator, TextInput, Modal, Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -120,6 +120,12 @@ export default function ProfileTab() {
   });
 
   function handleCheckIn() {
+    if (Platform.OS === "web") {
+      const choice = window.prompt("Pilih mode kerja:\n1. Kantor\n2. WFH\n\nKetik 1 atau 2:");
+      if (choice === "1") checkInMutation.mutate("office");
+      else if (choice === "2") checkInMutation.mutate("wfh");
+      return;
+    }
     Alert.alert("Check In", "Pilih mode kerja", [
       { text: "Kantor", onPress: () => checkInMutation.mutate("office") },
       { text: "WFH", onPress: () => checkInMutation.mutate("wfh") },
@@ -128,6 +134,12 @@ export default function ProfileTab() {
   }
 
   function handleLogout() {
+    if (Platform.OS === "web") {
+      if (window.confirm("Yakin ingin keluar?")) {
+        logout();
+      }
+      return;
+    }
     Alert.alert("Keluar", "Yakin ingin keluar?", [
       { text: "Batal", style: "cancel" },
       { text: "Keluar", style: "destructive", onPress: logout },

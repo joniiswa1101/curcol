@@ -310,6 +310,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             break;
           }
 
+          case "call_failed": {
+            console.log("[Call] Call failed, reason:", msg.reason);
+            cleanup();
+            if (msg.reason === "user_offline") {
+              alert("Pengguna tidak sedang online. Tidak dapat melakukan panggilan.");
+            }
+            break;
+          }
+
           case "call_reject":
           case "call_end": {
             console.log("[Call] Remote ended/rejected");

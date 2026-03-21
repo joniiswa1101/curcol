@@ -175,6 +175,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             startDurationTimer();
             break;
 
+          case "call_failed":
+            cleanup();
+            if (msg.reason === "user_offline") {
+              Alert.alert("Panggilan Gagal", "Pengguna tidak sedang online.");
+            }
+            break;
+
           case "call_reject":
           case "call_end":
             cleanup();

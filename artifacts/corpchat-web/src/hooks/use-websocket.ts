@@ -5,7 +5,7 @@ import { getListMessagesQueryKey, getListConversationsQueryKey } from '@workspac
 import { emitCallSignal, registerWsSend } from '@/lib/call-signal-bus';
 
 const CALL_TYPES = new Set([
-  'call_offer', 'call_answer', 'call_ice_candidate', 'call_reject', 'call_end'
+  'call_offer', 'call_answer', 'call_ice_candidate', 'call_reject', 'call_end', 'call_failed'
 ]);
 
 export function useWebSocket() {

@@ -1425,12 +1425,14 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                 size="icon"
                 className="text-muted-foreground hover:text-primary"
                 onClick={() => {
-                  const otherUser = conversation.members?.find((m: any) => m.id !== user?.id);
-                  if (otherUser) {
+                  const otherMember = conversation.members?.find((m: any) => (m.userId || m.user?.id) !== user?.id);
+                  const otherUser = otherMember?.user || otherMember;
+                  const targetId = otherMember?.userId || otherUser?.id;
+                  if (targetId) {
                     callCtx.initiateCall({
-                      userId: otherUser.id,
-                      userName: otherUser.displayName || otherUser.employeeId,
-                      userAvatar: otherUser.avatarUrl,
+                      userId: targetId,
+                      userName: otherUser?.name || otherUser?.displayName || otherUser?.employeeId || "Unknown",
+                      userAvatar: otherUser?.avatarUrl,
                       conversationId,
                       type: "voice",
                     });
@@ -1444,12 +1446,14 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                 size="icon"
                 className="text-muted-foreground hover:text-primary"
                 onClick={() => {
-                  const otherUser = conversation.members?.find((m: any) => m.id !== user?.id);
-                  if (otherUser) {
+                  const otherMember = conversation.members?.find((m: any) => (m.userId || m.user?.id) !== user?.id);
+                  const otherUser = otherMember?.user || otherMember;
+                  const targetId = otherMember?.userId || otherUser?.id;
+                  if (targetId) {
                     callCtx.initiateCall({
-                      userId: otherUser.id,
-                      userName: otherUser.displayName || otherUser.employeeId,
-                      userAvatar: otherUser.avatarUrl,
+                      userId: targetId,
+                      userName: otherUser?.name || otherUser?.displayName || otherUser?.employeeId || "Unknown",
+                      userAvatar: otherUser?.avatarUrl,
                       conversationId,
                       type: "video",
                     });

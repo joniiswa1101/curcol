@@ -101,6 +101,14 @@ export function initWebSocket(server: Server) {
             sdp: msg.sdp,
           });
           console.log(`[Call] 📞 call_offer relayed to ${sent} connection(s) of userId=${msg.targetUserId}`);
+          if (sent === 0) {
+            console.log(`[Call] ⚠️ Target userId=${msg.targetUserId} is offline, notifying caller`);
+            ws.send(JSON.stringify({
+              type: "call_failed",
+              reason: "user_offline",
+              targetUserId: msg.targetUserId,
+            }));
+          }
         } else if (msg.type === "call_answer" && ws.userId && msg.targetUserId) {
           console.log(`[Call] 📞 call_answer from userId=${ws.userId} to targetUserId=${msg.targetUserId}`);
           broadcastToUser(msg.targetUserId, {

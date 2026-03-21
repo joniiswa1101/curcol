@@ -103,8 +103,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       conversationId: params.conversationId,
       callType: params.type,
       sdp: "mobile-call-offer",
-      callerName: user?.displayName || "Unknown",
-      callerAvatar: user?.avatarUrl || null,
+      callerName: user?.name || "Unknown",
+      callerAvatar: null,
     });
   }, [sendWs, user]);
 
@@ -148,55 +148,89 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
     if (!domain) return;
 
-    const url = `wss://${domain}/api/ws?token=${token}`;
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let disposed = false;
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
+    function connect() {
+      if (disposed) return;
 
-        switch (msg.type) {
-          case "call_offer":
-            setState({
-              status: "ringing",
-              callType: msg.callType || "voice",
-              remoteUserId: msg.callerId,
-              remoteUserName: msg.callerName || "Unknown",
-              remoteUserAvatar: msg.callerAvatar || null,
-              conversationId: msg.conversationId,
-              isMuted: false,
-              duration: 0,
-            });
-            break;
+      const wsProtocol = Platform.OS === "web" ? (window.location.protocol === "https:" ? "wss:" : "ws:") : "wss:";
+      const wsHost = Platform.OS === "web" ? window.location.host : domain;
+      const url = `${wsProtocol}//${wsHost}/api/ws?token=${token}`;
 
-          case "call_answer":
-            setState(prev => ({ ...prev, status: "connected" }));
-            startDurationTimer();
-            break;
+      console.log("[Call] Connecting WS...");
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
 
-          case "call_failed":
-            cleanup();
-            if (msg.reason === "user_offline") {
-              Alert.alert("Panggilan Gagal", "Pengguna tidak sedang online.");
-            }
-            break;
+      ws.onopen = () => {
+        console.log("[Call] WS connected");
+      };
 
-          case "call_reject":
-          case "call_end":
-            cleanup();
-            break;
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+
+          switch (msg.type) {
+            case "call_offer":
+              setState({
+                status: "ringing",
+                callType: msg.callType || "voice",
+                remoteUserId: msg.callerId,
+                remoteUserName: msg.callerName || "Unknown",
+                remoteUserAvatar: msg.callerAvatar || null,
+                conversationId: msg.conversationId,
+                isMuted: false,
+                duration: 0,
+              });
+              break;
+
+            case "call_answer":
+              setState(prev => ({ ...prev, status: "connected" }));
+              startDurationTimer();
+              break;
+
+            case "call_failed":
+              cleanup();
+              if (msg.reason === "user_offline") {
+                if (Platform.OS === "web") {
+                  window.alert("Panggilan Gagal: Pengguna tidak sedang online.");
+                } else {
+                  Alert.alert("Panggilan Gagal", "Pengguna tidak sedang online.");
+                }
+              }
+              break;
+
+            case "call_reject":
+            case "call_end":
+              cleanup();
+              break;
+          }
+        } catch (err) {
+          console.error("[Call] WS message error:", err);
         }
-      } catch (err) {
-        console.error("[Call] WS message error:", err);
-      }
-    };
+      };
 
-    ws.onclose = () => { wsRef.current = null; };
+      ws.onerror = (err) => {
+        console.error("[Call] WS error:", err);
+      };
+
+      ws.onclose = () => {
+        wsRef.current = null;
+        if (!disposed) {
+          reconnectTimeout = setTimeout(connect, 5000);
+        }
+      };
+    }
+
+    connect();
 
     return () => {
-      ws.close();
-      wsRef.current = null;
+      disposed = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [token, user, startDurationTimer, cleanup]);
 

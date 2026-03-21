@@ -739,14 +739,14 @@ export default function ChatScreen() {
             </View>
           ) : null}
         </View>
-        {!isWhatsapp && (
+        {!isWhatsapp && type === "direct" && otherUserId && (
           <>
             <Pressable
               style={styles.headerAction}
               hitSlop={8}
               onPress={() => {
                 callCtx.initiateCall({
-                  userId: Number(id),
+                  userId: otherUserId,
                   userName: name || "Contact",
                   conversationId: Number(id),
                   type: "voice",
@@ -760,7 +760,7 @@ export default function ChatScreen() {
               hitSlop={8}
               onPress={() => {
                 callCtx.initiateCall({
-                  userId: Number(id),
+                  userId: otherUserId,
                   userName: name || "Contact",
                   conversationId: Number(id),
                   type: "video",

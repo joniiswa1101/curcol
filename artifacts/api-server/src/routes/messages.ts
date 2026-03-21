@@ -11,6 +11,7 @@ import { broadcastToConversation } from "../lib/websocket.js";
 import { sendWhatsAppMessage } from "../lib/whatsapp.js";
 import { sanitizeUser } from "../lib/sanitize.js";
 import { detectPII, redactContent } from "../lib/compliance.js";
+import { sendNewMessagePush } from "../lib/push-notifications.js";
 
 const router = Router();
 
@@ -247,6 +248,17 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
   const [enriched] = await enrichMessages([msg], currentUser.id);
   const memberIds = await getConversationMemberIds(convId);
   broadcastToConversation(convId, memberIds, { type: "new_message", conversationId: convId, data: enriched });
+
+  const conv = conversation || (await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId)))[0];
+  sendNewMessagePush({
+    senderId: currentUser.id,
+    senderName: currentUser.name,
+    conversationId: convId,
+    conversationName: conv?.name || undefined,
+    conversationType: conv?.type || "direct",
+    content: content || "",
+    memberUserIds: memberIds,
+  }).catch(err => console.error("[Push] Error:", err));
 
   res.status(201).json(enriched);
 });

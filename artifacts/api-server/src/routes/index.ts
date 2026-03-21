@@ -19,6 +19,7 @@ import presenceRouter from "./presence.js";
 import stickersRouter from "./stickers.js";
 import tasksRouter from "./tasks.js";
 import complianceRouter from "./compliance.js";
+import pushTokensRouter from "./push-tokens.js";
 
 const router = Router();
 
@@ -43,5 +44,6 @@ router.use("/presence", presenceRouter);
 router.use("/stickers", stickersRouter);
 router.use("/tasks", tasksRouter);
 router.use("/compliance", complianceRouter);
+router.use("/push-tokens", pushTokensRouter);
 
 export default router;

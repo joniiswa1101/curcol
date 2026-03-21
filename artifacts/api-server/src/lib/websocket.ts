@@ -46,6 +46,14 @@ function broadcastPresence(userId: number, status: string) {
 
 export { getOnlineUserIds };
 
+export function getConnectedUserIds(): number[] {
+  const ids = new Set<number>();
+  clients.forEach(ws => {
+    if (ws.userId && ws.readyState === WebSocket.OPEN) ids.add(ws.userId);
+  });
+  return Array.from(ids);
+}
+
 export function initWebSocket(server: Server) {
   wss = new WebSocketServer({ server, path: "/api/ws" });
 

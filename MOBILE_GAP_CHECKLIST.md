@@ -157,9 +157,9 @@
 |----|------|----------|--------|--------|
 | GAP-10.1 | Long-press context menu pada pesan (Reply, Copy, Pin, Favorite, Edit, Delete) | HIGH | 1d | ✅ |
 | GAP-10.2 | Reply bar above composer + replyToId in send | HIGH | 0.5d | ✅ |
-| GAP-10.3 | Push notifications (mobile-specific, tidak relevan untuk web) | LOW | - | N/A |
+| GAP-10.3 | Push notifications (Expo Push Notifications) | HIGH | 1d | ✅ |
 
-**Selesai**: Long-press context menu modal dengan 6 aksi (Balas, Salin, Pin/Lepas Pin, Favorit, Edit [own], Hapus [own] dengan konfirmasi). Reply bar di atas composer yang menampilkan sender + preview. `replyToId` dikirim via `sendMutation`. Diimplementasikan 21 Maret 2026.
+**Selesai**: Long-press context menu modal dengan 6 aksi (Balas, Salin, Pin/Lepas Pin, Favorit, Edit [own], Hapus [own] dengan konfirmasi). Reply bar di atas composer yang menampilkan sender + preview. `replyToId` dikirim via `sendMutation`. Push notifications via Expo Push API — token registered on login, unregistered on logout. Server sends push to offline users on new messages. Tap notification navigates to chat. Android notification channel "messages" with high priority. Diimplementasikan 21 Maret 2026.
 
 ---
 

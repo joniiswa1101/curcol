@@ -11,12 +11,14 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { IncomingCallModal, ActiveCallOverlay } from "@/components/CallUI";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
+  usePushNotifications(user?.id);
 
   useEffect(() => {
     if (!isLoading) {

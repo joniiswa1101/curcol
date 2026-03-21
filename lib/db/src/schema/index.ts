@@ -13,5 +13,6 @@ export * from "./stickers";
 export * from "./user-presence";
 export * from "./tasks";
 export * from "./compliance";
+export * from "./push-tokens";
 
 export { messageReadsTable } from "./messages";

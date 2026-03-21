@@ -4,160 +4,48 @@ import { Feather } from "@expo/vector-icons";
 import { useCall } from "@/contexts/CallContext";
 import Colors from "@/constants/colors";
 
-const isNative = Platform.OS === "ios" || Platform.OS === "android";
-
-let CameraViewNative: any = null;
-let useCameraPermissionsNative: any = null;
-if (isNative) {
-  try {
-    const cam = require("expo-camera");
-    CameraViewNative = cam.CameraView;
-    useCameraPermissionsNative = cam.useCameraPermissions;
-  } catch {}
-}
-
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
   const s = (seconds % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
 }
 
-function WebCameraPreview({ facing }: { facing: "front" | "back" }) {
+function WebVideoElement({ stream, muted = false, mirror = false, style }: {
+  stream: MediaStream | null;
+  muted?: boolean;
+  mirror?: boolean;
+  style?: any;
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
-
-  const startCamera = useCallback(async () => {
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing === "front" ? "user" : "environment" },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setReady(true);
-      }
-      setError(null);
-    } catch (e: any) {
-      setError(e?.message || "Gagal mengakses kamera");
-    }
-  }, [facing]);
 
   useEffect(() => {
-    startCamera();
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
-      }
-    };
-  }, [startCamera]);
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [stream]);
 
-  if (error) {
-    return (
-      <View style={cameraStyles.placeholder}>
-        <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
-        <Text style={cameraStyles.placeholderText}>{error}</Text>
-        <Pressable onPress={startCamera} style={cameraStyles.permBtn}>
-          <Text style={cameraStyles.permBtnText}>Coba Lagi</Text>
-        </Pressable>
-      </View>
-    );
-  }
+  if (!stream) return null;
 
   return (
-    <View style={StyleSheet.absoluteFill}>
+    <View style={[StyleSheet.absoluteFill, style]}>
       <video
         ref={videoRef as any}
         autoPlay
         playsInline
-        muted
+        muted={muted}
         style={{
           position: "absolute",
           top: 0, left: 0,
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          transform: facing === "front" ? "scaleX(-1)" : "none",
+          transform: mirror ? "scaleX(-1)" : "none",
         }}
       />
     </View>
   );
 }
-
-function NativeCameraPreview({ facing }: { facing: "front" | "back" }) {
-  if (!CameraViewNative || !useCameraPermissionsNative) {
-    return (
-      <View style={cameraStyles.placeholder}>
-        <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
-        <Text style={cameraStyles.placeholderText}>Kamera tidak tersedia</Text>
-      </View>
-    );
-  }
-
-  const [permission, requestPermission] = useCameraPermissionsNative();
-  const hasRequested = useRef(false);
-
-  useEffect(() => {
-    if (permission && !permission.granted && !hasRequested.current) {
-      hasRequested.current = true;
-      requestPermission();
-    }
-  }, [permission]);
-
-  if (!permission || !permission.granted) {
-    return (
-      <View style={cameraStyles.placeholder}>
-        <Feather name="video" size={48} color="rgba(255,255,255,0.4)" />
-        <Text style={cameraStyles.placeholderText}>Meminta izin kamera...</Text>
-        <Pressable onPress={requestPermission} style={cameraStyles.permBtn}>
-          <Text style={cameraStyles.permBtnText}>Izinkan Kamera</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  return <CameraViewNative style={StyleSheet.absoluteFill} facing={facing} />;
-}
-
-function CameraPreview({ facing }: { facing: "front" | "back" }) {
-  if (isNative) {
-    return <NativeCameraPreview facing={facing} />;
-  }
-  return <WebCameraPreview facing={facing} />;
-}
-
-const cameraStyles = StyleSheet.create({
-  placeholder: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#0f0f23",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  placeholderText: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 14,
-    marginTop: 12,
-  },
-  permBtn: {
-    marginTop: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  permBtnText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-});
 
 export function IncomingCallModal() {
   const { status, callType, remoteUserName, acceptCall, rejectCall } = useCall();
@@ -203,28 +91,43 @@ export function ActiveCallOverlay() {
     status, callType, remoteUserName,
     isMuted, duration,
     endCall, toggleMute,
+    localStream, remoteStream,
   } = useCall();
   const scheme = useColorScheme();
   const colors = Colors[scheme === "dark" ? "dark" : "light"];
   const [isVideoOff, setIsVideoOff] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState<"front" | "back">("front");
 
   if (status !== "outgoing" && status !== "connected") return null;
 
   const isVideoCall = callType === "video";
 
+  const handleToggleVideo = useCallback(() => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
+    }
+    setIsVideoOff(v => !v);
+  }, [localStream]);
+
   if (isVideoCall) {
     return (
       <Modal visible transparent animationType="slide">
         <View style={videoStyles.container}>
-          {!isVideoOff ? (
-            <CameraPreview facing={cameraFacing} />
+          {remoteStream ? (
+            <WebVideoElement stream={remoteStream} style={StyleSheet.absoluteFill} />
           ) : (
-            <View style={videoStyles.videoOff}>
+            <View style={videoStyles.remoteVideoPlaceholder}>
               <View style={[styles.avatar, styles.avatarLarge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.avatarTextLarge}>{remoteUserName?.charAt(0) || "?"}</Text>
               </View>
-              <Text style={videoStyles.videoOffText}>Kamera dimatikan</Text>
+              <Text style={videoStyles.waitingText}>
+                {status === "outgoing" ? "Memanggil..." : "Menunggu video..."}
+              </Text>
+            </View>
+          )}
+
+          {localStream && !isVideoOff && (
+            <View style={videoStyles.localVideoContainer}>
+              <WebVideoElement stream={localStream} muted mirror />
             </View>
           )}
 
@@ -237,24 +140,9 @@ export function ActiveCallOverlay() {
             </View>
           </View>
 
-          <View style={videoStyles.remoteAvatar}>
-            <View style={[styles.avatar, { backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 30 }]}>
-              <Text style={{ color: "#fff", fontSize: 22, fontWeight: "700" }}>
-                {remoteUserName?.charAt(0) || "?"}
-              </Text>
-            </View>
-          </View>
-
           <View style={videoStyles.bottomBar}>
             <Pressable
-              onPress={() => setCameraFacing(f => f === "front" ? "back" : "front")}
-              style={[styles.actionBtn, styles.normalBtn]}
-            >
-              <Feather name="refresh-cw" size={22} color="#fff" />
-            </Pressable>
-
-            <Pressable
-              onPress={() => setIsVideoOff(v => !v)}
+              onPress={handleToggleVideo}
               style={[styles.actionBtn, isVideoOff ? styles.mutedBtn : styles.normalBtn]}
             >
               <Feather name={isVideoOff ? "video-off" : "video"} size={22} color={isVideoOff ? "#333" : "#fff"} />
@@ -336,14 +224,17 @@ const videoStyles = StyleSheet.create({
     fontSize: 14,
     marginTop: 2,
   },
-  remoteAvatar: {
+  localVideoContainer: {
     position: "absolute",
-    top: 130,
+    top: 120,
     right: 16,
-    zIndex: 10,
+    width: 120,
+    height: 160,
+    borderRadius: 12,
+    overflow: "hidden",
     borderWidth: 2,
     borderColor: "#fff",
-    borderRadius: 32,
+    zIndex: 10,
   },
   bottomBar: {
     position: "absolute",
@@ -355,16 +246,16 @@ const videoStyles = StyleSheet.create({
     gap: 16,
     zIndex: 10,
   },
-  videoOff: {
+  remoteVideoPlaceholder: {
     flex: 1,
     backgroundColor: "#0f0f23",
     justifyContent: "center",
     alignItems: "center",
   },
-  videoOffText: {
+  waitingText: {
     color: "rgba(255,255,255,0.5)",
-    fontSize: 14,
-    marginTop: 12,
+    fontSize: 16,
+    marginTop: 16,
   },
 });
 

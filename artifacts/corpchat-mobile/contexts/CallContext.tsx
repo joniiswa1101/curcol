@@ -28,9 +28,16 @@ interface CallContextType extends CallState {
   rejectCall: () => void;
   endCall: () => void;
   toggleMute: () => void;
+  localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
 }
 
 const CallContext = createContext<CallContextType | null>(null);
+
+const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+];
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user, token } = useAuth();
@@ -50,11 +57,29 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const callStateRef = useRef(state);
   callStateRef.current = state;
 
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const iceCandidateQueue = useRef<RTCIceCandidateInit[]>([]);
+
   const cleanup = useCallback(() => {
+    console.log("[Call] Cleanup");
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
     }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+      setLocalStream(null);
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    setRemoteStream(null);
+    iceCandidateQueue.current = [];
     setState({
       status: "idle",
       callType: "voice",
@@ -79,48 +104,155 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }, 1000);
   }, []);
 
-  const initiateCall = useCallback((params: {
+  const makePeerConnection = useCallback((targetUserId: number) => {
+    console.log("[Call] Creating PeerConnection for user:", targetUserId);
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        sendWs({
+          type: "call_ice_candidate",
+          targetUserId,
+          candidate: e.candidate.toJSON(),
+        });
+      }
+    };
+
+    pc.ontrack = (e) => {
+      console.log("[Call] Remote track received:", e.track.kind);
+      if (e.streams && e.streams[0]) {
+        setRemoteStream(e.streams[0]);
+      } else {
+        const stream = new MediaStream([e.track]);
+        setRemoteStream(prev => {
+          if (prev) {
+            prev.addTrack(e.track);
+            return new MediaStream(prev.getTracks());
+          }
+          return stream;
+        });
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log("[Call] ICE state:", pc.iceConnectionState);
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        const receivers = pc.getReceivers();
+        const tracks = receivers.map(r => r.track).filter(Boolean);
+        if (tracks.length > 0) {
+          setRemoteStream(new MediaStream(tracks));
+        }
+      }
+      if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
+        const remote = callStateRef.current.remoteUserId;
+        if (remote) sendWs({ type: "call_end", targetUserId: remote });
+        cleanup();
+      }
+    };
+
+    pcRef.current = pc;
+    return pc;
+  }, [sendWs, cleanup]);
+
+  const initiateCall = useCallback(async (params: {
     userId: number;
     userName: string;
     userAvatar?: string;
     conversationId: number;
     type: CallType;
   }) => {
-    setState({
-      status: "outgoing",
-      callType: params.type,
-      remoteUserId: params.userId,
-      remoteUserName: params.userName,
-      remoteUserAvatar: params.userAvatar || null,
-      conversationId: params.conversationId,
-      isMuted: false,
-      duration: 0,
-    });
+    console.log("[Call] Initiating call to user:", params.userId, "type:", params.type);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: params.type === "video",
+      });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
 
-    sendWs({
-      type: "call_offer",
-      targetUserId: params.userId,
-      conversationId: params.conversationId,
-      callType: params.type,
-      sdp: "mobile-call-offer",
-      callerName: user?.name || "Unknown",
-      callerAvatar: null,
-    });
-  }, [sendWs, user]);
+      setState({
+        status: "outgoing",
+        callType: params.type,
+        remoteUserId: params.userId,
+        remoteUserName: params.userName,
+        remoteUserAvatar: params.userAvatar || null,
+        conversationId: params.conversationId,
+        isMuted: false,
+        duration: 0,
+      });
 
-  const acceptCall = useCallback(() => {
-    const remoteUserId = callStateRef.current.remoteUserId;
+      const pc = makePeerConnection(params.userId);
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      sendWs({
+        type: "call_offer",
+        targetUserId: params.userId,
+        conversationId: params.conversationId,
+        callType: params.type,
+        sdp: offer.sdp,
+        callerName: user?.name || "Unknown",
+        callerAvatar: null,
+      });
+
+      console.log("[Call] WebRTC offer sent");
+    } catch (err) {
+      console.error("[Call] initiateCall failed:", err);
+      cleanup();
+    }
+  }, [makePeerConnection, sendWs, cleanup, user]);
+
+  const acceptCall = useCallback(async () => {
+    const { callType, remoteUserId } = callStateRef.current;
     if (!remoteUserId) return;
+    console.log("[Call] Accepting call from user:", remoteUserId);
 
-    sendWs({
-      type: "call_answer",
-      targetUserId: remoteUserId,
-      sdp: "mobile-call-answer",
-    });
+    try {
+      const pc = pcRef.current;
+      if (!pc || !pc.remoteDescription) {
+        sendWs({
+          type: "call_answer",
+          targetUserId: remoteUserId,
+          sdp: "mobile-call-answer",
+        });
+        setState(prev => ({ ...prev, status: "connected" }));
+        startDurationTimer();
+        return;
+      }
 
-    setState(prev => ({ ...prev, status: "connected" }));
-    startDurationTimer();
-  }, [sendWs, startDurationTimer]);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: callType === "video",
+      });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      sendWs({
+        type: "call_answer",
+        targetUserId: remoteUserId,
+        sdp: answer.sdp,
+      });
+
+      for (const c of iceCandidateQueue.current) {
+        await pc.addIceCandidate(new RTCIceCandidate(c));
+      }
+      iceCandidateQueue.current = [];
+
+      setState(prev => ({ ...prev, status: "connected" }));
+      startDurationTimer();
+      console.log("[Call] WebRTC call accepted");
+    } catch (err) {
+      console.error("[Call] acceptCall failed:", err);
+      cleanup();
+    }
+  }, [sendWs, startDurationTimer, cleanup]);
 
   const rejectCall = useCallback(() => {
     const remoteUserId = callStateRef.current.remoteUserId;
@@ -139,6 +271,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [sendWs, cleanup]);
 
   const toggleMute = useCallback(() => {
+    localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
     setState(prev => ({ ...prev, isMuted: !prev.isMuted }));
   }, []);
 
@@ -166,12 +299,32 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         console.log("[Call] WS connected");
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
           const msg = JSON.parse(event.data);
 
           switch (msg.type) {
-            case "call_offer":
+            case "call_offer": {
+              if (callStateRef.current.status !== "idle") {
+                sendWs({ type: "call_reject", targetUserId: msg.callerId });
+                return;
+              }
+
+              console.log("[Call] Incoming call from:", msg.callerName);
+              const isSimpleCall = !msg.sdp || msg.sdp === "mobile-call-offer";
+
+              if (!isSimpleCall) {
+                try {
+                  const pc = makePeerConnection(msg.callerId);
+                  await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: "offer",
+                    sdp: msg.sdp,
+                  }));
+                } catch (err) {
+                  console.warn("[Call] WebRTC setup failed:", err);
+                }
+              }
+
               setState({
                 status: "ringing",
                 callType: msg.callType || "voice",
@@ -183,11 +336,43 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 duration: 0,
               });
               break;
+            }
 
-            case "call_answer":
-              setState(prev => ({ ...prev, status: "connected" }));
-              startDurationTimer();
+            case "call_answer": {
+              console.log("[Call] Received answer");
+              const pc = pcRef.current;
+              const isSimpleAnswer = !msg.sdp || msg.sdp === "mobile-call-answer" || msg.sdp === "web-call-answer";
+
+              if (isSimpleAnswer || !pc) {
+                setState(prev => ({ ...prev, status: "connected" }));
+                startDurationTimer();
+              } else {
+                try {
+                  await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: "answer",
+                    sdp: msg.sdp,
+                  }));
+                  setState(prev => ({ ...prev, status: "connected" }));
+                  startDurationTimer();
+                  console.log("[Call] WebRTC connected");
+                } catch (err) {
+                  console.warn("[Call] WebRTC answer failed:", err);
+                  setState(prev => ({ ...prev, status: "connected" }));
+                  startDurationTimer();
+                }
+              }
               break;
+            }
+
+            case "call_ice_candidate": {
+              const pc = pcRef.current;
+              if (pc?.remoteDescription) {
+                await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+              } else {
+                iceCandidateQueue.current.push(msg.candidate);
+              }
+              break;
+            }
 
             case "call_failed":
               cleanup();
@@ -232,7 +417,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         wsRef.current = null;
       }
     };
-  }, [token, user, startDurationTimer, cleanup]);
+  }, [token, user, startDurationTimer, cleanup, makePeerConnection, sendWs]);
 
   return (
     <CallContext.Provider value={{
@@ -242,6 +427,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       rejectCall,
       endCall,
       toggleMute,
+      localStream,
+      remoteStream,
     }}>
       {children}
     </CallContext.Provider>

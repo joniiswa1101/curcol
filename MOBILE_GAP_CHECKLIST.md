@@ -19,7 +19,7 @@
 | Directory | ✅ | ✅ | OK |
 | Voice/Video Call | ✅ | ✅ | OK |
 | Link Previews | ✅ | ✅ Full | OK |
-| Offline Queue | ✅ | ❌ Tidak ada | **SEDANG** |
+| Offline Queue | ✅ | ✅ Full | OK |
 | Read Receipts | ✅ | ❌ Tidak ada | **SEDANG** |
 | Message Search | ⚠️ Basic | ❌ Tidak ada | **KECIL** |
 | File Upload Validation | ✅ Full | ✅ Full | OK |
@@ -105,11 +105,12 @@
 ### GAP-06: Offline Queue & Sync
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-06.1 | Queue pesan saat offline (AsyncStorage) | HIGH | 2-3d | ⬜ |
-| GAP-06.2 | Auto-sync saat kembali online | HIGH | 1-2d | ⬜ |
-| GAP-06.3 | Visual indicator pesan pending/gagal | MEDIUM | 1d | ⬜ |
+| GAP-06.1 | Queue pesan saat offline (AsyncStorage) | HIGH | 2-3d | ✅ |
+| GAP-06.2 | Auto-sync saat kembali online | HIGH | 1-2d | ✅ |
+| GAP-06.3 | Visual indicator pesan pending/gagal | MEDIUM | 1d | ✅ |
 
-**Catatan**: Mobile sangat butuh offline support karena koneksi sering tidak stabil.
+**Catatan**:
+- GAP-06 ✅ Selesai: `hooks/use-offline-queue.ts` — AsyncStorage queue per user, `@react-native-community/netinfo` untuk deteksi online/offline, auto-sync saat kembali online dengan retry (max 3x, 500ms delay). Visual: clock icon (pending), spinner (sending), alert-circle merah (failed) + Coba Lagi/Hapus actions. Offline banner di atas input area menampilkan jumlah antrian. Queued messages tampil di chat bubble list (21 Maret 2026).
 
 ---
 

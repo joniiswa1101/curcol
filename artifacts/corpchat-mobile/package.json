@@ -58,6 +58,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@react-native-community/netinfo": "^12.0.1",
     "date-fns": "^3.6.0",
     "expo": "~54.0.33",
     "expo-av": "^16.0.8",

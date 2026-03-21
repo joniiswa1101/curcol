@@ -24,6 +24,7 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { useTypingIndicators } from "@/hooks/use-typing-indicators";
 import { useCall } from "@/contexts/CallContext";
 import { detectPII } from "@/lib/pii-detection";
+import { useOfflineQueue, QueuedMessage } from "@/hooks/use-offline-queue";
 
 function formatMsgTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -150,9 +151,12 @@ interface BubbleProps {
   isMine: boolean;
   colors: any;
   showAvatar: boolean;
+  queueStatus?: "pending" | "sending" | "failed";
+  onRetry?: () => void;
+  onDiscard?: () => void;
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPin }: BubbleProps & { onEdit?: (msg: Message) => void; onDelete?: (msgId: number) => void; onPin?: (msgId: number) => void }) {
+function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPin, queueStatus, onRetry, onDiscard }: BubbleProps & { onEdit?: (msg: Message) => void; onDelete?: (msgId: number) => void; onPin?: (msgId: number) => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
@@ -236,7 +240,28 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPi
             {msg.isEdited && !msg.isDeleted && (
               <Text style={[styles.edited, { color: isMine ? "rgba(255,255,255,0.6)" : colors.textSecondary }]}>diedit</Text>
             )}
+            {queueStatus === "pending" && (
+              <Feather name="clock" size={11} color={isMine ? "rgba(255,255,255,0.5)" : colors.textSecondary} />
+            )}
+            {queueStatus === "sending" && (
+              <ActivityIndicator size={10} color={isMine ? "rgba(255,255,255,0.5)" : colors.textSecondary} />
+            )}
+            {queueStatus === "failed" && (
+              <Feather name="alert-circle" size={11} color="#ef4444" />
+            )}
           </View>
+          {queueStatus === "failed" && (
+            <View style={styles.queueFailedActions}>
+              <Pressable onPress={onRetry} style={styles.queueActionBtn}>
+                <Feather name="refresh-cw" size={12} color={colors.primary} />
+                <Text style={[styles.queueActionText, { color: colors.primary }]}>Coba Lagi</Text>
+              </Pressable>
+              <Pressable onPress={onDiscard} style={styles.queueActionBtn}>
+                <Feather name="x" size={12} color="#ef4444" />
+                <Text style={[styles.queueActionText, { color: "#ef4444" }]}>Hapus</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
         {msg.reactions && msg.reactions.length > 0 && (
           <View style={styles.reactions}>
@@ -302,6 +327,9 @@ export default function ChatScreen() {
   const [uploading, setUploading] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [piiWarning, setPiiWarning] = useState<{ types: string[] } | null>(null);
+  const offlineQueue = useOfflineQueue(user?.id, () => {
+    queryClient.invalidateQueries({ queryKey: ["messages", id] });
+  });
   const piiConfirmedRef = useRef(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const flatRef = useRef<FlatList>(null);
@@ -455,7 +483,22 @@ export default function ChatScreen() {
     return domain ? `https://${domain}` : "";
   }, []);
 
-  const allMessages: Message[] = [...(data?.messages || []), ...optimisticMessages];
+  const queuedForChat = offlineQueue.getQueuedForConversation(Number(id));
+  const queuedAsMessages: Message[] = queuedForChat.map(q => ({
+    id: q.id as any,
+    senderId: user?.id || 0,
+    content: q.content,
+    type: q.type,
+    isEdited: false,
+    isDeleted: false,
+    isPinned: false,
+    createdAt: q.createdAt,
+    sender: user ? { name: user.name, avatarUrl: user.avatarUrl, cicoStatus: null } : undefined,
+    reactions: [],
+    _queueStatus: q.status,
+    _queueId: q.id,
+  } as Message & { _queueStatus: string; _queueId: string }));
+  const allMessages: Message[] = [...(data?.messages || []), ...optimisticMessages, ...queuedAsMessages];
 
   // Insert date separators between messages from different days
   const messagesWithSeparators = useCallback(() => {
@@ -524,10 +567,18 @@ export default function ChatScreen() {
     piiConfirmedRef.current = false;
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     api.post(`/conversations/${id}/typing/stop`, {}).catch(() => {});
+
+    if (!offlineQueue.isOnline) {
+      offlineQueue.enqueue({
+        conversationId: Number(id),
+        content: trimmed,
+        type: "text",
+      });
+      return;
+    }
     
-    // Create optimistic message
     const optimisticMsg: Message = {
-      id: Math.random() * -1, // Negative ID to mark as optimistic
+      id: Math.random() * -1,
       senderId: user?.id || 0,
       content: trimmed,
       type: "text",
@@ -701,12 +752,18 @@ export default function ChatScreen() {
             const nextMsg = nextItem?.type !== "date_separator" ? nextItem : null;
             const showAvatar = !isMine && (!nextMsg || nextMsg?.senderId !== item.senderId);
 
+            const qStatus = (item as any)._queueStatus as "pending" | "sending" | "failed" | undefined;
+            const qId = (item as any)._queueId as string | undefined;
+
             return (
               <MessageBubble
                 msg={item}
                 isMine={isMine}
                 colors={colors}
                 showAvatar={showAvatar}
+                queueStatus={qStatus}
+                onRetry={qId ? () => offlineQueue.retryMessage(qId) : undefined}
+                onDiscard={qId ? () => offlineQueue.discardMessage(qId) : undefined}
                 onEdit={(msg) => {
                   setEditingMsgId(msg.id);
                   setEditText(msg.content || "");
@@ -731,6 +788,16 @@ export default function ChatScreen() {
         <View style={[styles.typingIndicator, { backgroundColor: colors.surfaceSecondary, borderTopColor: colors.border }]}>
           <Text style={[styles.typingText, { color: colors.textSecondary }]}>
             {Array.from(typingUsers.values()).join(", ")} {typingUsers.size === 1 ? "sedang mengetik" : "sedang mengetik"}...
+          </Text>
+        </View>
+      )}
+
+      {!offlineQueue.isOnline && (
+        <View style={styles.offlineBanner}>
+          <Feather name="wifi-off" size={14} color="#fff" />
+          <Text style={styles.offlineBannerText}>
+            Offline — pesan akan dikirim otomatis saat online
+            {offlineQueue.queuedCount > 0 ? ` (${offlineQueue.queuedCount} antrian)` : ""}
           </Text>
         </View>
       )}
@@ -986,6 +1053,11 @@ const styles = StyleSheet.create({
   piiWarningActions: { flexDirection: "row", gap: 8 },
   piiBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: "center" },
   piiBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  offlineBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: "#6b7280" },
+  offlineBannerText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
+  queueFailedActions: { flexDirection: "row", gap: 12, marginTop: 4, paddingTop: 4, borderTopWidth: 0.5, borderTopColor: "rgba(0,0,0,0.1)" },
+  queueActionBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  queueActionText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   linkPreviewCard: { flexDirection: "row", borderRadius: 10, overflow: "hidden", marginTop: 6, borderWidth: 0.5 },
   linkPreviewImage: { width: 72, height: 72 },
   linkPreviewBody: { flex: 1, padding: 8, gap: 2, justifyContent: "center" },

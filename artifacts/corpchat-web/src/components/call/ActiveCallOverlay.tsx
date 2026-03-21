@@ -1,5 +1,5 @@
 import { useCall } from "@/contexts/CallContext";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import {
   Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX,
 } from "lucide-react";
@@ -21,17 +21,39 @@ export function ActiveCallOverlay() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
+  const attachStream = useCallback((el: HTMLVideoElement | null, stream: MediaStream | null) => {
+    if (!el || !stream) return;
+    if (el.srcObject !== stream) {
+      console.log("[CallUI] Attaching stream to video, tracks:", stream.getTracks().map(t => `${t.kind}:${t.readyState}`).join(", "));
+      el.srcObject = stream;
     }
-  }, [localStream]);
+    el.play().catch(err => {
+      console.warn("[CallUI] play() blocked, retrying:", err.message);
+      const retry = () => {
+        el.play().catch(() => {});
+        el.removeEventListener("loadedmetadata", retry);
+      };
+      el.addEventListener("loadedmetadata", retry);
+    });
+  }, []);
 
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
+    attachStream(localVideoRef.current, localStream);
+  }, [localStream, attachStream, status]);
+
+  useEffect(() => {
+    attachStream(remoteVideoRef.current, remoteStream);
+  }, [remoteStream, attachStream, status]);
+
+  useEffect(() => {
+    if (status === "connected") {
+      const timer = setTimeout(() => {
+        attachStream(remoteVideoRef.current, remoteStream);
+        attachStream(localVideoRef.current, localStream);
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [remoteStream]);
+  }, [status, remoteStream, localStream, attachStream]);
 
   if (status !== "outgoing" && status !== "connected") return null;
 
@@ -39,7 +61,7 @@ export function ActiveCallOverlay() {
 
   return (
     <div className="fixed inset-0 z-[100] bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-between">
-      {isVideo && remoteStream ? (
+      {isVideo ? (
         <video
           ref={remoteVideoRef}
           autoPlay
@@ -78,6 +100,14 @@ export function ActiveCallOverlay() {
       {isVideo && status === "connected" && (
         <div className="absolute top-6 left-6 z-10 bg-black/50 px-3 py-1.5 rounded-full">
           <p className="text-white text-sm font-medium">{formatDuration(duration)}</p>
+        </div>
+      )}
+
+      {!isVideo && (
+        <div className="absolute top-6 left-6 z-10 bg-black/50 px-3 py-1.5 rounded-full">
+          <p className="text-white text-sm font-medium">
+            {status === "outgoing" ? "Calling..." : formatDuration(duration)}
+          </p>
         </div>
       )}
 

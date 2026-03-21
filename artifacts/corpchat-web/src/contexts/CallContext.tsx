@@ -79,7 +79,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       pcRef.current = null;
     }
     setRemoteStream(null);
-    remoteStreamRef.current = null;
     iceCandidateQueue.current = [];
     if (durationRef.current) {
       clearInterval(durationRef.current);
@@ -92,8 +91,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     console.log("[Call] Sending:", (data as any).type);
     sendCallMessage(data);
   }, []);
-
-  const remoteStreamRef = useRef<MediaStream | null>(null);
 
   const makePeerConnection = useCallback((targetUserId: number) => {
     console.log("[Call] Creating PeerConnection for user:", targetUserId);
@@ -110,20 +107,34 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     pc.ontrack = (e) => {
-      console.log("[Call] Remote track received:", e.track.kind, "readyState:", e.track.readyState);
-      if (!remoteStreamRef.current) {
-        remoteStreamRef.current = new MediaStream();
+      console.log("[Call] Remote track received:", e.track.kind, "readyState:", e.track.readyState, "streams:", e.streams.length);
+      if (e.streams && e.streams[0]) {
+        console.log("[Call] Using browser-native stream, tracks:", e.streams[0].getTracks().map(t => `${t.kind}:${t.readyState}`).join(", "));
+        setRemoteStream(e.streams[0]);
+      } else {
+        const stream = new MediaStream([e.track]);
+        console.log("[Call] Created manual stream for track:", e.track.kind);
+        setRemoteStream(prev => {
+          if (prev) {
+            prev.addTrack(e.track);
+            return new MediaStream(prev.getTracks());
+          }
+          return stream;
+        });
       }
-      const existing = remoteStreamRef.current.getTracks().find(t => t.id === e.track.id);
-      if (!existing) {
-        remoteStreamRef.current.addTrack(e.track);
-      }
-      setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
-      console.log("[Call] Remote stream tracks:", remoteStreamRef.current.getTracks().map(t => `${t.kind}:${t.readyState}`).join(", "));
     };
 
     pc.oniceconnectionstatechange = () => {
       console.log("[Call] ICE state:", pc.iceConnectionState);
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        console.log("[Call] ICE connected! Re-triggering remote stream for UI refresh");
+        const receivers = pc.getReceivers();
+        const tracks = receivers.map(r => r.track).filter(Boolean);
+        if (tracks.length > 0) {
+          const refreshedStream = new MediaStream(tracks);
+          setRemoteStream(refreshedStream);
+        }
+      }
       if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
         const remote = stateRef.current.remoteUserId;
         if (remote) send({ type: "call_end", targetUserId: remote });

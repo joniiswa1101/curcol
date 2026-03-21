@@ -209,15 +209,28 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     console.log("[Call] Accepting call from user:", remoteUserId);
 
     try {
+      const pc = pcRef.current;
+      const isSimpleCall = !pc || !pc.remoteDescription;
+
+      if (isSimpleCall) {
+        send({
+          type: "call_answer",
+          targetUserId: remoteUserId,
+          sdp: "web-call-answer",
+        });
+
+        setState(prev => ({ ...prev, status: "connected" }));
+        startTimer();
+        console.log("[Call] Simple call accepted and connected");
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: callType === "video",
       });
       localStreamRef.current = stream;
       setLocalStream(stream);
-
-      const pc = pcRef.current;
-      if (!pc) { console.error("[Call] No PeerConnection!"); return; }
 
       stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
@@ -237,7 +250,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
       setState(prev => ({ ...prev, status: "connected" }));
       startTimer();
-      console.log("[Call] Call accepted and connected");
+      console.log("[Call] WebRTC call accepted and connected");
     } catch (err) {
       console.error("[Call] acceptCall failed:", err);
       cleanup();
@@ -286,11 +299,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             }
 
             console.log("[Call] Incoming call from:", msg.callerName, "(userId:", msg.callerId, ")");
-            const pc = makePeerConnection(msg.callerId);
-            await pc.setRemoteDescription(new RTCSessionDescription({
-              type: "offer",
-              sdp: msg.sdp,
-            }));
+
+            const isSimpleCall = !msg.sdp || msg.sdp === "mobile-call-offer";
+
+            if (!isSimpleCall) {
+              try {
+                const pc = makePeerConnection(msg.callerId);
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                  type: "offer",
+                  sdp: msg.sdp,
+                }));
+              } catch (err) {
+                console.warn("[Call] WebRTC setup failed, falling back to simple call:", err);
+              }
+            }
 
             setState({
               status: "ringing",
@@ -303,21 +325,33 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
               isVideoOff: false,
               duration: 0,
             });
-            console.log("[Call] State set to RINGING");
+            console.log("[Call] State set to RINGING", isSimpleCall ? "(simple call)" : "(WebRTC)");
             break;
           }
 
           case "call_answer": {
             console.log("[Call] Received answer");
             const pc = pcRef.current;
-            if (pc) {
-              await pc.setRemoteDescription(new RTCSessionDescription({
-                type: "answer",
-                sdp: msg.sdp,
-              }));
+            const isSimpleAnswer = !msg.sdp || msg.sdp === "mobile-call-answer" || msg.sdp === "web-call-answer";
+
+            if (isSimpleAnswer || !pc) {
               setState(prev => ({ ...prev, status: "connected" }));
               startTimer();
-              console.log("[Call] Call connected");
+              console.log("[Call] Simple call connected");
+            } else {
+              try {
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                  type: "answer",
+                  sdp: msg.sdp,
+                }));
+                setState(prev => ({ ...prev, status: "connected" }));
+                startTimer();
+                console.log("[Call] WebRTC call connected");
+              } catch (err) {
+                console.warn("[Call] WebRTC answer failed, falling back:", err);
+                setState(prev => ({ ...prev, status: "connected" }));
+                startTimer();
+              }
             }
             break;
           }

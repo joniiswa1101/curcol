@@ -33,6 +33,7 @@ interface ConversationDetail {
   createdById: number;
   members: Member[];
   isMuted?: boolean;
+  myRole?: string;
 }
 
 interface User {
@@ -107,9 +108,9 @@ export default function GroupInfoScreen() {
   }
 
   const members = conv.members || [];
-  const myMember = members.find(m => m.userId === currentUser?.id);
-  const isAdmin = myMember?.role === "admin";
+  const myMember = members.find((m: any) => m.userId === currentUser?.id);
   const isCreator = conv.createdById === currentUser?.id;
+  const isAdmin = isCreator || conv.myRole === "admin" || myMember?.role === "admin";
   const memberCount = members.length;
   const isMuted = conv.isMuted || myMember?.isMuted;
 
@@ -372,13 +373,11 @@ export default function GroupInfoScreen() {
         </View>
 
         <View style={[styles.dangerSection, { backgroundColor: colors.surface }]}>
-          {!isCreator && (
-            <Pressable onPress={confirmLeave} style={styles.dangerRow}>
-              <Feather name="log-out" size={18} color={colors.danger} />
-              <Text style={[styles.dangerText, { color: colors.danger }]}>Keluar Grup</Text>
-              {actionLoading === "leave" && <ActivityIndicator size="small" color={colors.danger} />}
-            </Pressable>
-          )}
+          <Pressable onPress={confirmLeave} style={styles.dangerRow}>
+            <Feather name="log-out" size={18} color={colors.danger} />
+            <Text style={[styles.dangerText, { color: colors.danger }]}>Keluar Grup</Text>
+            {actionLoading === "leave" && <ActivityIndicator size="small" color={colors.danger} />}
+          </Pressable>
           {isAdmin && (
             <Pressable onPress={confirmDelete} style={styles.dangerRow}>
               <Feather name="trash-2" size={18} color={colors.danger} />

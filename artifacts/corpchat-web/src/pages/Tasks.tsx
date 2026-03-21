@@ -72,11 +72,11 @@ interface TaskStats {
 }
 
 const STATUS_CONFIG = {
-  todo: { label: "To Do", icon: Circle, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800", border: "border-slate-200 dark:border-slate-700" },
-  in_progress: { label: "Dalam Proses", icon: Clock, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950", border: "border-blue-200 dark:border-blue-800" },
-  review: { label: "Review", icon: AlertCircle, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950", border: "border-amber-200 dark:border-amber-800" },
-  done: { label: "Selesai", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50 dark:bg-green-950", border: "border-green-200 dark:border-green-800" },
-  cancelled: { label: "Dibatalkan", icon: X, color: "text-red-400", bg: "bg-red-50 dark:bg-red-950", border: "border-red-200 dark:border-red-800" },
+  todo: { label: "To Do", icon: Circle, color: "text-slate-400 dark:text-slate-300", bg: "bg-slate-100 dark:bg-slate-800/50", border: "border-slate-300 dark:border-slate-600", headerText: "text-slate-700 dark:text-slate-200" },
+  in_progress: { label: "Dalam Proses", icon: Clock, color: "text-blue-500 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-900/30", border: "border-blue-300 dark:border-blue-700", headerText: "text-blue-700 dark:text-blue-200" },
+  review: { label: "Review", icon: AlertCircle, color: "text-amber-500 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/30", border: "border-amber-300 dark:border-amber-700", headerText: "text-amber-700 dark:text-amber-200" },
+  done: { label: "Selesai", icon: CheckCircle2, color: "text-green-500 dark:text-green-400", bg: "bg-green-50 dark:bg-green-900/30", border: "border-green-300 dark:border-green-700", headerText: "text-green-700 dark:text-green-200" },
+  cancelled: { label: "Dibatalkan", icon: X, color: "text-red-400 dark:text-red-300", bg: "bg-red-50 dark:bg-red-900/30", border: "border-red-300 dark:border-red-700", headerText: "text-red-700 dark:text-red-200" },
 };
 
 const PRIORITY_CONFIG = {
@@ -237,7 +237,7 @@ export default function Tasks() {
                 const cfg = STATUS_CONFIG[status];
                 const count = stats.byStatus[status] || 0;
                 return (
-                  <div key={status} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium", cfg.bg, cfg.border, "border")}>
+                  <div key={status} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border", cfg.bg, cfg.border, cfg.headerText)}>
                     <cfg.icon className={cn("w-3.5 h-3.5", cfg.color)} />
                     <span>{cfg.label}</span>
                     <span className="font-bold">{count}</span>
@@ -367,21 +367,21 @@ function BoardView({
   onSelectTask: (t: Task) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-full">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 h-full">
       {COLUMNS.map(status => {
         const cfg = STATUS_CONFIG[status];
         const columnTasks = tasks.filter(t => t.status === status);
 
         return (
           <div key={status} className="flex flex-col min-h-0">
-            <div className={cn("flex items-center gap-2 px-3 py-2 rounded-t-xl", cfg.bg)}>
+            <div className={cn("flex items-center gap-2 px-3 py-2.5 rounded-t-xl border border-b-0", cfg.bg, cfg.border)}>
               <cfg.icon className={cn("w-4 h-4", cfg.color)} />
-              <span className="text-sm font-semibold">{cfg.label}</span>
-              <span className="ml-auto text-xs font-bold text-muted-foreground bg-background/60 px-2 py-0.5 rounded-full">
+              <span className={cn("text-sm font-semibold", cfg.headerText)}>{cfg.label}</span>
+              <span className="ml-auto text-xs font-bold bg-background/80 dark:bg-background/40 text-foreground/70 px-2 py-0.5 rounded-full">
                 {columnTasks.length}
               </span>
             </div>
-            <div className={cn("flex-1 overflow-y-auto space-y-2 p-2 rounded-b-xl border", cfg.border, "bg-background/30")}>
+            <div className={cn("flex-1 overflow-y-auto space-y-2 p-2 rounded-b-xl border border-t-0", cfg.border, "bg-card/50 dark:bg-card/30")}>
               {columnTasks.length === 0 ? (
                 <p className="text-center text-xs text-muted-foreground py-8">Tidak ada task</p>
               ) : (

@@ -26,7 +26,7 @@
 | Dark/Light Theme | ✅ | ✅ | OK |
 | CICO Toggle | ✅ Sidebar | ✅ Profile Tab | OK |
 | Presence/Online Status | ✅ | ✅ Full | OK |
-| Canvas | ✅ Full | ✅ Basic | Kecil |
+| Canvas | ✅ Full | ✅ Partial | **Sedang** |
 | **AI Summarization (TL;DR)** | ✅ Full | ❌ Tidak ada | **BARU** |
 | **AI Digest (Harian/Mingguan)** | ✅ Full | ❌ Tidak ada | **BARU** |
 | **Translation & Language Learning** | ✅ Full | ❌ Tidak ada | **BARU** |
@@ -149,7 +149,23 @@
 
 ---
 
-### GAP-10: Mobile-Specific UX ✅ SELESAI
+### GAP-10: Canvas Cross-Platform Sharing ⚠️ PARTIAL
+| ID | Task | Priority | Effort | Status |
+|----|------|----------|--------|--------|
+| GAP-10.0 | Canvas bisa dibagi antar web ↔ mobile (shared API) | HIGH | 0 | ✅ |
+| GAP-10.1 | Real-time WS sync antar platform saat ada perubahan | HIGH | 1d | ✅ |
+| GAP-10.2 | Mobile canvas UI terlihat sama dengan web (zoom, pan, color picker) | MEDIUM | 2-3d | ⚠️ |
+| GAP-10.3 | Export PNG di mobile (sama seperti web) | LOW | 1-2d | ❓ |
+
+**Catatan**: Canvas di web dan mobile **sama-sama menggunakan API `/api/canvas/*` yang sama**, jadi mereka bisa saling berbagi & edit secara real-time via WebSocket. Tapi **UI-nya berbeda**:
+- **Web**: Tool lengkap (pensil, garis, shapes, text, color picker, undo/redo, zoom/pan, export PNG)
+- **Mobile**: UI lebih sederhana (belum jelas semua fitur ada atau tidak)
+
+**Rekomendasi**: Verifikasi bahwa mobile punya semua tool utama, terutama export PNG. Kalau ada yang kurang, tambahkan supaya experience sama antar platform.
+
+---
+
+### GAP-11: Mobile-Specific UX ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-10.1 | Long-press context menu pada pesan (Reply, Copy, Pin, Favorite, Edit, Delete) | HIGH | 1d | ✅ |

@@ -569,6 +569,15 @@ export default function ChatScreen() {
             </Pressable>
           </>
         )}
+        {type === "group" && (
+          <Pressable
+            style={styles.headerAction}
+            hitSlop={8}
+            onPress={() => router.push({ pathname: "/group-info", params: { id } })}
+          >
+            <Feather name="info" size={20} color={colors.textSecondary} />
+          </Pressable>
+        )}
         <Pressable style={styles.headerAction} hitSlop={8}>
           <Feather name="more-vertical" size={22} color={isWhatsapp ? "#fff" : colors.textSecondary} />
         </Pressable>

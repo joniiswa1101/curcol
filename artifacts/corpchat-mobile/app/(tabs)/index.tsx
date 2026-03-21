@@ -81,6 +81,10 @@ function ConvItem({ conv, currentUserId, colors }: { conv: Conversation; current
         <View style={[styles.waAvatar, { backgroundColor: "#25D366" }]}>
           <Feather name="phone" size={24} color="#fff" />
         </View>
+      ) : conv.type === "group" ? (
+        <View style={[styles.waAvatar, { backgroundColor: colors.primary }]}>
+          <Feather name="users" size={22} color="#fff" />
+        </View>
       ) : (
         <UserAvatar
           name={name}
@@ -95,6 +99,7 @@ function ConvItem({ conv, currentUserId, colors }: { conv: Conversation; current
           <View style={styles.convNameRow}>
             {conv.isPinned && <Feather name="bookmark" size={11} color={colors.primary} />}
             {isWhatsapp && <Feather name="phone" size={11} color="#25D366" />}
+            {conv.type === "group" && <Feather name="users" size={11} color={colors.primary} />}
             <Text style={[styles.convName, { color: colors.text }]} numberOfLines={1}>{name}</Text>
           </View>
           <Text style={[styles.convTime, { color: colors.textSecondary }]}>{timeStr}</Text>

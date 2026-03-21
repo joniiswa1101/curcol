@@ -78,6 +78,21 @@ export default function NewChatScreen() {
         <FlatList
           data={users}
           keyExtractor={(item) => item.id.toString()}
+          ListHeaderComponent={() => (
+            <Pressable
+              onPress={() => router.push("/new-group")}
+              style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.surfaceSecondary : colors.surface }]}
+            >
+              <View style={[styles.groupBtn, { backgroundColor: colors.primary }]}>
+                <Feather name="users" size={20} color="#fff" />
+              </View>
+              <View style={styles.rowInfo}>
+                <Text style={[styles.rowName, { color: colors.text }]}>Buat Grup Baru</Text>
+                <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>Mulai percakapan grup</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.textSecondary} />
+            </Pressable>
+          )}
           renderItem={({ item }) => (
             <Pressable
               onPress={() => startChat(item)}
@@ -123,4 +138,5 @@ const styles = StyleSheet.create({
   rowName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   rowMeta: { fontSize: 13, fontFamily: "Inter_400Regular" },
   sep: { height: 0.5, marginLeft: 74 },
+  groupBtn: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
 });

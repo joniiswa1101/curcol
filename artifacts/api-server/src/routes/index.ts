@@ -18,6 +18,7 @@ import callsRouter from "./calls.js";
 import presenceRouter from "./presence.js";
 import stickersRouter from "./stickers.js";
 import tasksRouter from "./tasks.js";
+import complianceRouter from "./compliance.js";
 
 const router = Router();
 
@@ -41,5 +42,6 @@ router.use("/calls", callsRouter);
 router.use("/presence", presenceRouter);
 router.use("/stickers", stickersRouter);
 router.use("/tasks", tasksRouter);
+router.use("/compliance", complianceRouter);
 
 export default router;

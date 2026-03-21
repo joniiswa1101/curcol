@@ -19,6 +19,7 @@ import AdminUsers from "@/pages/AdminUsers";
 import AdminWhatsApp from "@/pages/AdminWhatsApp";
 import Announcements from "@/pages/Announcements";
 import Tasks from "@/pages/Tasks";
+import Compliance from "@/pages/Compliance";
 import NotFound from "@/pages/not-found";
 
 // Global fetch override to inject JWT token automatically for generated Orval client
@@ -109,6 +110,7 @@ function MainRouter() {
       <Route path="/admin/whatsapp" component={() => <ProtectedRoute component={AdminWhatsApp} />} />
       <Route path="/announcements" component={() => <ProtectedRoute component={Announcements} />} />
       <Route path="/tasks" component={() => <ProtectedRoute component={Tasks} />} />
+      <Route path="/compliance" component={() => <ProtectedRoute component={Compliance} />} />
       {location !== "/" && <Route component={NotFound} />}
     </Switch>
   );

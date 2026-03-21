@@ -12,5 +12,6 @@ export * from "./offline-queue";
 export * from "./stickers";
 export * from "./user-presence";
 export * from "./tasks";
+export * from "./compliance";
 
 export { messageReadsTable } from "./messages";

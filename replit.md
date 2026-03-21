@@ -110,6 +110,13 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
   - **API Endpoints**: `POST /api/conversations` (group creation), `POST/DELETE /:id/members`, `POST /:id/members/:userId/promote`, `POST /:id/members/:userId/demote`, `POST /:id/leave`, `DELETE /:id` (hard delete), `POST /:id/mute`
   - **Frontend**: CreateGroupDialog, MemberRow, GroupInfoPanel components in `artifacts/corpchat-web/src/pages/Chat.tsx`
   - **Schema**: Uses existing `conversation_members` with role enum ("admin"/"member"), isMuted, isPinned fields
+- **Compliance Assistant (March 21, 2026)**: Enterprise PII detection and compliance monitoring system. Scans all chat messages for Indonesian PII patterns (NIK/KTP, email, phone, credit card, NPWP, BPJS, bank account, passport). Blocks PII in group/announcement channels (400 error), flags in DMs. Auto-redacts sensitive data. Admin-only dashboard with stats overview, flagged message review (approve/dismiss/escalate), and PII scanner tool. Client-side PII warning banner in chat before sending. Server-side compliance scanning on both send and edit.
+  - **Database**: `compliance_flags` table (raw SQL migration)
+  - **Backend**: `artifacts/api-server/src/lib/compliance.ts` (PII detection engine), `artifacts/api-server/src/routes/compliance.ts` (API routes: GET /flags, GET /stats, PATCH /flags/:id, POST /scan)
+  - **Frontend**: `artifacts/corpchat-web/src/pages/Compliance.tsx` (3-tab dashboard: Overview, Flagged Messages, Scanner), Chat.tsx PII warning banner with confirm/cancel
+  - **Schema**: `lib/db/src/schema/compliance.ts`
+  - **Access**: Admin-only for dashboard + flag management; all authenticated users for scanner; server-side admin checks on sensitive endpoints
+  - **Navigation**: Shield icon in admin sidebar section, route at `/compliance`
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

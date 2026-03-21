@@ -14,6 +14,7 @@ import {
   Sun,
   Moon,
   ClipboardList,
+  Shield,
 } from "lucide-react";
 import { useAuthStore } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
@@ -69,6 +70,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { icon: ClipboardList, label: "Tasks", path: "/tasks" },
     ...(user?.role === "admin"
       ? [
+          { icon: Shield, label: "Compliance", path: "/compliance" },
           { icon: ShieldAlert, label: "Admin", path: "/admin" },
           { icon: UserCog, label: "Kelola User", path: "/admin/users" },
           { icon: MessageCircle, label: "WhatsApp", path: "/admin/whatsapp" },

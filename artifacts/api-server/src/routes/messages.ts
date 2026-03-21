@@ -1,7 +1,8 @@
 import { Router } from "express";
 import {
   db, messagesTable, conversationMembersTable, conversationsTable,
-  attachmentsTable, messageReactionsTable, usersTable, cicoStatusTable, messageReadsTable, messageFavoritesTable
+  attachmentsTable, messageReactionsTable, usersTable, cicoStatusTable, messageReadsTable, messageFavoritesTable,
+  complianceFlagsTable
 } from "@workspace/db";
 import { eq, and, lt, desc, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -9,6 +10,7 @@ import { logAudit } from "../lib/audit.js";
 import { broadcastToConversation } from "../lib/websocket.js";
 import { sendWhatsAppMessage } from "../lib/whatsapp.js";
 import { sanitizeUser } from "../lib/sanitize.js";
+import { detectPII, redactContent } from "../lib/compliance.js";
 
 const router = Router();
 
@@ -162,6 +164,36 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
     if (replyMsg) validatedReplyToId = replyMsg.id;
   }
 
+  if (content && type === "text") {
+    const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId));
+    const piiResult = detectPII(content);
+
+    if (piiResult.hasPII && (conv?.type === "group" || conv?.type === "announcement")) {
+      await db.insert(complianceFlagsTable).values({
+        conversationId: convId,
+        userId: currentUser.id,
+        flagType: "blocked",
+        piiTypes: piiResult.piiTypes,
+        originalContent: content,
+        redactedContent: redactContent(content),
+        severity: piiResult.severity,
+        status: "pending",
+        createdAt: new Date(),
+      });
+      await logAudit({ userId: currentUser.id, action: "compliance_block_pii", entityType: "message", entityId: 0, details: { piiTypes: piiResult.piiTypes, conversationType: conv?.type }, req });
+      res.status(400).json({
+        error: "pii_blocked",
+        message: "Pesan mengandung data sensitif (PII) dan tidak dapat dikirim ke channel publik.",
+        piiTypes: piiResult.piiTypes,
+        severity: piiResult.severity,
+      });
+      return;
+    }
+
+  }
+
+  const piiScanResult = (content && type === "text") ? detectPII(content) : null;
+
   const [msg] = await db.insert(messagesTable).values({
     conversationId: convId,
     senderId: currentUser.id,
@@ -170,6 +202,21 @@ router.post("/:conversationId/messages", requireAuth as any, async (req, res) =>
     replyToId: validatedReplyToId,
     createdAt: new Date(),
   }).returning();
+
+  if (piiScanResult && (piiScanResult.hasPII || piiScanResult.isRisky)) {
+    db.insert(complianceFlagsTable).values({
+      messageId: msg.id,
+      conversationId: convId,
+      userId: currentUser.id,
+      flagType: piiScanResult.hasPII ? "pii_detected" : "risky_content",
+      piiTypes: piiScanResult.hasPII ? piiScanResult.piiTypes : piiScanResult.riskyKeywords,
+      originalContent: content,
+      redactedContent: piiScanResult.hasPII ? redactContent(content) : content,
+      severity: piiScanResult.severity,
+      status: "pending",
+      createdAt: new Date(),
+    }).catch(err => console.error("Compliance flag insert error:", err));
+  }
 
   if (attachmentIds && attachmentIds.length > 0) {
     await db.update(attachmentsTable).set({ messageId: msg.id }).where(inArray(attachmentsTable.id, attachmentIds));
@@ -259,8 +306,49 @@ router.patch("/:conversationId/messages/:messageId", requireAuth as any, async (
     .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
   if (!membership) { res.status(403).json({ error: "forbidden" }); return; }
 
+  const editContent = content.trim();
+  const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId));
+  const editPiiResult = detectPII(editContent);
+
+  if (editPiiResult.hasPII && (conv?.type === "group" || conv?.type === "announcement")) {
+    db.insert(complianceFlagsTable).values({
+      messageId: msgId,
+      conversationId: convId,
+      userId: currentUser.id,
+      flagType: "blocked",
+      piiTypes: editPiiResult.piiTypes,
+      originalContent: editContent,
+      redactedContent: redactContent(editContent),
+      severity: editPiiResult.severity,
+      status: "pending",
+      createdAt: new Date(),
+    }).catch(err => console.error("Compliance flag insert error:", err));
+    res.status(400).json({
+      error: "pii_blocked",
+      message: "Pesan mengandung data sensitif (PII) dan tidak dapat dikirim ke channel publik.",
+      piiTypes: editPiiResult.piiTypes,
+      severity: editPiiResult.severity,
+    });
+    return;
+  }
+
+  if (editPiiResult.hasPII || editPiiResult.isRisky) {
+    db.insert(complianceFlagsTable).values({
+      messageId: msgId,
+      conversationId: convId,
+      userId: currentUser.id,
+      flagType: editPiiResult.hasPII ? "pii_detected" : "risky_content",
+      piiTypes: editPiiResult.hasPII ? editPiiResult.piiTypes : editPiiResult.riskyKeywords,
+      originalContent: editContent,
+      redactedContent: editPiiResult.hasPII ? redactContent(editContent) : editContent,
+      severity: editPiiResult.severity,
+      status: "pending",
+      createdAt: new Date(),
+    }).catch(err => console.error("Compliance flag insert error:", err));
+  }
+
   const [updated] = await db.update(messagesTable)
-    .set({ content: content.trim(), isEdited: true, editedAt: new Date() })
+    .set({ content: editContent, isEdited: true, editedAt: new Date() })
     .where(eq(messagesTable.id, msgId))
     .returning();
 

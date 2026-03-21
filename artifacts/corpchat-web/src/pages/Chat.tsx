@@ -24,7 +24,7 @@ import {
   Search, Send, Paperclip, Smile, MoreVertical, Mic, Reply,
   Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle,
   Phone, Video, Pin, Heart, Users, Plus, UserPlus, Crown, Shield,
-  ShieldOff, LogOut, Trash2, BellOff, Bell, Settings, Check
+  ShieldOff, LogOut, Trash2, BellOff, Bell, Settings, Check, ShieldAlert
 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
@@ -33,6 +33,25 @@ import { useQueueSync } from "@/hooks/use-queue-sync"
 import { useTypingIndicators } from "@/hooks/use-typing-indicators"
 import { useCall } from "@/contexts/CallContext"
 import { usePresenceContext, formatLastSeen } from "@/contexts/PresenceContext"
+
+// ─── Client-side PII Detection ────────────────────────────────────────────────
+
+const PII_PATTERNS: { type: string; label: string; pattern: RegExp }[] = [
+  { type: "nik", label: "NIK/KTP", pattern: /\b\d{16}\b/ },
+  { type: "email", label: "Email", pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/ },
+  { type: "phone", label: "No. Telepon", pattern: /(?:\+62|62|0)8[1-9]\d{7,10}/ },
+  { type: "credit_card", label: "Kartu Kredit", pattern: /\b(?:4\d{12}(?:\d{3})?|5[1-5]\d{14}|3[47]\d{13})\b/ },
+  { type: "npwp", label: "NPWP", pattern: /\b\d{2}[.]\d{3}[.]\d{3}[.]\d[-]\d{3}[.]\d{3}\b/ },
+  { type: "bpjs", label: "BPJS", pattern: /\b0{4}\d{9}\b/ },
+]
+
+function detectClientPII(text: string): { hasPII: boolean; types: string[] } {
+  const found: string[] = []
+  for (const p of PII_PATTERNS) {
+    if (p.pattern.test(text)) found.push(p.label)
+  }
+  return { hasPII: found.length > 0, types: found }
+}
 
 // ─── Emoji Picker ─────────────────────────────────────────────────────────────
 
@@ -888,6 +907,8 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
+  const [piiWarning, setPiiWarning] = useState<{ types: string[] } | null>(null)
+  const [piiConfirmed, setPiiConfirmed] = useState(false)
   const [replyToMessage, setReplyToMessage] = useState<any>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msg: any } | null>(null)
   const [showPinned, setShowPinned] = useState(false)
@@ -902,6 +923,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const composerFormRef = useRef<HTMLFormElement>(null)
 
   // Use infinite scroll pagination with caching
   const { messages, isLoading: messagesLoading, isLoadingMore, hasMore, loadOlderMessages } = useInfiniteMessages({
@@ -1090,6 +1112,17 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
     const text = inputText.trim()
     if ((!text && !pendingFile) || sendMutation.isPending) return
 
+    if (text && !piiConfirmed) {
+      const piiResult = detectClientPII(text)
+      if (piiResult.hasPII) {
+        setPiiWarning({ types: piiResult.types })
+        return
+      }
+    }
+
+    setPiiWarning(null)
+    setPiiConfirmed(false)
+
     setInputText("")
     const fileToSend = pendingFile
     setPendingFile(null)
@@ -1146,18 +1179,22 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
             })
             queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() })
           },
-          onError: () => {
+          onError: (error: any) => {
             queryClient.setQueryData(messagesQueryKey, (old: any) => {
               if (!old) return old
               return { ...old, messages: old.messages.filter((m: any) => m.id !== tempId) }
             })
             setInputText(text)
             if (fileToSend) setPendingFile(fileToSend)
+            const errMsg = error?.response?.data?.error || error?.message || ""
+            if (errMsg.toLowerCase().includes("pii") || errMsg.toLowerCase().includes("data sensitif")) {
+              setPiiWarning({ types: ["Data sensitif terdeteksi oleh server"] })
+            }
           },
         }
       )
     }
-  }, [inputText, pendingFile, conversationId, user, sendMutation, queryClient, messagesQueryKey, isOnline, enqueue, replyToMessage])
+  }, [inputText, pendingFile, conversationId, user, sendMutation, queryClient, messagesQueryKey, isOnline, enqueue, replyToMessage, piiConfirmed])
 
   const handleVoiceRecorded = useCallback(async (blob: Blob, duration: number) => {
     setShowVoiceRecorder(false)
@@ -1882,6 +1919,48 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
             />
           )}
 
+          {piiWarning && (
+            <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl animate-in slide-in-from-bottom-2 duration-200">
+              <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  Pesan mengandung data sensitif
+                </p>
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
+                  Terdeteksi: {piiWarning.types.join(", ")}
+                </p>
+                {(conversation?.type === "group" || conversation?.type === "announcement") && (
+                  <p className="text-[10px] text-red-600 dark:text-red-400 font-semibold mt-1">
+                    PII akan diblokir di channel grup/pengumuman.
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-1.5 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[10px] border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300"
+                  onClick={() => { setPiiWarning(null); setPiiConfirmed(false) }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-[10px] bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => {
+                    setPiiConfirmed(true)
+                    setPiiWarning(null)
+                    setTimeout(() => {
+                      if (composerFormRef.current) composerFormRef.current.requestSubmit()
+                    }, 0)
+                  }}
+                >
+                  Kirim Tetap
+                </Button>
+              </div>
+            </div>
+          )}
+
           {showVoiceRecorder ? (
             <div className="flex items-center bg-card border border-border/60 rounded-2xl p-2 shadow-sm">
               <VoiceRecorder
@@ -1892,6 +1971,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
             </div>
           ) : (
             <form
+              ref={composerFormRef}
               onSubmit={handleSend}
               className="flex items-end gap-1 sm:gap-2 bg-card border border-border/60 rounded-2xl p-1.5 sm:p-2 shadow-sm focus-within:ring-2 ring-primary/20 transition-all"
             >
@@ -1942,6 +2022,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                 onChange={(e) => {
                   const text = e.target.value
                   setInputText(text)
+                  if (piiWarning) { setPiiWarning(null); setPiiConfirmed(false) }
                   if (text.trim().length > 0) {
                     sendTyping()
                   }

@@ -1,11 +1,20 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet, Modal, useColorScheme, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import { useCall } from "@/contexts/CallContext";
 import Colors from "@/constants/colors";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
+
+let CameraViewNative: any = null;
+let useCameraPermissionsNative: any = null;
+if (isNative) {
+  try {
+    const cam = require("expo-camera");
+    CameraViewNative = cam.CameraView;
+    useCameraPermissionsNative = cam.useCameraPermissions;
+  } catch {}
+}
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -13,26 +22,94 @@ function formatDuration(seconds: number): string {
   return `${m}:${s}`;
 }
 
-function CameraPreview({ facing }: { facing: "front" | "back" }) {
-  const [permission, requestPermission] = useCameraPermissions();
+function WebCameraPreview({ facing }: { facing: "front" | "back" }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+
+  const startCamera = useCallback(async () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing === "front" ? "user" : "environment" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+        setReady(true);
+      }
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message || "Gagal mengakses kamera");
+    }
+  }, [facing]);
+
+  useEffect(() => {
+    startCamera();
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [startCamera]);
+
+  if (error) {
+    return (
+      <View style={cameraStyles.placeholder}>
+        <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
+        <Text style={cameraStyles.placeholderText}>{error}</Text>
+        <Pressable onPress={startCamera} style={cameraStyles.permBtn}>
+          <Text style={cameraStyles.permBtnText}>Coba Lagi</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <video
+        ref={videoRef as any}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          position: "absolute",
+          top: 0, left: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          transform: facing === "front" ? "scaleX(-1)" : "none",
+        }}
+      />
+    </View>
+  );
+}
+
+function NativeCameraPreview({ facing }: { facing: "front" | "back" }) {
+  if (!CameraViewNative || !useCameraPermissionsNative) {
+    return (
+      <View style={cameraStyles.placeholder}>
+        <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
+        <Text style={cameraStyles.placeholderText}>Kamera tidak tersedia</Text>
+      </View>
+    );
+  }
+
+  const [permission, requestPermission] = useCameraPermissionsNative();
   const hasRequested = useRef(false);
 
   useEffect(() => {
-    if (!isNative) return;
     if (permission && !permission.granted && !hasRequested.current) {
       hasRequested.current = true;
       requestPermission();
     }
   }, [permission]);
-
-  if (!isNative) {
-    return (
-      <View style={cameraStyles.placeholder}>
-        <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
-        <Text style={cameraStyles.placeholderText}>Kamera tidak tersedia di web</Text>
-      </View>
-    );
-  }
 
   if (!permission || !permission.granted) {
     return (
@@ -46,7 +123,14 @@ function CameraPreview({ facing }: { facing: "front" | "back" }) {
     );
   }
 
-  return <CameraView style={StyleSheet.absoluteFill} facing={facing} />;
+  return <CameraViewNative style={StyleSheet.absoluteFill} facing={facing} />;
+}
+
+function CameraPreview({ facing }: { facing: "front" | "back" }) {
+  if (isNative) {
+    return <NativeCameraPreview facing={facing} />;
+  }
+  return <WebCameraPreview facing={facing} />;
 }
 
 const cameraStyles = StyleSheet.create({

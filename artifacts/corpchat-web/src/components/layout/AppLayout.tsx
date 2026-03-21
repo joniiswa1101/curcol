@@ -16,6 +16,7 @@ import {
   ClipboardList,
   Shield,
   Palette,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
@@ -70,6 +71,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { icon: Megaphone, label: "Announcements", path: "/announcements" },
     { icon: ClipboardList, label: "Tasks", path: "/tasks" },
     { icon: Palette, label: "Canvas", path: "/canvas" },
+    { icon: Sparkles, label: "AI Digest", path: "/digest" },
     ...(user?.role === "admin"
       ? [
           { icon: Shield, label: "Compliance", path: "/compliance" },

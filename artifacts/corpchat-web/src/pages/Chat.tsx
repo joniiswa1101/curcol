@@ -25,7 +25,7 @@ import {
   Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle,
   Phone, Video, Pin, Heart, Users, Plus, UserPlus, Crown, Shield,
   ShieldOff, LogOut, Trash2, BellOff, Bell, Settings, Check, ShieldAlert,
-  Pencil
+  Pencil, Sparkles, Loader2, BookOpen, Calendar
 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
@@ -922,6 +922,10 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const [searchFilters, setSearchFilters] = useState<{ senderId?: number; before?: string; after?: string }>({})
   const [linkPreviews, setLinkPreviews] = useState<Record<number, any>>({})
   const [showGroupInfo, setShowGroupInfo] = useState(false)
+  const [showSummary, setShowSummary] = useState(false)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryText, setSummaryText] = useState("")
+  const [summaryMeta, setSummaryMeta] = useState<{ messageCount: number; timeRange?: { from: string; to: string } } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -940,6 +944,35 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const { typingUsers, sendTyping } = useTypingIndicators(conversationId)
   const callCtx = useCall()
   useQueueSync()
+
+  const handleSummarize = async (messageCount = 50) => {
+    setSummaryLoading(true)
+    setShowSummary(true)
+    setSummaryText("")
+    try {
+      const res = await fetch(`/api/summarize/conversation/${conversationId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ messageCount }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null)
+        setSummaryText("Gagal membuat ringkasan: " + (errData?.error || `HTTP ${res.status}`))
+        return
+      }
+      const data = await res.json()
+      if (data.error) {
+        setSummaryText("Gagal membuat ringkasan: " + data.error)
+      } else {
+        setSummaryText(data.summary)
+        setSummaryMeta({ messageCount: data.messageCount, timeRange: data.timeRange })
+      }
+    } catch (e) {
+      setSummaryText("Gagal terhubung ke server.")
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -1464,6 +1497,15 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
               </Button>
             </>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("text-muted-foreground hover:text-primary", showSummary && "text-primary bg-primary/10")}
+            onClick={() => showSummary ? setShowSummary(false) : handleSummarize(50)}
+            title="TL;DR - Ringkasan Chat"
+          >
+            <Sparkles className="w-5 h-5" />
+          </Button>
           {conversation?.type === "group" && (
             <Button
               variant="ghost"
@@ -1553,6 +1595,51 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
               </div>
             );
           })}
+        </div>
+      )}
+
+      {showSummary && (
+        <div className="border-b border-border bg-gradient-to-r from-violet-500/5 to-blue-500/5 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-violet-500" />
+              <span className="font-semibold text-sm text-foreground">TL;DR — Ringkasan Chat</span>
+              {summaryMeta && (
+                <span className="text-xs text-muted-foreground">
+                  ({summaryMeta.messageCount} pesan)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleSummarize(100)} disabled={summaryLoading}>
+                100 pesan
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleSummarize(200)} disabled={summaryLoading}>
+                200 pesan
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowSummary(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          {summaryLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Sedang meringkas percakapan...</span>
+            </div>
+          ) : (
+            <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed bg-card/50 rounded-lg p-3 border border-border/50">
+              {summaryText.split("\n").map((line, i) => {
+                if (line.startsWith("**") && line.endsWith("**")) {
+                  return <p key={i} className="font-semibold text-foreground mt-2 first:mt-0">{line.replace(/\*\*/g, "")}</p>
+                }
+                if (line.startsWith("- ")) {
+                  return <p key={i} className="ml-3 text-muted-foreground">• {line.substring(2)}</p>
+                }
+                return <p key={i} className="text-muted-foreground">{line}</p>
+              })}
+            </div>
+          )}
         </div>
       )}
 

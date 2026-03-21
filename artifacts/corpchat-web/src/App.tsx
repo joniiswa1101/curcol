@@ -21,6 +21,7 @@ import Announcements from "@/pages/Announcements";
 import Tasks from "@/pages/Tasks";
 import Compliance from "@/pages/Compliance";
 import CanvasPage from "@/pages/Canvas";
+import DigestPage from "@/pages/Digest";
 import NotFound from "@/pages/not-found";
 
 // Global fetch override to inject JWT token automatically for generated Orval client
@@ -113,6 +114,7 @@ function MainRouter() {
       <Route path="/tasks" component={() => <ProtectedRoute component={Tasks} />} />
       <Route path="/compliance" component={() => <ProtectedRoute component={Compliance} />} />
       <Route path="/canvas" component={() => <ProtectedRoute component={CanvasPage} />} />
+      <Route path="/digest" component={() => <ProtectedRoute component={DigestPage} />} />
       {location !== "/" && <Route component={NotFound} />}
     </Switch>
   );

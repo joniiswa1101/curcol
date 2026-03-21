@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, Modal, useColorScheme, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useCall } from "@/contexts/CallContext";
 import Colors from "@/constants/colors";
+
+const isNative = Platform.OS === "ios" || Platform.OS === "android";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -13,29 +15,30 @@ function formatDuration(seconds: number): string {
 
 function CameraPreview({ facing }: { facing: "front" | "back" }) {
   const [permission, requestPermission] = useCameraPermissions();
+  const hasRequested = useRef(false);
 
-  if (Platform.OS === "web") {
+  useEffect(() => {
+    if (!isNative) return;
+    if (permission && !permission.granted && !hasRequested.current) {
+      hasRequested.current = true;
+      requestPermission();
+    }
+  }, [permission]);
+
+  if (!isNative) {
     return (
       <View style={cameraStyles.placeholder}>
         <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
-        <Text style={cameraStyles.placeholderText}>Kamera tidak tersedia</Text>
+        <Text style={cameraStyles.placeholderText}>Kamera tidak tersedia di web</Text>
       </View>
     );
   }
 
-  if (!permission) {
+  if (!permission || !permission.granted) {
     return (
       <View style={cameraStyles.placeholder}>
-        <Feather name="loader" size={48} color="rgba(255,255,255,0.4)" />
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={cameraStyles.placeholder}>
-        <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
-        <Text style={cameraStyles.placeholderText}>Izin kamera diperlukan</Text>
+        <Feather name="video" size={48} color="rgba(255,255,255,0.4)" />
+        <Text style={cameraStyles.placeholderText}>Meminta izin kamera...</Text>
         <Pressable onPress={requestPermission} style={cameraStyles.permBtn}>
           <Text style={cameraStyles.permBtnText}>Izinkan Kamera</Text>
         </Pressable>

@@ -25,7 +25,7 @@
 | File Upload Validation | ✅ Full | ✅ Full | OK |
 | Dark/Light Theme | ✅ | ✅ | OK |
 | CICO Toggle | ✅ Sidebar | ✅ Profile Tab | OK |
-| Presence/Online Status | ✅ | ⚠️ Partial | **KECIL** |
+| Presence/Online Status | ✅ | ✅ Full | OK |
 
 ---
 
@@ -141,9 +141,12 @@
 ### GAP-09: Presence & Online Status
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-09.1 | Real-time presence indicators (online/idle/offline) | MEDIUM | 1-2d | ⬜ |
-| GAP-09.2 | "Last seen" timestamp di chat header | LOW | 0.5d | ⬜ |
-| GAP-09.3 | Broadcast presence status dari mobile | MEDIUM | 1d | ⬜ |
+| GAP-09.1 | Real-time presence indicators (online/idle/offline) | MEDIUM | 1-2d | ✅ |
+| GAP-09.2 | "Last seen" timestamp di chat header | LOW | 0.5d | ✅ |
+| GAP-09.3 | Broadcast presence status dari mobile | MEDIUM | 1d | ✅ |
+
+**Catatan**:
+- GAP-09 ✅ Selesai: `hooks/use-presence.ts` — fetch `GET /api/presence` + WS `presence_update` real-time listener + polling 30s. Broadcast `online`/`idle` via WS berdasarkan AppState (active → online, background → idle). Conversation list: green dot (online) / yellow dot (idle) di avatar DM. Chat header: colored dot + status text ("Online", "Idle", "baru saja", "X menit lalu") di bawah nama untuk direct chat (21 Maret 2026).
 
 ---
 

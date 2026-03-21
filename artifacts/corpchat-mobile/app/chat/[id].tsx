@@ -25,6 +25,7 @@ import { useTypingIndicators } from "@/hooks/use-typing-indicators";
 import { useCall } from "@/contexts/CallContext";
 import { detectPII } from "@/lib/pii-detection";
 import { useOfflineQueue, QueuedMessage } from "@/hooks/use-offline-queue";
+import { usePresence, formatLastSeen } from "@/hooks/use-presence";
 
 function formatMsgTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -358,7 +359,6 @@ export default function ChatScreen() {
   const { data: convDetail } = useQuery({
     queryKey: ["conversation-detail", id],
     queryFn: () => api.get(`/conversations/${id}`),
-    enabled: !paramType,
   });
 
   const type = paramType || convDetail?.type;
@@ -386,6 +386,18 @@ export default function ChatScreen() {
 
   const { typingUsers, sendTyping } = useTypingIndicators(Number(id));
   const callCtx = useCall();
+  const { getUserPresence } = usePresence();
+
+  const otherUserId = useMemo(() => {
+    if (type !== "direct" || !convDetail?.members) return null;
+    const other = convDetail.members.find((m: any) => m.userId !== user?.id);
+    return other?.userId || other?.user?.id || null;
+  }, [type, convDetail, user?.id]);
+
+  const otherPresence = otherUserId ? getUserPresence(otherUserId) : null;
+  const presenceStatus = otherPresence?.status || "offline";
+  const presenceColor = presenceStatus === "online" ? "#22c55e" : presenceStatus === "idle" ? "#eab308" : "#9ca3af";
+  const presenceLabel = presenceStatus === "online" ? "Online" : presenceStatus === "idle" ? "Idle" : formatLastSeen(otherPresence?.lastSeenAt || null);
 
   const handleMessageSearch = useCallback(async () => {
     const q = searchQuery.trim();
@@ -735,6 +747,13 @@ export default function ChatScreen() {
             <Text style={[styles.waHeaderSub, { color: isWhatsapp ? "rgba(255,255,255,0.8)" : colors.textSecondary }]}>typing...</Text>
           ) : isWhatsapp ? (
             <Text style={styles.waHeaderSub}>Balasan diteruskan ke WhatsApp</Text>
+          ) : type === "direct" && otherUserId ? (
+            <View style={styles.presenceRow}>
+              <View style={[styles.presenceDotSmall, { backgroundColor: presenceColor }]} />
+              <Text style={[styles.presenceText, { color: isWhatsapp ? "rgba(255,255,255,0.7)" : colors.textSecondary }]}>
+                {presenceLabel}
+              </Text>
+            </View>
           ) : null}
         </View>
         {!isWhatsapp && (
@@ -1201,6 +1220,9 @@ const styles = StyleSheet.create({
   searchResultTime: { fontSize: 10, fontFamily: "Inter_400Regular" },
   searchResultContent: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   searchNoResult: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 16 },
+  presenceRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
+  presenceDotSmall: { width: 7, height: 7, borderRadius: 3.5 },
+  presenceText: { fontSize: 11, fontFamily: "Inter_400Regular" },
   offlineBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: "#6b7280" },
   offlineBannerText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   queueFailedActions: { flexDirection: "row", gap: 12, marginTop: 4, paddingTop: 4, borderTopWidth: 0.5, borderTopColor: "rgba(0,0,0,0.1)" },

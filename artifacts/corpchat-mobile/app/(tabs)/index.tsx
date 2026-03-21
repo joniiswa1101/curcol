@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import { api } from "@/lib/api";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePresence } from "@/hooks/use-presence";
 
 interface Message {
   id: number;
@@ -57,11 +58,13 @@ function getConvCico(conv: Conversation, currentUserId?: number) {
   return undefined;
 }
 
-function ConvItem({ conv, currentUserId, colors }: { conv: Conversation; currentUserId?: number; colors: any }) {
+function ConvItem({ conv, currentUserId, colors, getUserPresence }: { conv: Conversation; currentUserId?: number; colors: any; getUserPresence: (userId: number) => { status: string; lastSeenAt: string | null } }) {
   const name = getConvName(conv, currentUserId);
   const cicoStatus = getConvCico(conv, currentUserId);
   const other = conv.type === "direct" ? conv.members?.find((m: any) => m.userId !== currentUserId) : null;
   const isWhatsapp = conv.type === "whatsapp";
+  const otherUserId = other?.userId || other?.user?.id;
+  const presence = otherUserId ? getUserPresence(otherUserId) : null;
 
   const lastText = conv.lastMessage
     ? (conv.lastMessage.type !== "text" ? "📎 File" : (conv.lastMessage.content || ""))
@@ -71,6 +74,8 @@ function ConvItem({ conv, currentUserId, colors }: { conv: Conversation; current
   const timeStr = timestamp
     ? formatDistanceToNow(new Date(timestamp), { addSuffix: false, locale: idLocale })
     : "";
+
+  const presenceDotColor = presence?.status === "online" ? "#22c55e" : presence?.status === "idle" ? "#eab308" : null;
 
   return (
     <Pressable
@@ -86,13 +91,18 @@ function ConvItem({ conv, currentUserId, colors }: { conv: Conversation; current
           <Feather name="users" size={22} color="#fff" />
         </View>
       ) : (
-        <UserAvatar
-          name={name}
-          avatarUrl={other?.user?.avatarUrl}
-          size={52}
-          cicoStatus={cicoStatus}
-          showCico={conv.type === "direct"}
-        />
+        <View>
+          <UserAvatar
+            name={name}
+            avatarUrl={other?.user?.avatarUrl}
+            size={52}
+            cicoStatus={cicoStatus}
+            showCico={conv.type === "direct"}
+          />
+          {presenceDotColor && conv.type === "direct" && (
+            <View style={[styles.presenceDot, { backgroundColor: presenceDotColor, borderColor: colors.surface }]} />
+          )}
+        </View>
       )}
       <View style={styles.convMid}>
         <View style={styles.convHeader}>
@@ -123,6 +133,7 @@ export default function ChatsTab() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const { user } = useAuth();
+  const { getUserPresence } = usePresence();
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -192,7 +203,7 @@ export default function ChatsTab() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <ConvItem conv={item} currentUserId={user?.id} colors={colors} />}
+          renderItem={({ item }) => <ConvItem conv={item} currentUserId={user?.id} colors={colors} getUserPresence={getUserPresence} />}
           contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.border }]} />}
@@ -231,4 +242,5 @@ const styles = StyleSheet.create({
   badgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
   separator: { height: 0.5, marginLeft: 80 },
   waAvatar: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  presenceDot: { position: "absolute", bottom: -1, right: -1, width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
 });

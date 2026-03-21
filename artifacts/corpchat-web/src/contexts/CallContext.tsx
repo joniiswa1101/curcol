@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { useAuthStore } from "@/hooks/use-auth";
+import { getSharedWebSocket } from "@/hooks/use-websocket";
 
 type CallType = "voice" | "video";
 type CallStatus = "idle" | "ringing" | "outgoing" | "connected" | "ended";
@@ -43,23 +44,24 @@ const ICE_SERVERS = [
   { urls: "stun:stun1.l.google.com:19302" },
 ];
 
+const initialState: CallState = {
+  status: "idle",
+  callId: null,
+  callType: "voice",
+  remoteUserId: null,
+  remoteUserName: null,
+  remoteUserAvatar: null,
+  conversationId: null,
+  isMuted: false,
+  isVideoOff: false,
+  isSpeaker: true,
+  duration: 0,
+};
+
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
-  const [state, setState] = useState<CallState>({
-    status: "idle",
-    callId: null,
-    callType: "voice",
-    remoteUserId: null,
-    remoteUserName: null,
-    remoteUserAvatar: null,
-    conversationId: null,
-    isMuted: false,
-    isVideoOff: false,
-    isSpeaker: true,
-    duration: 0,
-  });
+  const [state, setState] = useState<CallState>(initialState);
 
-  const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
@@ -87,24 +89,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
     }
-    setState({
-      status: "idle",
-      callId: null,
-      callType: "voice",
-      remoteUserId: null,
-      remoteUserName: null,
-      remoteUserAvatar: null,
-      conversationId: null,
-      isMuted: false,
-      isVideoOff: false,
-      isSpeaker: true,
-      duration: 0,
-    });
+    setState(initialState);
   }, []);
 
   const sendWs = useCallback((data: object) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(data));
+    const ws = getSharedWebSocket();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(data));
+    } else {
+      console.error("[Call] WebSocket not available for sending");
     }
   }, []);
 
@@ -183,7 +176,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         conversationId: params.conversationId,
         callType: params.type,
         sdp: offer.sdp,
-        callerName: user?.displayName || "Unknown",
+        callerName: user?.name || user?.displayName || "Unknown",
         callerAvatar: user?.avatarUrl || null,
       });
     } catch (err) {
@@ -277,23 +270,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("curcol_token");
-    if (!token || !user) return;
+    if (!user) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const domain = window.location.hostname;
-    const port = window.location.port ? `:${window.location.port}` : "";
-    const url = `${protocol}//${domain}${port}/ws?token=${token}`;
-
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
-
-    ws.onmessage = async (event) => {
+    const handleCallSignal = async (event: Event) => {
+      const msg = (event as CustomEvent).detail;
       try {
-        const msg = JSON.parse(event.data);
-
         switch (msg.type) {
           case "call_offer": {
+            if (callStateRef.current.status !== "idle") {
+              sendWs({ type: "call_reject", targetUserId: msg.callerId });
+              return;
+            }
             const pc = createPeerConnection(msg.callerId);
             await pc.setRemoteDescription(new RTCSessionDescription({
               type: "offer",
@@ -346,17 +333,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (err) {
-        console.error("[Call] WS message error:", err);
+        console.error("[Call] Signal handling error:", err);
       }
     };
 
-    ws.onclose = () => { wsRef.current = null; };
-
+    window.addEventListener('call-signal', handleCallSignal);
     return () => {
-      ws.close();
-      wsRef.current = null;
+      window.removeEventListener('call-signal', handleCallSignal);
     };
-  }, [user, createPeerConnection, startDurationTimer, cleanup]);
+  }, [user, createPeerConnection, startDurationTimer, cleanup, sendWs]);
 
   return (
     <CallContext.Provider value={{

@@ -35,7 +35,7 @@ import {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { user, logout } = useAuthStore();
+  const { user, logout, checkAuth } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -46,7 +46,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const checkInMutation = useCicoCheckIn({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        checkAuth();
         queryClient.invalidateQueries({ queryKey: ["/api/cico/status"] });
         toast({ title: "Checked in successfully" });
       },
@@ -56,7 +56,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const checkOutMutation = useCicoCheckOut({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        checkAuth();
         queryClient.invalidateQueries({ queryKey: ["/api/cico/status"] });
         toast({ title: "Checked out successfully" });
       },
@@ -108,7 +108,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ whatsappNumber: waNumber || null }),
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      checkAuth();
       toast({ title: "Profil berhasil disimpan" });
       setIsProfileOpen(false);
     } catch {
@@ -129,7 +129,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               alt="CurCol Logo"
               className="w-72 h-22 shrink-0 rounded-xl"
             />
-            <span className="text-xs text-sidebar-foreground/50">v1.7.1</span>
+            <span className="text-xs text-sidebar-foreground/50">v1.7.5</span>
           </div>
 
           <div className="flex flex-col w-full gap-2">
@@ -168,7 +168,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <Clock className="h-5 w-5 shrink-0 group-hover:text-accent transition-colors" />
             <span className="hidden lg:block text-sm">
-              {user?.cicoStatus?.status === "present"
+              {user?.cicoStatus?.status === "present" || user?.cicoStatus?.status === "wfh"
                 ? "Check Out"
                 : "Check In"}
             </span>

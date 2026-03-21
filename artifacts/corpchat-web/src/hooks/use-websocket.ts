@@ -87,6 +87,7 @@ export function useWebSocket() {
 
           if (data.type === 'cico_update') {
             queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+            useAuthStore.getState().checkAuth();
           }
         } catch (err) {
           console.error('[WebSocket] Message parse error', err);

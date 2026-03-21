@@ -1,8 +1,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
 import { getUserFromToken } from "./auth.js";
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { db, canvasBoardsTable, canvasBoardMembersTable, conversationMembersTable } from "@workspace/db";
+import { sql, eq, and } from "drizzle-orm";
 
 interface AuthenticatedClient extends WebSocket {
   userId?: number;
@@ -93,7 +93,7 @@ export function initWebSocket(server: Server) {
 
     ws.on("pong", () => { ws.isAlive = true; });
 
-    ws.on("message", (data) => {
+    ws.on("message", async (data) => {
       try {
         const msg = JSON.parse(data.toString());
         if (msg.type === "ping") {
@@ -152,6 +152,21 @@ export function initWebSocket(server: Server) {
             broadcastPresence(ws.userId, newStatus);
           }
         } else if (msg.type === "canvas_join" && ws.userId && msg.boardId) {
+          const [boardCheck] = await db.select({ id: canvasBoardsTable.id, isPublic: canvasBoardsTable.isPublic, createdById: canvasBoardsTable.createdById, conversationId: canvasBoardsTable.conversationId }).from(canvasBoardsTable).where(eq(canvasBoardsTable.id, msg.boardId));
+          if (boardCheck && !boardCheck.isPublic && boardCheck.createdById !== ws.userId) {
+            const [memberCheck] = await db.select({ id: canvasBoardMembersTable.id }).from(canvasBoardMembersTable).where(and(eq(canvasBoardMembersTable.boardId, msg.boardId), eq(canvasBoardMembersTable.userId, ws.userId)));
+            if (!memberCheck) {
+              let convAccess = false;
+              if (boardCheck.conversationId) {
+                const [convCheck] = await db.select({ id: conversationMembersTable.id }).from(conversationMembersTable).where(and(eq(conversationMembersTable.conversationId, boardCheck.conversationId), eq(conversationMembersTable.userId, ws.userId)));
+                convAccess = !!convCheck;
+              }
+              if (!convAccess) {
+                ws.send(JSON.stringify({ type: "canvas_error", error: "Access denied to this board" }));
+                return;
+              }
+            }
+          }
           if (!ws.canvasBoards) ws.canvasBoards = new Set();
           ws.canvasBoards.add(msg.boardId);
           broadcastToBoard(msg.boardId, {
@@ -167,6 +182,7 @@ export function initWebSocket(server: Server) {
             boardId: msg.boardId,
           }, ws.userId);
         } else if (msg.type === "canvas_draw" && ws.userId && msg.boardId) {
+          if (!ws.canvasBoards?.has(msg.boardId)) return;
           broadcastToBoard(msg.boardId, {
             type: "canvas_draw",
             userId: ws.userId,
@@ -175,6 +191,7 @@ export function initWebSocket(server: Server) {
             action: msg.action,
           }, ws.userId);
         } else if (msg.type === "canvas_cursor" && ws.userId && msg.boardId) {
+          if (!ws.canvasBoards?.has(msg.boardId)) return;
           broadcastToBoard(msg.boardId, {
             type: "canvas_cursor",
             userId: ws.userId,
@@ -184,6 +201,7 @@ export function initWebSocket(server: Server) {
             boardId: msg.boardId,
           }, ws.userId);
         } else if (msg.type === "canvas_clear" && ws.userId && msg.boardId) {
+          if (!ws.canvasBoards?.has(msg.boardId)) return;
           broadcastToBoard(msg.boardId, {
             type: "canvas_clear",
             userId: ws.userId,

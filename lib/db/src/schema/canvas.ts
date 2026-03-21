@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, real, timestamp, pgEnum, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, real, boolean, varchar, timestamp, pgEnum, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { conversationsTable } from "./conversations";
 
@@ -9,6 +9,7 @@ export const canvasElementTypeEnum = pgEnum("canvas_element_type", [
 export const canvasBoardsTable = pgTable("canvas_boards", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  isPublic: boolean("is_public").notNull().default(true),
   conversationId: integer("conversation_id").references(() => conversationsTable.id),
   createdById: integer("created_by_id").notNull().references(() => usersTable.id),
   thumbnail: text("thumbnail"),
@@ -17,6 +18,18 @@ export const canvasBoardsTable = pgTable("canvas_boards", {
 }, (table) => ({
   conversationIdx: index("idx_canvas_boards_conversation").on(table.conversationId),
   createdByIdx: index("idx_canvas_boards_created_by").on(table.createdById),
+}));
+
+export const canvasBoardMembersTable = pgTable("canvas_board_members", {
+  id: serial("id").primaryKey(),
+  boardId: integer("board_id").notNull().references(() => canvasBoardsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  role: varchar("role", { length: 20 }).notNull().default("viewer"),
+  addedAt: timestamp("added_at").notNull().defaultNow(),
+}, (table) => ({
+  boardIdx: index("idx_canvas_board_members_board").on(table.boardId),
+  userIdx: index("idx_canvas_board_members_user").on(table.userId),
+  uniqueMember: uniqueIndex("idx_canvas_board_members_unique").on(table.boardId, table.userId),
 }));
 
 export const canvasElementsTable = pgTable("canvas_elements", {

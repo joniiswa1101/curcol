@@ -25,11 +25,31 @@ import {
   Palette,
   Users,
   Loader2,
+  Lock,
+  Globe,
+  Settings,
+  UserPlus,
+  X,
+  Shield,
+  Eye,
+  Edit3,
+  Search,
 } from "lucide-react";
+
+interface BoardMember {
+  id: number;
+  userId: number;
+  role: string;
+  addedAt: string;
+  userName: string;
+  userAvatar: string | null;
+  userDepartment: string | null;
+}
 
 interface CanvasBoard {
   id: number;
   name: string;
+  isPublic: boolean;
   conversationId: number | null;
   createdById: number;
   thumbnail: string | null;
@@ -37,6 +57,8 @@ interface CanvasBoard {
   updatedAt: string;
   creatorName: string;
   creatorAvatar: string | null;
+  members?: BoardMember[];
+  userRole?: string;
 }
 
 interface CanvasElement {
@@ -174,9 +196,20 @@ function BoardList({ onSelect, onCreate }: { onSelect: (b: CanvasBoard) => void;
                   <Palette className="w-12 h-12 text-muted-foreground/20" />
                 )}
               </div>
-              <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                {board.name}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate flex-1">
+                  {board.name}
+                </h3>
+                {board.isPublic ? (
+                  <span className="flex items-center gap-1 text-xs text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full shrink-0">
+                    <Globe className="w-3 h-3" /> Public
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full shrink-0">
+                    <Lock className="w-3 h-3" /> Private
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground mt-1">
                 {board.creatorName} · {new Date(board.updatedAt).toLocaleDateString("id-ID")}
               </p>
@@ -211,6 +244,10 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
   const [boardName, setBoardName] = useState(board.name);
   const [isEditingName, setIsEditingName] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showBoardSettings, setShowBoardSettings] = useState(false);
+  const [boardIsPublic, setBoardIsPublic] = useState(board.isPublic);
+  const [boardMembers, setBoardMembers] = useState<BoardMember[]>(board.members || []);
+  const [userRole, setUserRole] = useState(board.userRole || "editor");
 
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -233,6 +270,13 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
   useEffect(() => {
     apiGet(`/canvas/boards/${board.id}/elements`).then(data => {
       setElements(data || []);
+    });
+    apiGet(`/canvas/boards/${board.id}`).then(data => {
+      if (data?.id) {
+        setBoardIsPublic(data.isPublic);
+        setBoardMembers(data.members || []);
+        setUserRole(data.userRole || "editor");
+      }
     });
   }, [board.id]);
 
@@ -784,10 +828,19 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
           ) : (
             <h2
               className="font-semibold text-foreground cursor-pointer hover:text-primary"
-              onClick={() => setIsEditingName(true)}
+              onClick={() => userRole === "admin" ? setIsEditingName(true) : null}
             >
               {boardName}
             </h2>
+          )}
+          {boardIsPublic ? (
+            <span className="flex items-center gap-1 text-xs text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
+              <Globe className="w-3 h-3" /> Public
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-xs text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full">
+              <Lock className="w-3 h-3" /> Private
+            </span>
           )}
         </div>
 
@@ -817,6 +870,11 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
           <Button variant="ghost" size="icon" onClick={() => setShowClearConfirm(true)} title="Clear All" className="text-destructive">
             <Trash2 className="w-4 h-4" />
           </Button>
+          {userRole === "admin" && (
+            <Button variant="ghost" size="icon" onClick={() => setShowBoardSettings(true)} title="Board Settings">
+              <Settings className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -971,12 +1029,264 @@ function CanvasEditor({ board, onBack }: { board: CanvasBoard; onBack: () => voi
           </div>
         </div>
       )}
+
+      {showBoardSettings && (
+        <BoardSettingsDialog
+          boardId={board.id}
+          boardName={boardName}
+          isPublic={boardIsPublic}
+          members={boardMembers}
+          onClose={() => setShowBoardSettings(false)}
+          onUpdated={(updates) => {
+            if (updates.isPublic !== undefined) setBoardIsPublic(updates.isPublic);
+            if (updates.members) setBoardMembers(updates.members);
+            if (updates.name) setBoardName(updates.name);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function BoardSettingsDialog({
+  boardId,
+  boardName,
+  isPublic,
+  members,
+  onClose,
+  onUpdated,
+}: {
+  boardId: number;
+  boardName: string;
+  isPublic: boolean;
+  members: BoardMember[];
+  onClose: () => void;
+  onUpdated: (updates: { isPublic?: boolean; members?: BoardMember[]; name?: string }) => void;
+}) {
+  const { toast } = useToast();
+  const [pub, setPub] = useState(isPublic);
+  const [saving, setSaving] = useState(false);
+  const [localMembers, setLocalMembers] = useState<BoardMember[]>(members);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addingRole, setAddingRole] = useState<string>("editor");
+  const searchTimeout = useRef<any>(null);
+
+  const toggleVisibility = async () => {
+    setSaving(true);
+    try {
+      const updated = await apiPatch(`/canvas/boards/${boardId}`, { isPublic: !pub });
+      if (updated?.id) {
+        setPub(!pub);
+        onUpdated({ isPublic: !pub });
+        toast({ title: !pub ? "Board sekarang Public" : "Board sekarang Private" });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const searchUsers = (q: string) => {
+    setSearchQuery(q);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (!q.trim()) { setSearchResults([]); return; }
+    searchTimeout.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const users = await apiGet(`/users?search=${encodeURIComponent(q)}`);
+        const memberIds = localMembers.map(m => m.userId);
+        setSearchResults((users || []).filter((u: any) => !memberIds.includes(u.id)));
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  };
+
+  const addMember = async (userId: number) => {
+    try {
+      const member = await apiPost(`/canvas/boards/${boardId}/members`, { userId, role: addingRole });
+      if (member?.id) {
+        const updated = [...localMembers, member];
+        setLocalMembers(updated);
+        onUpdated({ members: updated });
+        setSearchQuery("");
+        setSearchResults([]);
+        toast({ title: `${member.userName} ditambahkan` });
+      }
+    } catch (e) {
+      toast({ title: "Gagal menambahkan member", variant: "destructive" });
+    }
+  };
+
+  const removeMember = async (userId: number) => {
+    try {
+      await apiDelete(`/canvas/boards/${boardId}/members/${userId}`);
+      const updated = localMembers.filter(m => m.userId !== userId);
+      setLocalMembers(updated);
+      onUpdated({ members: updated });
+      toast({ title: "Member dihapus" });
+    } catch (e) {
+      toast({ title: "Gagal menghapus member", variant: "destructive" });
+    }
+  };
+
+  const updateRole = async (userId: number, role: string) => {
+    try {
+      await apiPost(`/canvas/boards/${boardId}/members`, { userId, role });
+      const updated = localMembers.map(m => m.userId === userId ? { ...m, role } : m);
+      setLocalMembers(updated);
+      onUpdated({ members: updated });
+    } catch (e) {
+      toast({ title: "Gagal update role", variant: "destructive" });
+    }
+  };
+
+  const roleIcon = (role: string) => {
+    if (role === "admin") return <Shield className="w-3 h-3" />;
+    if (role === "editor") return <Edit3 className="w-3 h-3" />;
+    return <Eye className="w-3 h-3" />;
+  };
+
+  const roleLabel = (role: string) => {
+    if (role === "admin") return "Admin";
+    if (role === "editor") return "Editor";
+    return "Viewer";
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl w-[480px] max-h-[80vh] shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="text-lg font-semibold text-foreground">Pengaturan Board</h3>
+          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
+        </div>
+
+        <div className="p-4 space-y-6 overflow-auto flex-1">
+          <div>
+            <label className="text-sm font-medium text-foreground mb-2 block">Visibilitas</label>
+            <button
+              onClick={toggleVisibility}
+              disabled={saving}
+              className={cn(
+                "w-full flex items-center gap-3 p-3 rounded-lg border transition-all",
+                pub
+                  ? "border-green-500/30 bg-green-500/5 hover:bg-green-500/10"
+                  : "border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10"
+              )}
+            >
+              {pub ? <Globe className="w-5 h-5 text-green-500" /> : <Lock className="w-5 h-5 text-orange-500" />}
+              <div className="text-left flex-1">
+                <div className="font-medium text-foreground">{pub ? "Public" : "Private"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {pub ? "Semua member bisa mengakses board ini" : "Hanya member terpilih yang bisa mengakses"}
+                </div>
+              </div>
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            </button>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground mb-2 block">
+              Member ({localMembers.length})
+            </label>
+
+            <div className="relative mb-3">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={e => searchUsers(e.target.value)}
+                placeholder="Cari pengguna untuk ditambahkan..."
+                className="pl-9"
+              />
+              {searchResults.length > 0 && (
+                <div className="absolute top-full mt-1 left-0 right-0 bg-card border border-border rounded-lg shadow-lg z-10 max-h-40 overflow-auto">
+                  {searchResults.map((u: any) => (
+                    <button
+                      key={u.id}
+                      className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted/50 text-left"
+                      onClick={() => addMember(u.id)}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                        {(u.name || u.displayName || "?")[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{u.name || u.displayName}</div>
+                        <div className="text-xs text-muted-foreground truncate">{u.department || u.email}</div>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <UserPlus className="w-3 h-3" /> Tambah
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {searching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs text-muted-foreground">Tambah sebagai:</span>
+              {["viewer", "editor", "admin"].map(r => (
+                <button
+                  key={r}
+                  onClick={() => setAddingRole(r)}
+                  className={cn(
+                    "text-xs px-2 py-1 rounded-full flex items-center gap-1 transition-colors",
+                    addingRole === r
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {roleIcon(r)} {roleLabel(r)}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-1 max-h-48 overflow-auto">
+              {localMembers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {pub ? "Board public — semua bisa akses" : "Belum ada member. Tambahkan pengguna di atas."}
+                </p>
+              ) : (
+                localMembers.map(m => (
+                  <div key={m.userId} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/30">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                      {(m.userName || "?")[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground truncate">{m.userName}</div>
+                      <div className="text-xs text-muted-foreground">{m.userDepartment || ""}</div>
+                    </div>
+                    <select
+                      value={m.role}
+                      onChange={e => updateRole(m.userId, e.target.value)}
+                      className="text-xs bg-muted border-none rounded px-2 py-1 text-foreground outline-none"
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="editor">Editor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeMember(m.userId)}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function CreateBoardDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (board: CanvasBoard) => void }) {
   const [name, setName] = useState("Board Baru");
+  const [isPublic, setIsPublic] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -984,10 +1294,11 @@ function CreateBoardDialog({ open, onClose, onCreated }: { open: boolean; onClos
     if (!name.trim()) return;
     setLoading(true);
     try {
-      const board = await apiPost("/canvas/boards", { name: name.trim() });
+      const board = await apiPost("/canvas/boards", { name: name.trim(), isPublic });
       if (board?.id) {
         onCreated(board);
         setName("Board Baru");
+        setIsPublic(true);
       }
     } finally {
       setLoading(false);
@@ -1008,6 +1319,39 @@ function CreateBoardDialog({ open, onClose, onCreated }: { open: boolean; onClos
             className="mb-4"
             autoFocus
           />
+          <div className="mb-4">
+            <label className="text-sm font-medium text-foreground mb-2 block">Visibilitas</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsPublic(true)}
+                className={cn(
+                  "flex-1 flex items-center gap-2 p-3 rounded-lg border transition-all text-left",
+                  isPublic ? "border-green-500 bg-green-500/10" : "border-border hover:border-border/80"
+                )}
+              >
+                <Globe className={cn("w-4 h-4", isPublic ? "text-green-500" : "text-muted-foreground")} />
+                <div>
+                  <div className={cn("text-sm font-medium", isPublic ? "text-foreground" : "text-muted-foreground")}>Public</div>
+                  <div className="text-xs text-muted-foreground">Semua bisa akses</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPublic(false)}
+                className={cn(
+                  "flex-1 flex items-center gap-2 p-3 rounded-lg border transition-all text-left",
+                  !isPublic ? "border-orange-500 bg-orange-500/10" : "border-border hover:border-border/80"
+                )}
+              >
+                <Lock className={cn("w-4 h-4", !isPublic ? "text-orange-500" : "text-muted-foreground")} />
+                <div>
+                  <div className={cn("text-sm font-medium", !isPublic ? "text-foreground" : "text-muted-foreground")}>Private</div>
+                  <div className="text-xs text-muted-foreground">Hanya member</div>
+                </div>
+              </button>
+            </div>
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>Batal</Button>
             <Button type="submit" disabled={loading || !name.trim()}>

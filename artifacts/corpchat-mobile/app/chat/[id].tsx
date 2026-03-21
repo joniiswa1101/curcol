@@ -196,7 +196,7 @@ function MessageBubble({ msg, isMine, colors, showAvatar, onEdit, onDelete, onPi
 }
 
 export default function ChatScreen() {
-  const { id, name, type } = useLocalSearchParams<{ id: string; name: string; type?: string }>();
+  const { id, name, type: paramType } = useLocalSearchParams<{ id: string; name: string; type?: string }>();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
   const insets = useSafeAreaInsets();
@@ -213,12 +213,20 @@ export default function ChatScreen() {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const flatRef = useRef<FlatList>(null);
+
+  const { data: convDetail } = useQuery({
+    queryKey: ["conversation-detail", id],
+    queryFn: () => api.get(`/conversations/${id}`),
+    enabled: !paramType,
+  });
+
+  const type = paramType || convDetail?.type;
   const isWhatsapp = type === "whatsapp";
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["messages", id],
     queryFn: () => api.get(`/conversations/${id}/messages`),
-    refetchInterval: 30000, // Fallback polling every 30s (WebSocket is primary)
+    refetchInterval: 30000,
   });
 
   // Real-time WebSocket listener for instant message updates

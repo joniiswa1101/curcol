@@ -1,5 +1,5 @@
 # CurCol — Mobile vs Web Gap Analysis Checklist
-> Generated: March 21, 2026
+> Updated: March 21, 2026
 > Tujuan: Identifikasi fitur yang ada di Web tapi belum ada di Mobile, dan sebaliknya.
 
 ---
@@ -8,7 +8,7 @@
 
 | Kategori | Web | Mobile | Gap |
 |----------|-----|--------|-----|
-| Chat Dasar | ✅ | ✅ | Minimal |
+| Chat Dasar | ✅ | ✅ | OK |
 | Group Chat Management | ✅ Full | ✅ Full | OK |
 | PII / Compliance | ✅ Full | ✅ Full | OK |
 | Task Management | ✅ Full | ❌ Tidak ada | **BESAR** |
@@ -26,10 +26,14 @@
 | Dark/Light Theme | ✅ | ✅ | OK |
 | CICO Toggle | ✅ Sidebar | ✅ Profile Tab | OK |
 | Presence/Online Status | ✅ | ✅ Full | OK |
+| Canvas | ✅ Full | ✅ Basic | Kecil |
+| **AI Summarization (TL;DR)** | ✅ Full | ❌ Tidak ada | **BARU** |
+| **AI Digest (Harian/Mingguan)** | ✅ Full | ❌ Tidak ada | **BARU** |
+| **Translation & Language Learning** | ✅ Full | ❌ Tidak ada | **BARU** |
 
 ---
 
-## Detail Gap: Fitur di Web yang TIDAK ADA di Mobile
+## Detail Gap: Fitur di Web yang BELUM ADA di Mobile
 
 ### GAP-01: Group Chat Management ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
@@ -58,7 +62,7 @@
 
 ---
 
-### GAP-03: Task Management
+### GAP-03: Task Management ⬜ BELUM
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-03.1 | Task list screen (semua task + filter) | HIGH | 3-4d | ⬜ |
@@ -68,11 +72,11 @@
 | GAP-03.5 | Push notification saat task di-assign | MEDIUM | 1-2d | ⬜ |
 | GAP-03.6 | Bottom tab atau menu entry untuk Tasks | HIGH | 0.5d | ⬜ |
 
-**Catatan**: Fitur Task Management sepenuhnya belum ada di mobile. Ini fitur besar yang mencakup Kanban board, komentar, dan notifikasi.
+**Catatan**: Fitur Task Management sepenuhnya belum ada di mobile. Web sudah punya Kanban board + list view, task creation, priority, assignment, due dates, labels, dan komentar. Ini gap terbesar yang tersisa.
 
 ---
 
-### GAP-04: Admin Features (Mobile)
+### GAP-04: Admin Features (Mobile) ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-04.1 | Admin dashboard (stats, charts, audit log) | LOW | 3-5d | ✅ |
@@ -90,67 +94,60 @@
 
 ---
 
-### GAP-05: Link Previews
+### GAP-05: Link Previews ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-05.1 | Deteksi URL dalam pesan | MEDIUM | 0.5d | ✅ |
 | GAP-05.2 | Fetch Open Graph metadata (title, desc, image) | MEDIUM | 1d | ✅ |
 | GAP-05.3 | Render preview card di chat bubble | MEDIUM | 1-2d | ✅ |
 
-**Catatan**:
-- GAP-05 ✅ Selesai: `detectUrls()` regex di `app/chat/[id].tsx`, `LinkPreviewCard` component dengan in-memory cache. Fetch via `POST /api/messages/link-preview` (existing server endpoint). Card menampilkan OG image, title, description, domain. Tap membuka URL via `Linking.openURL`. Hanya 1 preview per pesan, skip deleted messages (21 Maret 2026).
+**Selesai**: `detectUrls()` regex di `app/chat/[id].tsx`, `LinkPreviewCard` component dengan in-memory cache. Fetch via `POST /api/messages/link-preview` (existing server endpoint). Card menampilkan OG image, title, description, domain. Tap membuka URL via `Linking.openURL`. Hanya 1 preview per pesan, skip deleted messages (21 Maret 2026).
 
 ---
 
-### GAP-06: Offline Queue & Sync
+### GAP-06: Offline Queue & Sync ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-06.1 | Queue pesan saat offline (AsyncStorage) | HIGH | 2-3d | ✅ |
 | GAP-06.2 | Auto-sync saat kembali online | HIGH | 1-2d | ✅ |
 | GAP-06.3 | Visual indicator pesan pending/gagal | MEDIUM | 1d | ✅ |
 
-**Catatan**:
-- GAP-06 ✅ Selesai: `hooks/use-offline-queue.ts` — AsyncStorage queue per user, `@react-native-community/netinfo` untuk deteksi online/offline, auto-sync saat kembali online dengan retry (max 3x, 500ms delay). Visual: clock icon (pending), spinner (sending), alert-circle merah (failed) + Coba Lagi/Hapus actions. Offline banner di atas input area menampilkan jumlah antrian. Queued messages tampil di chat bubble list (21 Maret 2026).
+**Selesai**: `hooks/use-offline-queue.ts` — AsyncStorage queue per user, `@react-native-community/netinfo` untuk deteksi online/offline, auto-sync saat kembali online dengan retry (max 3x, 500ms delay). Visual: clock icon (pending), spinner (sending), alert-circle merah (failed) + Coba Lagi/Hapus actions. Offline banner di atas input area menampilkan jumlah antrian. Queued messages tampil di chat bubble list (21 Maret 2026).
 
 ---
 
-### GAP-07: Read Receipts
+### GAP-07: Read Receipts ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-07.1 | Kirim read receipt saat buka chat | HIGH | 1d | ✅ |
 | GAP-07.2 | Tampilkan status read (✓✓) di pesan terkirim | HIGH | 1d | ✅ |
 | GAP-07.3 | Unread count badge di conversation list | MEDIUM | 0.5d | ✅ |
 
-**Catatan**:
-- GAP-07 ✅ Selesai: `POST /conversations/:id/mark-read` dipanggil saat masuk chat + saat ada pesan baru. Read receipt indicators: ✓ (terkirim, abu-abu), ✓✓ (dibaca, biru #3b82f6) di pesan terkirim sendiri. Unread badge sudah ada di conversation list (`unreadCount` dari API). Invalidate conversations query saat mark-read untuk update badge count (21 Maret 2026).
+**Selesai**: `POST /conversations/:id/mark-read` dipanggil saat masuk chat + saat ada pesan baru. Read receipt indicators: ✓ (terkirim, abu-abu), ✓✓ (dibaca, biru #3b82f6) di pesan terkirim sendiri. Unread badge sudah ada di conversation list (`unreadCount` dari API). Invalidate conversations query saat mark-read untuk update badge count (21 Maret 2026).
 
 ---
 
-### GAP-08: Message Search
+### GAP-08: Message Search ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-08.1 | Search bar di conversation list | MEDIUM | 1d | ✅ |
 | GAP-08.2 | Search dalam chat (cari pesan spesifik) | MEDIUM | 1-2d | ✅ |
 | GAP-08.3 | Highlight dan scroll ke hasil search | LOW | 1d | ✅ |
 
-**Catatan**:
-- GAP-08 ✅ Selesai: Search bar di conversation list sudah ada (filter by name). In-chat search via search icon di header → search panel → `GET /conversations/:id/search?q=...` API. Hasil ditampilkan sebagai list (sender + time + content preview). Tap hasil → scroll ke pesan + blue highlight 2.5 detik. Clear search saat tutup panel (21 Maret 2026).
+**Selesai**: Search bar di conversation list sudah ada (filter by name). In-chat search via search icon di header → search panel → `GET /conversations/:id/search?q=...` API. Hasil ditampilkan sebagai list (sender + time + content preview). Tap hasil → scroll ke pesan + blue highlight 2.5 detik. Clear search saat tutup panel (21 Maret 2026).
 
 ---
 
-### GAP-09: Presence & Online Status
+### GAP-09: Presence & Online Status ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
 | GAP-09.1 | Real-time presence indicators (online/idle/offline) | MEDIUM | 1-2d | ✅ |
 | GAP-09.2 | "Last seen" timestamp di chat header | LOW | 0.5d | ✅ |
 | GAP-09.3 | Broadcast presence status dari mobile | MEDIUM | 1d | ✅ |
 
-**Catatan**:
-- GAP-09 ✅ Selesai: `hooks/use-presence.ts` — fetch `GET /api/presence` + WS `presence_update` real-time listener + polling 30s. Broadcast `online`/`idle` via WS berdasarkan AppState (active → online, background → idle). Conversation list: green dot (online) / yellow dot (idle) di avatar DM. Chat header: colored dot + status text ("Online", "Idle", "baru saja", "X menit lalu") di bawah nama untuk direct chat (21 Maret 2026).
+**Selesai**: `hooks/use-presence.ts` — fetch `GET /api/presence` + WS `presence_update` real-time listener + polling 30s. Broadcast `online`/`idle` via WS berdasarkan AppState (active → online, background → idle). Conversation list: green dot (online) / yellow dot (idle) di avatar DM. Chat header: colored dot + status text ("Online", "Idle", "baru saja", "X menit lalu") di bawah nama untuk direct chat (21 Maret 2026).
 
 ---
-
-## Detail Gap: Fitur di Mobile yang TIDAK ADA di Web
 
 ### GAP-10: Mobile-Specific UX ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
@@ -163,43 +160,144 @@
 
 ---
 
-## Prioritas Implementasi (Rekomendasi)
+## 🆕 Gap Baru (Fitur Web Terbaru yang Belum Ada di Mobile)
 
-### Gelombang 1 — CRITICAL (minggu pertama)
-| ID | Gap | Effort Total |
-|----|-----|-------------|
-| GAP-01 | ~~Group Chat Management~~ ✅ SELESAI | ~~5-7d~~ |
-| GAP-02 | PII/Compliance Warning | 2-3d |
-| GAP-06 | Offline Queue & Sync | 3-5d |
+### GAP-11: AI Summarization (TL;DR) ⬜ BELUM
+| ID | Task | Priority | Effort | Status |
+|----|------|----------|--------|--------|
+| GAP-11.1 | Tombol ✨ (Sparkles) di chat header untuk ringkasan | HIGH | 1d | ⬜ |
+| GAP-11.2 | Panel ringkasan inline (loading state + formatted output) | HIGH | 1-2d | ⬜ |
+| GAP-11.3 | Pilihan jumlah pesan (50/100/200) | MEDIUM | 0.5d | ⬜ |
+| GAP-11.4 | Handle error state + non-member guard | MEDIUM | 0.5d | ⬜ |
 
-### Gelombang 2 — HIGH (minggu kedua)
-| ID | Gap | Effort Total |
-|----|-----|-------------|
-| GAP-03 | Task Management | 8-12d |
-| GAP-07 | Read Receipts | 2-3d |
-
-### Gelombang 3 — MEDIUM (minggu ketiga)
-| ID | Gap | Effort Total |
-|----|-----|-------------|
-| GAP-05 | Link Previews | 2-3d |
-| GAP-08 | Message Search | 2-4d |
-| GAP-09 | Presence & Online Status | 2-3d |
-
-### Gelombang 4 — LOW (opsional)
-| ID | Gap | Effort Total |
-|----|-----|-------------|
-| GAP-04 | Admin Features di Mobile | 13-19d |
+**Catatan**: Di Web, tombol Sparkles (✨) di header chat memanggil `POST /api/summarize/conversation/:id` untuk meringkas pesan terakhir. Hasilnya ditampilkan dalam panel inline dengan format terstruktur (Ringkasan, Poin Penting, Action Items). API backend sudah siap, hanya perlu UI di mobile. Endpoint: `POST /api/summarize/conversation/:conversationId` dengan body `{ messageCount: 50 }`.
 
 ---
 
-## Statistik Total
+### GAP-12: AI Digest (Harian/Mingguan) ⬜ BELUM
+| ID | Task | Priority | Effort | Status |
+|----|------|----------|--------|--------|
+| GAP-12.1 | Screen Digest baru (`app/digest.tsx`) | HIGH | 2-3d | ⬜ |
+| GAP-12.2 | Toggle Harian vs Mingguan | MEDIUM | 0.5d | ⬜ |
+| GAP-12.3 | Tampilkan daftar percakapan aktif + jumlah pesan | MEDIUM | 1d | ⬜ |
+| GAP-12.4 | Navigasi dari Profile tab atau bottom navigation | MEDIUM | 0.5d | ⬜ |
 
+**Catatan**: Di Web ada halaman `/digest` yang accessible dari sidebar "AI Digest". Memanggil `POST /api/summarize/digest` dengan body `{ period: "daily" | "weekly" }`. Menampilkan ringkasan AI + daftar percakapan aktif dengan jumlah pesan dan preview. API backend sudah siap, perlu screen baru di mobile.
+
+---
+
+### GAP-13: Translation (Terjemahan Pesan) ⬜ BELUM
+| ID | Task | Priority | Effort | Status |
+|----|------|----------|--------|--------|
+| GAP-13.1 | Opsi "Terjemahkan" di long-press context menu | HIGH | 1d | ⬜ |
+| GAP-13.2 | Pilihan bahasa target (8 bahasa cepat: ID/EN/JA/KO/ZH/ES/FR/DE) | HIGH | 0.5d | ⬜ |
+| GAP-13.3 | Tampilkan hasil terjemahan inline di bawah bubble | HIGH | 1-2d | ⬜ |
+| GAP-13.4 | Loading state + dismiss terjemahan | MEDIUM | 0.5d | ⬜ |
+
+**Catatan**: Di Web, klik kanan pesan → pilih bahasa target → hasil terjemahan muncul inline di bawah bubble (panel ungu). API backend sudah siap: `POST /api/translate/message` dengan body `{ text, targetLang }`. Mendukung 15 bahasa (ID, EN, JA, KO, ZH, AR, ES, FR, DE, PT, RU, TH, VI, MS, HI).
+
+---
+
+### GAP-14: Word-by-Word Breakdown (Analisis Kata) ⬜ BELUM
+| ID | Task | Priority | Effort | Status |
+|----|------|----------|--------|--------|
+| GAP-14.1 | Opsi "Analisis Kata" di long-press context menu | MEDIUM | 0.5d | ⬜ |
+| GAP-14.2 | Tampilkan breakdown inline (kata, pelafalan, arti, kelas kata) | MEDIUM | 1-2d | ⬜ |
+| GAP-14.3 | Catatan grammar di akhir breakdown | LOW | 0.5d | ⬜ |
+
+**Catatan**: Di Web, klik kanan pesan → "Analisis Kata" → panel hijau inline di bawah bubble. Setiap kata ditampilkan dengan: kata asli, romanisasi (untuk non-Latin), arti dalam bahasa Indonesia, dan kelas kata. Ditambah catatan tata bahasa. API: `POST /api/translate/breakdown` dengan body `{ text, sourceLang? }`. Response JSON: `{ breakdown: { words: [{word, pronunciation, meaning, pos}], grammar: "..." } }`.
+
+---
+
+### GAP-15: Mini Language Lesson ⬜ BELUM
+| ID | Task | Priority | Effort | Status |
+|----|------|----------|--------|--------|
+| GAP-15.1 | Opsi "Mini Lesson" di long-press context menu | MEDIUM | 0.5d | ⬜ |
+| GAP-15.2 | Tampilkan pelajaran inline (kosakata, pola kalimat, latihan, tips) | MEDIUM | 1-2d | ⬜ |
+| GAP-15.3 | Formatted markdown rendering | LOW | 0.5d | ⬜ |
+
+**Catatan**: Di Web, klik kanan pesan → "Mini Lesson" → panel kuning/amber inline di bawah bubble. AI membuat pelajaran bahasa singkat dari isi pesan, termasuk: Kosakata Baru, Pola Kalimat (2 contoh), Latihan Cepat, Tips Budaya. API: `POST /api/translate/lesson` dengan body `{ text, targetLang? }`.
+
+---
+
+## Statistik & Progress
+
+### Status Keseluruhan
 | Metrik | Nilai |
 |--------|-------|
-| Total gap items | 42 |
-| CRITICAL priority | 9 |
-| HIGH priority | 14 |
-| MEDIUM priority | 12 |
-| LOW priority | 7 |
-| Estimasi total effort | 45-65 hari kerja |
-| Gap terbesar | Task Management (GAP-03) |
+| Total GAP items | 15 (GAP-01 s/d GAP-15) |
+| ✅ Selesai | 10 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10) |
+| ⬜ Belum | 5 (GAP-03, 11, 12, 13, 14, 15) |
+| Progress | **67%** (10/15) |
+
+### Status per Task
+| Metrik | Nilai |
+|--------|-------|
+| Total sub-tasks | 58 |
+| ✅ Selesai | 36 |
+| ⬜ Belum | 22 |
+| Progress | **62%** (36/58) |
+
+### Gap Tersisa per Prioritas
+| Priority | Tasks Belum | Gap IDs |
+|----------|-------------|---------|
+| HIGH | 11 | GAP-03 (6), GAP-11 (2), GAP-12 (1), GAP-13 (2) |
+| MEDIUM | 9 | GAP-03 (2), GAP-11 (2), GAP-12 (2), GAP-13 (1), GAP-14 (1), GAP-15 (1) |
+| LOW | 2 | GAP-14 (1), GAP-15 (1) |
+
+---
+
+## Prioritas Implementasi (Rekomendasi)
+
+### Gelombang 1 — CRITICAL (minggu pertama)
+| ID | Gap | Effort Total | Status |
+|----|-----|-------------|--------|
+| ~~GAP-01~~ | ~~Group Chat Management~~ | ~~5-7d~~ | ✅ |
+| ~~GAP-02~~ | ~~PII/Compliance Warning~~ | ~~2-3d~~ | ✅ |
+| ~~GAP-06~~ | ~~Offline Queue & Sync~~ | ~~3-5d~~ | ✅ |
+
+### Gelombang 2 — HIGH (minggu kedua)
+| ID | Gap | Effort Total | Status |
+|----|-----|-------------|--------|
+| GAP-03 | Task Management | 8-12d | ⬜ |
+| ~~GAP-07~~ | ~~Read Receipts~~ | ~~2-3d~~ | ✅ |
+
+### Gelombang 3 — MEDIUM (minggu ketiga)
+| ID | Gap | Effort Total | Status |
+|----|-----|-------------|--------|
+| ~~GAP-05~~ | ~~Link Previews~~ | ~~2-3d~~ | ✅ |
+| ~~GAP-08~~ | ~~Message Search~~ | ~~2-4d~~ | ✅ |
+| ~~GAP-09~~ | ~~Presence & Online Status~~ | ~~2-3d~~ | ✅ |
+
+### Gelombang 4 — AI Features (minggu keempat)
+| ID | Gap | Effort Total | Status |
+|----|-----|-------------|--------|
+| GAP-11 | AI Summarization (TL;DR) | 2-4d | ⬜ |
+| GAP-13 | Translation | 2-4d | ⬜ |
+| GAP-12 | AI Digest | 3-5d | ⬜ |
+
+### Gelombang 5 — Language Learning (opsional)
+| ID | Gap | Effort Total | Status |
+|----|-----|-------------|--------|
+| GAP-14 | Word-by-Word Breakdown | 2-3d | ⬜ |
+| GAP-15 | Mini Language Lesson | 2-3d | ⬜ |
+| ~~GAP-04~~ | ~~Admin Features di Mobile~~ | ~~13-19d~~ | ✅ |
+
+---
+
+## API Backend Reference (untuk implementasi mobile)
+
+Semua endpoint di bawah sudah tersedia di API server. Mobile hanya perlu UI.
+
+| Endpoint | Method | Body | Kegunaan |
+|----------|--------|------|----------|
+| `/api/summarize/conversation/:id` | POST | `{ messageCount: 50 }` | TL;DR percakapan |
+| `/api/summarize/digest` | POST | `{ period: "daily"\|"weekly" }` | Digest harian/mingguan |
+| `/api/translate/message` | POST | `{ text, targetLang }` | Terjemahkan pesan |
+| `/api/translate/detect` | POST | `{ text }` | Deteksi bahasa |
+| `/api/translate/breakdown` | POST | `{ text, sourceLang? }` | Analisis kata per kata |
+| `/api/translate/lesson` | POST | `{ text, targetLang? }` | Mini pelajaran bahasa |
+| `/api/translate/languages` | GET | — | Daftar bahasa didukung |
+
+**Auth**: Semua endpoint memerlukan header `Authorization: Bearer <token>`.
+**Max text**: 2000 karakter per request (translate/breakdown/lesson).

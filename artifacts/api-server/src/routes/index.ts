@@ -22,6 +22,7 @@ import complianceRouter from "./compliance.js";
 import pushTokensRouter from "./push-tokens.js";
 import canvasRouter from "./canvas.js";
 import summarizeRouter from "./summarize.js";
+import translateRouter from "./translate.js";
 
 const router = Router();
 
@@ -49,5 +50,6 @@ router.use("/compliance", complianceRouter);
 router.use("/push-tokens", pushTokensRouter);
 router.use("/canvas", canvasRouter);
 router.use("/summarize", summarizeRouter);
+router.use("/translate", translateRouter);
 
 export default router;

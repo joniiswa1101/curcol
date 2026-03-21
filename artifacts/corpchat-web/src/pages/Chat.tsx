@@ -25,7 +25,7 @@ import {
   Hash, Info, MessageSquare, X, FileText, Image as ImageIcon, AlertCircle,
   Phone, Video, Pin, Heart, Users, Plus, UserPlus, Crown, Shield,
   ShieldOff, LogOut, Trash2, BellOff, Bell, Settings, Check, ShieldAlert,
-  Pencil, Sparkles, Loader2, BookOpen, Calendar
+  Pencil, Sparkles, Loader2, BookOpen, Calendar, Languages, GraduationCap
 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice/VoiceRecorder"
 import { AudioPlayer } from "@/components/voice/AudioPlayer"
@@ -922,6 +922,9 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const [searchFilters, setSearchFilters] = useState<{ senderId?: number; before?: string; after?: string }>({})
   const [linkPreviews, setLinkPreviews] = useState<Record<number, any>>({})
   const [showGroupInfo, setShowGroupInfo] = useState(false)
+  const [translations, setTranslations] = useState<Record<number, { text: string; lang: string; loading: boolean }>>({})
+  const [wordBreakdown, setWordBreakdown] = useState<{ msgId: number; data: any; loading: boolean } | null>(null)
+  const [miniLesson, setMiniLesson] = useState<{ msgId: number; text: string; loading: boolean } | null>(null)
   const [showSummary, setShowSummary] = useState(false)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryText, setSummaryText] = useState("")
@@ -971,6 +974,66 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
       setSummaryText("Gagal terhubung ke server.")
     } finally {
       setSummaryLoading(false)
+    }
+  }
+
+  const handleTranslate = async (msgId: number, text: string, lang: string) => {
+    setTranslations(prev => ({ ...prev, [msgId]: { text: "", lang, loading: true } }))
+    setContextMenu(null)
+    try {
+      const res = await fetch("/api/translate/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text, targetLang: lang }),
+      })
+      if (!res.ok) {
+        setTranslations(prev => ({ ...prev, [msgId]: { text: "Gagal menerjemahkan.", lang, loading: false } }))
+        return
+      }
+      const data = await res.json()
+      setTranslations(prev => ({ ...prev, [msgId]: { text: data.translation, lang, loading: false } }))
+    } catch {
+      setTranslations(prev => ({ ...prev, [msgId]: { text: "Gagal terhubung.", lang, loading: false } }))
+    }
+  }
+
+  const handleWordBreakdown = async (msgId: number, text: string) => {
+    setWordBreakdown({ msgId, data: null, loading: true })
+    setContextMenu(null)
+    try {
+      const res = await fetch("/api/translate/breakdown", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text }),
+      })
+      if (!res.ok) {
+        setWordBreakdown({ msgId, data: { words: [], grammar: "Gagal menganalisis." }, loading: false })
+        return
+      }
+      const data = await res.json()
+      setWordBreakdown({ msgId, data: data.breakdown, loading: false })
+    } catch {
+      setWordBreakdown({ msgId, data: { words: [], grammar: "Gagal terhubung." }, loading: false })
+    }
+  }
+
+  const handleMiniLesson = async (msgId: number, text: string) => {
+    setMiniLesson({ msgId, text: "", loading: true })
+    setContextMenu(null)
+    try {
+      const res = await fetch("/api/translate/lesson", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text }),
+      })
+      if (!res.ok) {
+        setMiniLesson({ msgId, text: "Gagal membuat pelajaran.", loading: false })
+        return
+      }
+      const data = await res.json()
+      setMiniLesson({ msgId, text: data.lesson, loading: false })
+    } catch {
+      setMiniLesson({ msgId, text: "Gagal terhubung.", loading: false })
     }
   }
 
@@ -1962,6 +2025,100 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
                       )}
                     </div>
                   </div>
+
+                  {translations[msg.id] && (
+                    <div className={cn("max-w-full rounded-lg border px-3 py-2 text-xs", isMe ? "bg-violet-500/10 border-violet-500/20" : "bg-blue-500/10 border-blue-500/20")}>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-1">
+                          <Languages className="w-3 h-3 text-violet-500" />
+                          <span className="font-medium text-violet-600 dark:text-violet-400">
+                            {translations[msg.id].lang.toUpperCase()}
+                          </span>
+                        </div>
+                        <button onClick={() => setTranslations(prev => { const n = {...prev}; delete n[msg.id]; return n })} className="text-muted-foreground hover:text-foreground">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {translations[msg.id].loading ? (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Menerjemahkan...
+                        </div>
+                      ) : (
+                        <p className="text-foreground whitespace-pre-wrap">{translations[msg.id].text}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {wordBreakdown?.msgId === msg.id && (
+                    <div className={cn("max-w-full rounded-lg border px-3 py-2 text-xs", "bg-emerald-500/10 border-emerald-500/20")}>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-1">
+                          <BookOpen className="w-3 h-3 text-emerald-500" />
+                          <span className="font-medium text-emerald-600 dark:text-emerald-400">Analisis Kata</span>
+                        </div>
+                        <button onClick={() => setWordBreakdown(null)} className="text-muted-foreground hover:text-foreground">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {wordBreakdown.loading ? (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Menganalisis...
+                        </div>
+                      ) : (
+                        <div>
+                          {wordBreakdown.data?.words?.length > 0 && (
+                            <div className="space-y-1 mb-2">
+                              {wordBreakdown.data.words.map((w: any, i: number) => (
+                                <div key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <span className="font-bold text-foreground">{w.word}</span>
+                                  {w.pronunciation && <span className="text-muted-foreground italic">/{w.pronunciation}/</span>}
+                                  <span className="text-blue-600 dark:text-blue-400">{w.meaning}</span>
+                                  {w.pos && <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded">{w.pos}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {wordBreakdown.data?.grammar && (
+                            <div className="border-t border-border/50 pt-1.5 mt-1.5 text-muted-foreground">
+                              <span className="font-medium text-foreground">📝 Catatan: </span>
+                              {wordBreakdown.data.grammar}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {miniLesson?.msgId === msg.id && (
+                    <div className={cn("max-w-full rounded-lg border px-3 py-2 text-xs", "bg-amber-500/10 border-amber-500/20")}>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-1">
+                          <GraduationCap className="w-3 h-3 text-amber-500" />
+                          <span className="font-medium text-amber-600 dark:text-amber-400">Mini Lesson</span>
+                        </div>
+                        <button onClick={() => setMiniLesson(null)} className="text-muted-foreground hover:text-foreground">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {miniLesson.loading ? (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Membuat pelajaran...
+                        </div>
+                      ) : (
+                        <div className="text-foreground whitespace-pre-wrap leading-relaxed">
+                          {miniLesson.text.split("\n").map((line, i) => {
+                            if (line.startsWith("**") && line.endsWith("**")) {
+                              return <p key={i} className="font-semibold mt-2 first:mt-0">{line.replace(/\*\*/g, "")}</p>
+                            }
+                            if (line.startsWith("- ")) {
+                              return <p key={i} className="ml-2 text-muted-foreground">• {line.substring(2)}</p>
+                            }
+                            return <p key={i} className="text-muted-foreground">{line}</p>
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )
@@ -2021,6 +2178,51 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
               <Heart className="w-4 h-4" />
               {contextMenu.msg.isFavorited ? "Unfavorite" : "Favorite"}
             </button>
+            {contextMenu.msg.content && !contextMenu.msg.isDeleted && (
+              <>
+                <div className="border-t border-border my-1" />
+                <div className="px-3 py-1.5">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Languages className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground font-medium">Terjemahkan ke:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { code: "id", label: "🇮🇩 ID" },
+                      { code: "en", label: "🇬🇧 EN" },
+                      { code: "ja", label: "🇯🇵 JA" },
+                      { code: "ko", label: "🇰🇷 KO" },
+                      { code: "zh", label: "🇨🇳 ZH" },
+                      { code: "es", label: "🇪🇸 ES" },
+                      { code: "fr", label: "🇫🇷 FR" },
+                      { code: "de", label: "🇩🇪 DE" },
+                    ].map(l => (
+                      <button
+                        key={l.code}
+                        className="px-1.5 py-0.5 text-xs rounded bg-muted hover:bg-primary/10 hover:text-primary transition-colors"
+                        onClick={() => handleTranslate(contextMenu.msg.id, contextMenu.msg.content, l.code)}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                  onClick={() => handleWordBreakdown(contextMenu.msg.id, contextMenu.msg.content)}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Analisis Kata
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                  onClick={() => handleMiniLesson(contextMenu.msg.id, contextMenu.msg.content)}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  Mini Lesson
+                </button>
+              </>
+            )}
             {contextMenu.msg.senderId === user?.id && !contextMenu.msg.isDeleted && (
               <>
                 <div className="border-t border-border my-1" />

@@ -672,7 +672,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
     }
   }
 
-  const otherPresence = otherUserId ? getPresence(otherUserId) : null
+  const otherPresence = otherUserId ? getUserPresence(otherUserId) : null
   const presenceStatus = otherPresence?.status || "offline"
   const presenceColor = presenceStatus === "online" ? "bg-green-500" : presenceStatus === "idle" ? "bg-yellow-500" : "bg-gray-400"
   const presenceLabel = presenceStatus === "online" ? "Online" : presenceStatus === "idle" ? "Idle" : formatLastSeen(otherPresence?.lastSeenAt || null)

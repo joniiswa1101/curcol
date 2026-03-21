@@ -1,14 +1,64 @@
-import React from "react";
-import { View, Text, Pressable, StyleSheet, Modal, useColorScheme } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, Pressable, StyleSheet, Modal, useColorScheme, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useCall } from "@/contexts/CallContext";
 import Colors from "@/constants/colors";
+
+let CameraView: any = null;
+if (Platform.OS !== "web") {
+  try {
+    const cam = require("expo-camera");
+    CameraView = cam.CameraView;
+  } catch {}
+}
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
   const s = (seconds % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
 }
+
+function CameraPreview({ facing }: { facing: "front" | "back" }) {
+  const [hasPermission, setHasPermission] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === "web" || !CameraView) return;
+    (async () => {
+      try {
+        const cam = require("expo-camera");
+        const { status } = await cam.Camera.requestCameraPermissionsAsync();
+        setHasPermission(status === "granted");
+      } catch {
+        setHasPermission(false);
+      }
+    })();
+  }, []);
+
+  if (Platform.OS === "web" || !CameraView || !hasPermission) {
+    return (
+      <View style={cameraStyles.placeholder}>
+        <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
+        <Text style={cameraStyles.placeholderText}>Kamera tidak tersedia</Text>
+      </View>
+    );
+  }
+
+  return <CameraView style={StyleSheet.absoluteFill} facing={facing} />;
+}
+
+const cameraStyles = StyleSheet.create({
+  placeholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0f0f23",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderText: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 14,
+    marginTop: 12,
+  },
+});
 
 export function IncomingCallModal() {
   const { status, callType, remoteUserName, acceptCall, rejectCall } = useCall();
@@ -32,7 +82,7 @@ export function IncomingCallModal() {
 
           <Text style={[styles.name, { color: colors.text }]}>{remoteUserName}</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Incoming {callType === "video" ? "video" : "voice"} call...
+            {callType === "video" ? "Video" : "Voice"} call masuk...
           </Text>
 
           <View style={styles.actions}>
@@ -40,7 +90,7 @@ export function IncomingCallModal() {
               <Feather name="phone-off" size={24} color="#fff" />
             </Pressable>
             <Pressable onPress={acceptCall} style={[styles.actionBtn, styles.acceptBtn]}>
-              <Feather name="phone" size={24} color="#fff" />
+              <Feather name={callType === "video" ? "video" : "phone"} size={24} color="#fff" />
             </Pressable>
           </View>
         </View>
@@ -57,8 +107,75 @@ export function ActiveCallOverlay() {
   } = useCall();
   const scheme = useColorScheme();
   const colors = Colors[scheme === "dark" ? "dark" : "light"];
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<"front" | "back">("front");
 
   if (status !== "outgoing" && status !== "connected") return null;
+
+  const isVideoCall = callType === "video";
+
+  if (isVideoCall) {
+    return (
+      <Modal visible transparent animationType="slide">
+        <View style={videoStyles.container}>
+          {!isVideoOff ? (
+            <CameraPreview facing={cameraFacing} />
+          ) : (
+            <View style={videoStyles.videoOff}>
+              <View style={[styles.avatar, styles.avatarLarge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.avatarTextLarge}>{remoteUserName?.charAt(0) || "?"}</Text>
+              </View>
+              <Text style={videoStyles.videoOffText}>Kamera dimatikan</Text>
+            </View>
+          )}
+
+          <View style={videoStyles.topBar}>
+            <View style={videoStyles.topInfo}>
+              <Text style={videoStyles.topName}>{remoteUserName}</Text>
+              <Text style={videoStyles.topStatus}>
+                {status === "outgoing" ? "Memanggil..." : formatDuration(duration)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={videoStyles.remoteAvatar}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 30 }]}>
+              <Text style={{ color: "#fff", fontSize: 22, fontWeight: "700" }}>
+                {remoteUserName?.charAt(0) || "?"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={videoStyles.bottomBar}>
+            <Pressable
+              onPress={() => setCameraFacing(f => f === "front" ? "back" : "front")}
+              style={[styles.actionBtn, styles.normalBtn]}
+            >
+              <Feather name="refresh-cw" size={22} color="#fff" />
+            </Pressable>
+
+            <Pressable
+              onPress={() => setIsVideoOff(v => !v)}
+              style={[styles.actionBtn, isVideoOff ? styles.mutedBtn : styles.normalBtn]}
+            >
+              <Feather name={isVideoOff ? "video-off" : "video"} size={22} color={isVideoOff ? "#333" : "#fff"} />
+            </Pressable>
+
+            <Pressable
+              onPress={toggleMute}
+              style={[styles.actionBtn, isMuted ? styles.mutedBtn : styles.normalBtn]}
+            >
+              <Feather name={isMuted ? "mic-off" : "mic"} size={22} color={isMuted ? "#333" : "#fff"} />
+            </Pressable>
+
+            <Pressable onPress={endCall} style={[styles.actionBtn, styles.endBtn]}>
+              <Feather name="phone-off" size={28} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible transparent animationType="slide">
@@ -69,7 +186,7 @@ export function ActiveCallOverlay() {
           </View>
           <Text style={styles.callName}>{remoteUserName}</Text>
           <Text style={styles.callStatus}>
-            {status === "outgoing" ? "Calling..." : formatDuration(duration)}
+            {status === "outgoing" ? "Memanggil..." : formatDuration(duration)}
           </Text>
         </View>
 
@@ -78,7 +195,7 @@ export function ActiveCallOverlay() {
             onPress={toggleMute}
             style={[styles.actionBtn, isMuted ? styles.mutedBtn : styles.normalBtn]}
           >
-            <Feather name={isMuted ? "mic-off" : "mic"} size={24} color="#fff" />
+            <Feather name={isMuted ? "mic-off" : "mic"} size={24} color={isMuted ? "#333" : "#fff"} />
           </Pressable>
 
           <Pressable onPress={endCall} style={[styles.actionBtn, styles.endBtn]}>
@@ -89,6 +206,68 @@ export function ActiveCallOverlay() {
     </Modal>
   );
 }
+
+const videoStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  topBar: {
+    position: "absolute",
+    top: 60,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 10,
+  },
+  topInfo: {
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignItems: "center",
+  },
+  topName: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  topStatus: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    marginTop: 2,
+  },
+  remoteAvatar: {
+    position: "absolute",
+    top: 130,
+    right: 16,
+    zIndex: 10,
+    borderWidth: 2,
+    borderColor: "#fff",
+    borderRadius: 32,
+  },
+  bottomBar: {
+    position: "absolute",
+    bottom: 50,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+    zIndex: 10,
+  },
+  videoOff: {
+    flex: 1,
+    backgroundColor: "#0f0f23",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  videoOffText: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 14,
+    marginTop: 12,
+  },
+});
 
 const styles = StyleSheet.create({
   overlay: {

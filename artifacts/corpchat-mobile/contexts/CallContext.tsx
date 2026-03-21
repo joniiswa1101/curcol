@@ -321,7 +321,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           switch (msg.type) {
             case "call_offer": {
               if (callStateRef.current.status !== "idle") {
-                sendWs({ type: "call_reject", targetUserId: msg.callerId });
                 return;
               }
 

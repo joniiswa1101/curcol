@@ -308,8 +308,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         switch (msg.type) {
           case "call_offer": {
             if (stateRef.current.status !== "idle") {
-              console.log("[Call] Busy, auto-rejecting");
-              send({ type: "call_reject", targetUserId: msg.callerId });
+              console.log("[Call] Busy or duplicate, ignoring");
               return;
             }
 

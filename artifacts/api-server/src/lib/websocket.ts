@@ -99,7 +99,7 @@ export function initWebSocket(server: Server) {
           ws.send(JSON.stringify({ type: "pong" }));
         } else if (msg.type === "call_offer" && ws.userId && msg.targetUserId) {
           console.log(`[Call] 📞 call_offer from userId=${ws.userId} to targetUserId=${msg.targetUserId}`);
-          const sent = sendToOneConnection(msg.targetUserId, {
+          const sent = broadcastToUser(msg.targetUserId, {
             type: "call_offer",
             callerId: ws.userId,
             callerName: msg.callerName,
@@ -108,8 +108,8 @@ export function initWebSocket(server: Server) {
             callType: msg.callType,
             sdp: msg.sdp,
           });
-          console.log(`[Call] 📞 call_offer relayed to ${sent ? 1 : 0} connection(s) of userId=${msg.targetUserId}`);
-          if (!sent) {
+          console.log(`[Call] 📞 call_offer relayed to ${sent} connection(s) of userId=${msg.targetUserId}`);
+          if (sent === 0) {
             console.log(`[Call] ⚠️ Target userId=${msg.targetUserId} is offline, notifying caller`);
             ws.send(JSON.stringify({
               type: "call_failed",

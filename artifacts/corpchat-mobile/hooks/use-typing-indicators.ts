@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useWebSocket } from "./use-websocket";
+import { useState, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 
 interface TypingIndicatorsState {
   typingUsers: number[];
@@ -9,53 +9,22 @@ interface TypingIndicatorsState {
 
 export function useTypingIndicators(conversationId: number): TypingIndicatorsState {
   const { user } = useAuth();
-  const [typingUsers, setTypingUsers] = useState<number[]>([]);
-  const { ws } = useWebSocket();
+  const [typingUsers] = useState<number[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-    const handleMessage = (event: Event) => {
-      try {
-        const data = JSON.parse((event as any).data);
-
-        if (data.type === "typing" && data.conversationId === conversationId) {
-          const typingList = data.typingUsers || [];
-          const filteredTyping = typingList.filter((id: number) => id !== user?.id);
-          setTypingUsers(filteredTyping);
-        }
-      } catch (err) {
-        console.error("[Typing] Failed to parse message:", err);
-      }
-    };
-
-    ws.addEventListener("message", handleMessage);
-
-    return () => {
-      ws.removeEventListener("message", handleMessage);
-    };
-  }, [conversationId, user, ws]);
-
   const sendTyping = useCallback(() => {
-    if (!ws || ws.readyState !== WebSocket.OPEN || !user) return;
+    if (!conversationId || !user) return;
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
 
-    ws.send(
-      JSON.stringify({
-        type: "typing",
-        conversationId,
-        userIds: [],
-      })
-    );
+    api.post(`/conversations/${conversationId}/typing`, {}).catch(() => {});
 
     typingTimeoutRef.current = setTimeout(() => {
       typingTimeoutRef.current = null;
     }, 2500);
-  }, [conversationId, user, ws]);
+  }, [conversationId, user]);
 
   return {
     typingUsers,

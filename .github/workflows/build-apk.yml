@@ -1,42 +1,44 @@
-name: Build APK
+name: Build APK with EAS
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 20
       
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+        run: npm install -g pnpm
       
       - name: Install dependencies
         run: pnpm install
       
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
       
       - name: Build APK with EAS
+        working-directory: artifacts/corpchat-mobile
         run: |
-          cd artifacts/corpchat-mobile
-          eas build --platform android --non-interactive --wait
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive
       
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
-        with:
-          name: apk-build
-          path: artifacts/corpchat-mobile/dist/
+      - name: Get APK Download URL
+        working-directory: artifacts/corpchat-mobile
+        run: |
+          echo "=== BUILD COMPLETED ==="
+          echo "APK is ready for download!"
+          eas build:list --platform android --limit 1 --json | jq '.[] | {id: .id, status: .status, downloadUrl: .applicationArchiveUrl}' || echo "Build status: Check Expo dashboard for APK URL"

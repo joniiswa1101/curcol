@@ -5,7 +5,7 @@ import { useLogin } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { MessageSquare, ShieldCheck, Loader } from "lucide-react"
+import { ShieldCheck, Loader } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -105,8 +105,12 @@ export default function Login() {
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
         <div className="relative z-20 flex flex-col items-center text-center p-12 max-w-2xl">
-          <div className="w-24 h-24 bg-white/10 backdrop-blur-xl rounded-3xl flex items-center justify-center shadow-2xl mb-8 border border-white/20">
-            <MessageSquare className="w-12 h-12 text-white" />
+          <div className="mb-8">
+            <img 
+              src={`${import.meta.env.BASE_URL}logo-2.svg`}
+              alt="Curcol Logo"
+              className="h-28 w-auto drop-shadow-lg"
+            />
           </div>
           <h1 className="text-5xl font-display font-bold text-white mb-6 leading-tight">
             Connect. Collaborate. <span className="text-accent">Create.</span>
@@ -122,9 +126,11 @@ export default function Login() {
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="text-center lg:text-left">
             <div className="lg:hidden flex justify-center mb-6">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <MessageSquare className="w-8 h-8 text-primary" />
-              </div>
+              <img 
+                src={`${import.meta.env.BASE_URL}logo-2.svg`}
+                alt="Curcol Logo"
+                className="h-16 w-auto"
+              />
             </div>
             <h2 className="text-3xl font-display font-bold text-foreground">Masuk ke CurCol</h2>
             <p className="mt-2 text-muted-foreground">Login menggunakan akun CICO Anda.</p>

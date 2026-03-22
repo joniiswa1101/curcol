@@ -1517,67 +1517,55 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           >
             <Search className="w-5 h-5" />
           </Button>
-          {conversation?.type === "direct" && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-primary"
-                onClick={() => {
-                  const otherMember = conversation.members?.find((m: any) => (m.userId || m.user?.id) !== user?.id);
-                  const otherUser = otherMember?.user || otherMember;
-                  const targetId = otherMember?.userId || otherUser?.id;
-                  if (targetId) {
-                    callCtx.initiateCall({
-                      userId: targetId,
-                      userName: otherUser?.name || otherUser?.displayName || otherUser?.employeeId || "Unknown",
-                      userAvatar: otherUser?.avatarUrl,
-                      conversationId,
-                      type: "voice",
-                    });
-                  }
-                }}
-              >
-                <Phone className="w-5 h-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-primary"
-                onClick={() => {
-                  const otherMember = conversation.members?.find((m: any) => (m.userId || m.user?.id) !== user?.id);
-                  const otherUser = otherMember?.user || otherMember;
-                  const targetId = otherMember?.userId || otherUser?.id;
-                  if (targetId) {
-                    callCtx.initiateCall({
-                      userId: targetId,
-                      userName: otherUser?.name || otherUser?.displayName || otherUser?.employeeId || "Unknown",
-                      userAvatar: otherUser?.avatarUrl,
-                      conversationId,
-                      type: "video",
-                    });
-                  }
-                }}
-              >
-                <Video className="w-5 h-5" />
-              </Button>
-            </>
-          )}
           <Button
             variant="ghost"
             size="icon"
             className="text-muted-foreground hover:text-primary"
-            title="Group Voice Call (Jitsi)"
-            onClick={() => groupCallCtx.startGroupCall(conversationId, "voice")}
+            title={conversation?.type === "group" ? "Group Voice Call" : "Voice Call"}
+            onClick={() => {
+              if (conversation?.type === "group") {
+                groupCallCtx.startGroupCall(conversationId, "voice");
+              } else {
+                const otherMember = conversation?.members?.find((m: any) => (m.userId || m.user?.id) !== user?.id);
+                const otherUser = otherMember?.user || otherMember;
+                const targetId = otherMember?.userId || otherUser?.id;
+                if (targetId) {
+                  callCtx.initiateCall({
+                    userId: targetId,
+                    userName: otherUser?.name || otherUser?.displayName || otherUser?.employeeId || "Unknown",
+                    userAvatar: otherUser?.avatarUrl,
+                    conversationId,
+                    type: "voice",
+                  });
+                }
+              }
+            }}
           >
-            <Users className="w-5 h-5" />
+            <Phone className="w-5 h-5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             className="text-muted-foreground hover:text-primary"
-            title="Group Video Call (Jitsi)"
-            onClick={() => groupCallCtx.startGroupCall(conversationId, "video")}
+            title={conversation?.type === "group" ? "Group Video Call" : "Video Call"}
+            onClick={() => {
+              if (conversation?.type === "group") {
+                groupCallCtx.startGroupCall(conversationId, "video");
+              } else {
+                const otherMember = conversation?.members?.find((m: any) => (m.userId || m.user?.id) !== user?.id);
+                const otherUser = otherMember?.user || otherMember;
+                const targetId = otherMember?.userId || otherUser?.id;
+                if (targetId) {
+                  callCtx.initiateCall({
+                    userId: targetId,
+                    userName: otherUser?.name || otherUser?.displayName || otherUser?.employeeId || "Unknown",
+                    userAvatar: otherUser?.avatarUrl,
+                    conversationId,
+                    type: "video",
+                  });
+                }
+              }
+            }}
           >
             <Video className="w-5 h-5" />
           </Button>

@@ -1062,18 +1062,22 @@ export default function ChatScreen() {
             </View>
           ) : null}
         </View>
-        {!isWhatsapp && type === "direct" && otherUserId && (
+        {!isWhatsapp && (
           <>
             <Pressable
               style={styles.headerAction}
               hitSlop={8}
               onPress={() => {
-                callCtx.initiateCall({
-                  userId: otherUserId,
-                  userName: name || "Contact",
-                  conversationId: Number(id),
-                  type: "voice",
-                });
+                if (type === "group") {
+                  startGroupCall("voice");
+                } else if (otherUserId) {
+                  callCtx.initiateCall({
+                    userId: otherUserId,
+                    userName: name || "Contact",
+                    conversationId: Number(id),
+                    type: "voice",
+                  });
+                }
               }}
             >
               <Feather name="phone" size={20} color={colors.textSecondary} />
@@ -1082,41 +1086,22 @@ export default function ChatScreen() {
               style={styles.headerAction}
               hitSlop={8}
               onPress={() => {
-                callCtx.initiateCall({
-                  userId: otherUserId,
-                  userName: name || "Contact",
-                  conversationId: Number(id),
-                  type: "video",
-                });
+                if (type === "group") {
+                  startGroupCall("video");
+                } else if (otherUserId) {
+                  callCtx.initiateCall({
+                    userId: otherUserId,
+                    userName: name || "Contact",
+                    conversationId: Number(id),
+                    type: "video",
+                  });
+                }
               }}
             >
               <Feather name="video" size={20} color={colors.textSecondary} />
             </Pressable>
           </>
         )}
-        <Pressable
-          style={styles.headerAction}
-          hitSlop={8}
-          onPress={() => {
-            Alert.alert(
-              "Group Call",
-              "Pilih jenis panggilan grup (multi-point)",
-              [
-                {
-                  text: "Voice Call",
-                  onPress: () => startGroupCall("voice"),
-                },
-                {
-                  text: "Video Call",
-                  onPress: () => startGroupCall("video"),
-                },
-                { text: "Batal", style: "cancel" },
-              ]
-            );
-          }}
-        >
-          <Feather name="users" size={20} color={colors.textSecondary} />
-        </Pressable>
         {type === "group" && (
           <Pressable
             style={styles.headerAction}

@@ -129,7 +129,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center lg:items-start px-4 overflow-y-auto flex-1">
           <div className="flex flex-col items-center gap-0 mb-4 lg:px-2">
             <img
-              src="/logo-2.svg"
+              src="/logo-2-white.svg"
               alt="CurCol Logo"
               className="w-72 h-22 shrink-0 rounded-xl"
             />

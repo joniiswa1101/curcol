@@ -105,10 +105,10 @@ export default function Login() {
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
         <div className="relative z-20 flex flex-col items-center justify-center text-center flex-1">
-          {/* Rajawali Logo - White, No Box */}
+          {/* Rajawali Logo */}
           <div className="mb-4">
             <img 
-              src={`${import.meta.env.BASE_URL}logo-rajawali-white.svg`}
+              src={`${import.meta.env.BASE_URL}logo-rajawali.png`}
               alt="Rajawali Logo"
               className="h-20 w-auto drop-shadow-lg"
             />
@@ -137,7 +137,7 @@ export default function Login() {
           <div className="text-center lg:text-left">
             <div className="lg:hidden flex flex-col items-center justify-center mb-8 gap-2">
               <img 
-                src={`${import.meta.env.BASE_URL}logo-rajawali-white.svg`}
+                src={`${import.meta.env.BASE_URL}logo-rajawali.png`}
                 alt="Rajawali Logo"
                 className="h-14 w-auto"
               />

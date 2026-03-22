@@ -97,7 +97,7 @@ export default function Login() {
   return (
     <div className="min-h-screen w-full flex bg-background">
       {/* Left side - Visual/Brand */}
-      <div className="hidden lg:flex flex-col flex-1 relative bg-sidebar justify-start pt-20 px-12 overflow-visible">
+      <div className="hidden lg:flex flex-col flex-1 relative bg-sidebar justify-start pt-40 px-12 overflow-visible">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 mix-blend-overlay z-10" />
         <img 
           src={`${import.meta.env.BASE_URL}images/login-bg.png`}

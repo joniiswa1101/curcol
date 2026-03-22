@@ -2,7 +2,7 @@
   "expo": {
     "name": "CurCol",
     "slug": "corpchat-mobile",
-    "version": "1.9.4",
+    "version": "1.9.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "corpchat-mobile",

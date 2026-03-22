@@ -81,9 +81,76 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iceCandidateQueue = useRef<RTCIceCandidateInit[]>([]);
+  
+  // Ringtone refs
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const ringtoneOscillatorRef = useRef<OscillatorNode | null>(null);
+  const ringtoneGainRef = useRef<GainNode | null>(null);
+  const ringtoneIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const playRingtone = useCallback(() => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      const ctx = audioContextRef.current;
+      const now = ctx.currentTime;
+      
+      // Create oscillator and gain for ringtone
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = "sine";
+      osc.frequency.value = 440; // A4 note
+      gain.gain.setValueAtTime(0.3, now);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      
+      ringtoneOscillatorRef.current = osc;
+      ringtoneGainRef.current = gain;
+      
+      // Ring pattern: 0.5s on, 0.5s off
+      let isOn = true;
+      ringtoneIntervalRef.current = setInterval(() => {
+        if (isOn) {
+          gain.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+        } else {
+          gain.gain.setTargetAtTime(0.3, ctx.currentTime, 0.1);
+        }
+        isOn = !isOn;
+      }, 500);
+      
+      console.log("[Call] Ringtone started");
+    } catch (err) {
+      console.warn("[Call] Ringtone failed:", err);
+    }
+  }, []);
+
+  const stopRingtone = useCallback(() => {
+    try {
+      if (ringtoneIntervalRef.current) {
+        clearInterval(ringtoneIntervalRef.current);
+        ringtoneIntervalRef.current = null;
+      }
+      if (ringtoneOscillatorRef.current) {
+        ringtoneOscillatorRef.current.stop();
+        ringtoneOscillatorRef.current = null;
+      }
+      if (ringtoneGainRef.current) {
+        ringtoneGainRef.current = null;
+      }
+      console.log("[Call] Ringtone stopped");
+    } catch (err) {
+      console.warn("[Call] Stop ringtone failed:", err);
+    }
+  }, []);
 
   const cleanup = useCallback(() => {
     console.log("[Call] Cleanup");
+    stopRingtone();
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
@@ -100,7 +167,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       durationRef.current = null;
     }
     setState(INITIAL);
-  }, []);
+  }, [stopRingtone]);
 
   const send = useCallback((data: object) => {
     console.log("[Call] Sending:", (data as any).type);
@@ -222,6 +289,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const { callType, remoteUserId } = stateRef.current;
     if (!remoteUserId) return;
     console.log("[Call] Accepting call from user:", remoteUserId);
+    
+    stopRingtone();
 
     try {
       // ALWAYS capture media stream for audio transmission
@@ -278,14 +347,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       console.error("[Call] acceptCall failed:", err);
       cleanup();
     }
-  }, [send, startTimer, cleanup]);
+  }, [send, startTimer, cleanup, stopRingtone]);
 
   const rejectCall = useCallback(() => {
     const remote = stateRef.current.remoteUserId;
     console.log("[Call] Rejecting call from:", remote);
+    stopRingtone();
     if (remote) send({ type: "call_reject", targetUserId: remote });
     cleanup();
-  }, [send, cleanup]);
+  }, [send, cleanup, stopRingtone]);
 
   const endCall = useCallback(() => {
     const remote = stateRef.current.remoteUserId;
@@ -411,6 +481,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     return unsubscribe;
   }, [makePeerConnection, startTimer, cleanup, send]);
+
+  // Manage ringtone based on call status
+  useEffect(() => {
+    if (state.status === "ringing") {
+      console.log("[Call] Status changed to RINGING, playing ringtone");
+      playRingtone();
+    } else {
+      console.log("[Call] Status changed from ringing, stopping ringtone");
+      stopRingtone();
+    }
+  }, [state.status, playRingtone, stopRingtone]);
 
   return (
     <CallContext.Provider value={{

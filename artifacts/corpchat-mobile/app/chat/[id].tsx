@@ -671,11 +671,17 @@ export default function ChatScreen() {
     mutationFn: (payload: { content: string; replyToId?: number }) =>
       api.post(`/conversations/${id}/messages`, { content: payload.content, type: "text", replyToId: payload.replyToId }),
     onSuccess: (newMsg) => {
-      setOptimisticMessages(prev => prev.filter(m => m.id !== (newMsg.id - 0.5)));
+      // Remove optimistic message that matches this response (same content & sender)
+      setOptimisticMessages(prev => 
+        prev.filter(m => !(m.content === newMsg.content && m.senderId === newMsg.senderId && (m.id as any) < 0))
+      );
       queryClient.invalidateQueries({ queryKey: ["messages", id] });
     },
     onError: (error, payload) => {
-      setOptimisticMessages(prev => prev.filter(m => m.content !== payload.content || !m.id.toString().includes('.')));
+      // Remove optimistic message on error
+      setOptimisticMessages(prev => 
+        prev.filter(m => !(m.content === payload.content && (m.id as any) < 0))
+      );
       // Handle 429 rate limit error
       if (error instanceof APIError && (error.errorCode === "pii_blocked" || (error.status === 400 && error.message?.toLowerCase().includes("pii")))) {
         Alert.alert(
@@ -814,7 +820,20 @@ export default function ChatScreen() {
     _queueStatus: q.status,
     _queueId: q.id,
   } as Message & { _queueStatus: string; _queueId: string }));
-  const allMessages: Message[] = [...(data?.messages || []), ...optimisticMessages, ...queuedAsMessages];
+  
+  // Deduplicate messages from multiple sources
+  const seenIds = new Set<string | number>();
+  const deduplicatedMessages: Message[] = [];
+  
+  for (const msg of [...(data?.messages || []), ...optimisticMessages, ...queuedAsMessages]) {
+    const msgId = msg.id;
+    if (!seenIds.has(msgId)) {
+      seenIds.add(msgId);
+      deduplicatedMessages.push(msg);
+    }
+  }
+  
+  const allMessages: Message[] = deduplicatedMessages;
 
   // Insert date separators between messages from different days
   const messagesWithSeparators = useCallback(() => {

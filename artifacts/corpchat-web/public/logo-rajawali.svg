@@ -1,0 +1,19 @@
+<svg viewBox="0 0 1024 256" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+  <!-- White Background -->
+  <rect width="1024" height="256" fill="white"/>
+  
+  <!-- Rajawali Logo SVG - Simplified version -->
+  <!-- Eagle/Wing icon on the left -->
+  <g transform="translate(80, 50)">
+    <!-- Main wing shape -->
+    <path d="M 20 40 Q 30 20 50 15 Q 70 10 80 20 Q 75 30 55 35 Q 35 38 20 40" fill="#000" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M 20 60 Q 30 45 50 40 Q 70 35 85 50 Q 75 65 55 70 Q 35 73 20 60" fill="#000" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M 15 80 Q 25 65 45 58 Q 65 52 85 70 Q 70 85 50 92 Q 30 95 15 80" fill="#000" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+    
+    <!-- Center circle -->
+    <circle cx="25" cy="65" r="8" fill="#000"/>
+  </g>
+  
+  <!-- RAJAWALI Text -->
+  <text x="220" y="130" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#000" letter-spacing="2">RAJAWALI</text>
+</svg>

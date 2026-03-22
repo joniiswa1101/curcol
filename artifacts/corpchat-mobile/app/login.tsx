@@ -242,8 +242,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 28, justifyContent: "center", gap: 8 },
-  logoContainer: { alignItems: "center", marginBottom: 8 },
-  logo: { width: 180, height: 54 },
+  logoContainer: { alignItems: "center", marginBottom: 8, justifyContent: "center" },
+  logo: { width: 360, height: 108 },
   subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 12 },
   tabs: {
     flexDirection: "row", gap: 0, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB",

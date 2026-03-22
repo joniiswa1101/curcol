@@ -167,7 +167,11 @@ interface BubbleProps {
   onDiscard?: () => void;
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlighted, onLongPress, onRetry, onDiscard }: BubbleProps) {
+interface BubblePropsExtended extends BubbleProps {
+  translation?: { text: string; lang: string };
+}
+
+function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlighted, onLongPress, onRetry, onDiscard, translation }: BubblePropsExtended) {
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
 
@@ -239,6 +243,18 @@ function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlig
             }]}>
               {content}
             </Text>
+          )}
+          {translation && (
+            <View style={[styles.translationBox, { backgroundColor: isMine ? "rgba(255,255,255,0.1)" : "rgba(59,130,246,0.1)" }]}>
+              <Text style={[styles.translationLabel, { color: isMine ? "rgba(255,255,255,0.7)" : colors.primary }]}>
+                🌐 {translation.lang.toUpperCase()}
+              </Text>
+              <Text style={[styles.translationText, {
+                color: isMine ? colors.bubble.mineText : colors.bubble.otherText,
+              }]}>
+                {translation.text}
+              </Text>
+            </View>
           )}
           {!msg.isDeleted && detectUrls(content).slice(0, 1).map(url => (
             <LinkPreviewCard key={url} url={url} isMine={isMine} colors={colors} />
@@ -329,6 +345,24 @@ export default function ChatScreen() {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryMessageCount, setSummaryMessageCount] = useState(50);
   
+  // Translation states
+  const [translations, setTranslations] = useState<Record<number, { text: string; lang: string }>>({});
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [translatingMsgId, setTranslatingMsgId] = useState<number | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  
+  const QUICK_LANGUAGES = [
+    { code: "id", name: "🇮🇩 Indonesia" },
+    { code: "en", name: "🇺🇸 English" },
+    { code: "ja", name: "🇯🇵 日本語" },
+    { code: "ko", name: "🇰🇷 한국어" },
+    { code: "zh", name: "🇨🇳 中文" },
+    { code: "es", name: "🇪🇸 Español" },
+    { code: "fr", name: "🇫🇷 Français" },
+    { code: "de", name: "🇩🇪 Deutsch" },
+  ];
+  
   const searchInputRef = useRef<TextInput>(null);
   const offlineQueue = useOfflineQueue(user?.id, () => {
     queryClient.invalidateQueries({ queryKey: ["messages", id] });
@@ -417,6 +451,29 @@ export default function ChatScreen() {
       setSummarizing(false);
     }
   }, [id, summarizing, summaryMessageCount]);
+
+  const handleTranslate = useCallback(async (msgId: number, content: string, targetLang: string) => {
+    if (translating) return;
+    
+    setTranslating(true);
+    setTranslationError(null);
+    
+    try {
+      const result = await api.post("/translate/message", { text: content, targetLang });
+      setTranslations(prev => ({
+        ...prev,
+        [msgId]: { text: result.translation || result.translated || result, lang: targetLang }
+      }));
+      setShowLanguagePicker(false);
+      setTranslatingMsgId(null);
+    } catch (err) {
+      const errorMsg = err instanceof APIError ? err.message : "Gagal menerjemahkan pesan";
+      setTranslationError(errorMsg);
+      Alert.alert("Terjemahan Gagal", errorMsg);
+    } finally {
+      setTranslating(false);
+    }
+  }, [translating]);
 
   const sendMutation = useMutation({
     mutationFn: (payload: { content: string; replyToId?: number }) =>
@@ -1056,6 +1113,7 @@ export default function ChatScreen() {
                 onLongPress={(m) => setContextMenuMsg(m)}
                 onRetry={qId ? () => offlineQueue.retryMessage(qId) : undefined}
                 onDiscard={qId ? () => offlineQueue.discardMessage(qId) : undefined}
+                translation={translations[item.id]}
               />
             );
           }}
@@ -1353,6 +1411,19 @@ export default function ChatScreen() {
             </Text>
           </Pressable>
 
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => {
+              if (contextMenuMsg) {
+                setTranslatingMsgId(contextMenuMsg.id);
+                setShowLanguagePicker(true);
+              }
+            }}
+          >
+            <Feather name="globe" size={18} color={colors.text} />
+            <Text style={[styles.contextItemText, { color: colors.text }]}>Terjemahkan</Text>
+          </Pressable>
+
           {contextMenuMsg?.senderId === user?.id && (
             <>
               <View style={[styles.contextSeparator, { backgroundColor: colors.border }]} />
@@ -1394,6 +1465,56 @@ export default function ChatScreen() {
         </View>
       </Pressable>
     </Modal>
+
+    {/* Language Picker Modal */}
+    <Modal
+      visible={showLanguagePicker}
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        setShowLanguagePicker(false);
+        setContextMenuMsg(null);
+      }}
+    >
+      <Pressable
+        style={styles.contextOverlay}
+        onPress={() => {
+          setShowLanguagePicker(false);
+          setContextMenuMsg(null);
+        }}
+      >
+        <View style={[styles.contextSheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 12 }]}>
+          <Text style={[styles.contextPreviewSender, { color: colors.primary, paddingHorizontal: 16, paddingTop: 12, marginBottom: 8 }]}>
+            Pilih Bahasa Target
+          </Text>
+
+          {translating ? (
+            <View style={{ paddingVertical: 20, alignItems: "center" }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.contextItemText, { color: colors.tabIconDefault, marginTop: 8 }]}>
+                Menerjemahkan...
+              </Text>
+            </View>
+          ) : (
+            QUICK_LANGUAGES.map(lang => (
+              <Pressable
+                key={lang.code}
+                style={styles.contextItem}
+                onPress={() => {
+                  if (contextMenuMsg) {
+                    handleTranslate(contextMenuMsg.id, contextMenuMsg.content || "", lang.code);
+                  }
+                }}
+              >
+                <Text style={[styles.contextItemText, { color: colors.text }]}>
+                  {lang.name}
+                </Text>
+              </Pressable>
+            ))
+          )}
+        </View>
+      </Pressable>
+    </Modal>
     </>
   );
 }
@@ -1426,6 +1547,9 @@ const styles = StyleSheet.create({
   replyBar: { borderLeftWidth: 2, paddingLeft: 6, borderRadius: 2 },
   replyText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   msgText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 21 },
+  translationBox: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 4 },
+  translationLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
+  translationText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   msgMeta: { flexDirection: "row", alignItems: "center", gap: 4, justifyContent: "flex-end" },
   msgTime: { fontSize: 10, fontFamily: "Inter_400Regular" },
   edited: { fontSize: 10, fontFamily: "Inter_400Regular" },

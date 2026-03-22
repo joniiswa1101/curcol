@@ -222,15 +222,22 @@
 
 ---
 
-### GAP-13: Translation (Terjemahan Pesan) ⬜ BELUM
+### GAP-13: Translation (Terjemahan Pesan) ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-13.1 | Opsi "Terjemahkan" di long-press context menu | HIGH | 1d | ⬜ |
-| GAP-13.2 | Pilihan bahasa target (8 bahasa cepat: ID/EN/JA/KO/ZH/ES/FR/DE) | HIGH | 0.5d | ⬜ |
-| GAP-13.3 | Tampilkan hasil terjemahan inline di bawah bubble | HIGH | 1-2d | ⬜ |
-| GAP-13.4 | Loading state + dismiss terjemahan | MEDIUM | 0.5d | ⬜ |
+| GAP-13.1 | Opsi "Terjemahkan" di long-press context menu | HIGH | 1d | ✅ |
+| GAP-13.2 | Pilihan bahasa target (8 bahasa cepat: ID/EN/JA/KO/ZH/ES/FR/DE) | HIGH | 0.5d | ✅ |
+| GAP-13.3 | Tampilkan hasil terjemahan inline di bawah bubble | HIGH | 1-2d | ✅ |
+| GAP-13.4 | Loading state + dismiss terjemahan | MEDIUM | 0.5d | ✅ |
 
-**Catatan**: Di Web, klik kanan pesan → pilih bahasa target → hasil terjemahan muncul inline di bawah bubble (panel ungu). API backend sudah siap: `POST /api/translate/message` dengan body `{ text, targetLang }`. Mendukung 15 bahasa (ID, EN, JA, KO, ZH, AR, ES, FR, DE, PT, RU, TH, VI, MS, HI).
+**Selesai** (22 Maret 2026):
+- ✅ Opsi "Terjemahkan" di long-press context menu (globe icon 🌐)
+- ✅ Language picker modal dengan 8 bahasa cepat (ID, EN, JA, KO, ZH, ES, FR, DE)
+- ✅ Inline translation display di bawah message bubble (translationBox dengan flag emoji)
+- ✅ Loading state saat API processing, error handling dengan alert
+- ✅ API integration: `POST /api/translate/message` dengan `{ text, targetLang }`
+- ✅ Translation state persisted per message ID
+- ✅ Dismiss terjemahan by closing context menu atau language picker
 
 ---
 
@@ -262,24 +269,24 @@
 | Metrik | Nilai |
 |--------|-------|
 | Total GAP items | 15 (GAP-01 s/d GAP-15) |
-| ✅ Selesai | 12 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10, 11, 12) |
-| ⬜ Belum | 3 (GAP-03, 13, 14, 15) |
-| Progress | **80%** (12/15) |
+| ✅ Selesai | 13 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13) |
+| ⬜ Belum | 2 (GAP-03, 14, 15) |
+| Progress | **87%** (13/15) |
 
 ### Status per Task
 | Metrik | Nilai |
 |--------|-------|
 | Total sub-tasks | 58 |
-| ✅ Selesai | 44 |
-| ⬜ Belum | 14 |
-| Progress | **76%** (44/58) |
+| ✅ Selesai | 48 |
+| ⬜ Belum | 10 |
+| Progress | **83%** (48/58) |
 
 ### Gap Tersisa per Prioritas
 | Priority | Tasks Belum | Gap IDs |
 |----------|-------------|---------|
-| HIGH | 8 | GAP-03 (6), GAP-13 (2) |
-| MEDIUM | 5 | GAP-03 (2), GAP-13 (1), GAP-14 (1), GAP-15 (1) |
-| LOW | 1 | GAP-14 (1) |
+| HIGH | 6 | GAP-03 (6) |
+| MEDIUM | 3 | GAP-03 (2), GAP-14 (1) |
+| LOW | 1 | GAP-15 (1) |
 
 ---
 
@@ -310,12 +317,12 @@
 |----|-----|-------------|--------|
 | ~~GAP-11~~ | ~~AI Summarization (TL;DR)~~ | ~~2-4d~~ | ✅ |
 | ~~GAP-12~~ | ~~AI Digest (Harian/Mingguan)~~ | ~~3-5d~~ | ✅ |
-| GAP-13 | Translation (Terjemahan) | 2-4d | ⬜ **NEXT** |
+| ~~GAP-13~~ | ~~Translation (Terjemahan)~~ | ~~2-4d~~ | ✅ |
 
 ### Gelombang 5 — Language Learning (opsional)
 | ID | Gap | Effort Total | Status |
 |----|-----|-------------|--------|
-| GAP-14 | Word-by-Word Breakdown | 2-3d | ⬜ |
+| GAP-14 | Word-by-Word Breakdown | 2-3d | ⬜ **NEXT** |
 | GAP-15 | Mini Language Lesson | 2-3d | ⬜ |
 | ~~GAP-04~~ | ~~Admin Features di Mobile~~ | ~~13-19d~~ | ✅ |
 

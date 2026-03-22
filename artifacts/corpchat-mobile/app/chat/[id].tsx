@@ -321,6 +321,14 @@ export default function ChatScreen() {
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null);
   const [contextMenuMsg, setContextMenuMsg] = useState<Message | null>(null);
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  
+  // AI Summarization states
+  const [showSummaryPanel, setShowSummaryPanel] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summaryData, setSummaryData] = useState<{ summary: string; keyPoints: string[]; actionItems: string[] } | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summaryMessageCount, setSummaryMessageCount] = useState(50);
+  
   const searchInputRef = useRef<TextInput>(null);
   const offlineQueue = useOfflineQueue(user?.id, () => {
     queryClient.invalidateQueries({ queryKey: ["messages", id] });
@@ -386,6 +394,29 @@ export default function ChatScreen() {
       setSearchLoading(false);
     }
   }, [searchQuery, id]);
+
+  const handleSummarize = useCallback(async () => {
+    if (summarizing) return;
+    
+    setSummarizing(true);
+    setSummaryError(null);
+    setSummaryData(null);
+    
+    try {
+      const result = await api.post(`/summarize/conversation/${id}`, { messageCount: summaryMessageCount });
+      setSummaryData({
+        summary: result.summary || result.tldr || "",
+        keyPoints: result.keyPoints || result.points || [],
+        actionItems: result.actionItems || result.actions || []
+      });
+      setShowSummaryPanel(true);
+    } catch (err) {
+      const errorMsg = err instanceof APIError ? err.message : "Gagal merangkum percakapan";
+      setSummaryError(errorMsg);
+    } finally {
+      setSummarizing(false);
+    }
+  }, [id, summarizing, summaryMessageCount]);
 
   const sendMutation = useMutation({
     mutationFn: (payload: { content: string; replyToId?: number }) =>
@@ -791,6 +822,14 @@ export default function ChatScreen() {
         >
           <Feather name="search" size={20} color={showSearch ? colors.primary : (isWhatsapp ? "#fff" : colors.textSecondary)} />
         </Pressable>
+        <Pressable
+          style={styles.headerAction}
+          hitSlop={8}
+          onPress={handleSummarize}
+          disabled={summarizing}
+        >
+          <Text style={{ fontSize: 18, opacity: summarizing ? 0.5 : 1 }}>✨</Text>
+        </Pressable>
         <Pressable style={styles.headerAction} hitSlop={8}>
           <Feather name="more-vertical" size={22} color={isWhatsapp ? "#fff" : colors.textSecondary} />
         </Pressable>
@@ -853,6 +892,126 @@ export default function ChatScreen() {
           )}
         </View>
       )}
+
+      {/* AI Summarization Panel */}
+      <Modal visible={showSummaryPanel} transparent animationType="fade" onRequestClose={() => setShowSummaryPanel(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={[styles.summaryPanel, { backgroundColor: colors.surface }]}>
+            {/* Header */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingBottom: 12, borderBottomColor: colors.border, borderBottomWidth: 1 }}>
+              <Text style={[styles.summaryPanelTitle, { color: colors.text }]}>✨ AI Ringkasan</Text>
+              <Pressable onPress={() => setShowSummaryPanel(false)} hitSlop={8}>
+                <Feather name="x" size={24} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            {/* Message Count Selector */}
+            {!summarizing && summaryData && (
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+                {[50, 100, 200].map(count => (
+                  <Pressable
+                    key={count}
+                    style={[
+                      styles.countButton,
+                      {
+                        backgroundColor: summaryMessageCount === count ? colors.primary : colors.surfaceSecondary,
+                        borderColor: summaryMessageCount === count ? colors.primary : colors.border,
+                        borderWidth: 1
+                      }
+                    ]}
+                    onPress={() => setSummaryMessageCount(count)}
+                  >
+                    <Text style={[{ color: summaryMessageCount === count ? "#fff" : colors.text }]}>
+                      {count} pesan
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* Content */}
+            <ScrollView style={{ flex: 1, marginBottom: 12 }} showsVerticalScrollIndicator={true}>
+              {summarizing && (
+                <View style={styles.summaryLoading}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={[styles.summaryLoadingText, { color: colors.textSecondary, marginTop: 12 }]}>
+                    Merangkum percakapan...
+                  </Text>
+                </View>
+              )}
+
+              {summaryError && (
+                <View style={[styles.summaryError, { backgroundColor: colors.surfaceSecondary }]}>
+                  <Feather name="alert-circle" size={20} color="#ef4444" />
+                  <Text style={[styles.summaryErrorText, { color: colors.text, marginLeft: 8, flex: 1 }]}>
+                    {summaryError}
+                  </Text>
+                </View>
+              )}
+
+              {summaryData && !summarizing && (
+                <View>
+                  {/* Summary */}
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={[styles.summarySubtitle, { color: colors.text }]}>📌 Ringkasan</Text>
+                    <Text style={[styles.summaryContent, { color: colors.text }]}>
+                      {summaryData.summary}
+                    </Text>
+                  </View>
+
+                  {/* Key Points */}
+                  {summaryData.keyPoints.length > 0 && (
+                    <View style={{ marginBottom: 16 }}>
+                      <Text style={[styles.summarySubtitle, { color: colors.text }]}>⭐ Poin Penting</Text>
+                      {summaryData.keyPoints.map((point, idx) => (
+                        <View key={idx} style={{ flexDirection: "row", marginBottom: 8 }}>
+                          <Text style={[{ color: colors.textSecondary, marginRight: 8 }]}>•</Text>
+                          <Text style={[styles.summaryBullet, { color: colors.text, flex: 1 }]}>
+                            {point}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Action Items */}
+                  {summaryData.actionItems.length > 0 && (
+                    <View>
+                      <Text style={[styles.summarySubtitle, { color: colors.text }]}>✅ Tindakan</Text>
+                      {summaryData.actionItems.map((item, idx) => (
+                        <View key={idx} style={{ flexDirection: "row", marginBottom: 8 }}>
+                          <Text style={[{ color: colors.textSecondary, marginRight: 8 }]}>→</Text>
+                          <Text style={[styles.summaryBullet, { color: colors.text, flex: 1 }]}>
+                            {item}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={{ flexDirection: "row", gap: 8, paddingTop: 12, borderTopColor: colors.border, borderTopWidth: 1 }}>
+              <Pressable
+                style={[styles.summaryButton, { flex: 1, backgroundColor: colors.surfaceSecondary }]}
+                onPress={() => setShowSummaryPanel(false)}
+              >
+                <Text style={[{ color: colors.text, fontWeight: "600", textAlign: "center" }]}>Tutup</Text>
+              </Pressable>
+              {!summarizing && (
+                <Pressable
+                  style={[styles.summaryButton, { flex: 1, backgroundColor: colors.primary }]}
+                  onPress={handleSummarize}
+                >
+                  <Text style={[{ color: "#fff", fontWeight: "600", textAlign: "center" }]}>Buat Ulang</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {isLoading ? (
         <View style={styles.center}>
@@ -1353,4 +1512,17 @@ const styles = StyleSheet.create({
   linkPreviewTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   linkPreviewDesc: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 15 },
   linkPreviewDomain: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 2 },
+  
+  // Summary Panel Styles
+  summaryPanel: { maxHeight: "90%", borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingVertical: 16 },
+  summaryPanelTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
+  countButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  summaryLoading: { alignItems: "center", justifyContent: "center", paddingVertical: 40 },
+  summaryLoadingText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  summaryError: { borderRadius: 10, padding: 12, flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  summaryErrorText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  summaryContent: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
+  summarySubtitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 8 },
+  summaryBullet: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+  summaryButton: { paddingVertical: 12, borderRadius: 8, alignItems: "center", justifyContent: "center" },
 });

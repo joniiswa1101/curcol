@@ -125,15 +125,14 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 sm:p-12 relative">
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="text-center lg:text-left">
-            <div className="lg:hidden flex justify-center mb-6">
+            <div className="lg:hidden flex justify-center mb-8">
               <img 
                 src={`${import.meta.env.BASE_URL}logo-2.svg`}
                 alt="Curcol Logo"
-                className="h-16 w-auto"
+                className="h-24 w-auto"
               />
             </div>
-            <h2 className="text-3xl font-display font-bold text-foreground">Masuk ke CurCol</h2>
-            <p className="mt-2 text-muted-foreground">Login menggunakan akun CICO Anda.</p>
+            <p className="mt-2 text-muted-foreground text-center lg:text-left">Login menggunakan akun CICO Anda.</p>
           </div>
 
           {/* Login Mode Tabs */}

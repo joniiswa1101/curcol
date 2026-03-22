@@ -54,15 +54,11 @@ export interface CICOEmployeesResponse {
  * Request: { username, password }
  * Response: { success, token, user: { id, email, username, fullName, department, role, companyId } }
  */
-export async function loginWithCICO(username: string, password: string): Promise<CICOLoginResponse> {
-  if (!username || !password) {
-    throw new Error("Username and password required");
-  }
+async function attemptCICOLogin(username: string, password: string): Promise<CICOLoginResponse> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
     const response = await fetch(`${CICO_API_URL}/api/auth/sso/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -76,11 +72,9 @@ export async function loginWithCICO(username: string, password: string): Promise
     try {
       data = await response.json();
     } catch (parseError) {
-      // Response is not valid JSON (likely error page)
       throw new Error(`CICO returned invalid response (status ${response.status}): ${response.statusText}`);
     }
 
-    // Handle different error responses per spec
     if (!response.ok) {
       if (response.status === 401) {
         throw new Error(data.error || "Invalid credentials");
@@ -93,7 +87,6 @@ export async function loginWithCICO(username: string, password: string): Promise
       }
     }
 
-    // Validate response format per spec
     if (!data.success || !data.token || !data.user) {
       throw new Error("Invalid CICO response format");
     }
@@ -104,15 +97,57 @@ export async function loginWithCICO(username: string, password: string): Promise
 
     return data;
   } catch (error) {
-    // Network/timeout errors
+    clearTimeout(timeoutId);
     if (error instanceof Error) {
-      if (error.message.includes("abort")) {
+      if (error.name === "AbortError" || error.message.includes("abort")) {
         throw new Error("CICO request timeout - server not responding");
       }
       throw error;
     }
     throw new Error("Unknown error connecting to CICO");
   }
+}
+
+const RETRYABLE_PATTERNS = [
+  "timeout",
+  "not responding",
+  "invalid response (status 5",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "fetch failed",
+];
+
+function isRetryable(error: Error): boolean {
+  const msg = error.message.toLowerCase();
+  return RETRYABLE_PATTERNS.some(p => msg.includes(p.toLowerCase()));
+}
+
+export async function loginWithCICO(username: string, password: string): Promise<CICOLoginResponse> {
+  if (!username || !password) {
+    throw new Error("Username and password required");
+  }
+
+  const MAX_RETRIES = 3;
+  const RETRY_DELAYS = [2000, 3000, 4000];
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await attemptCICOLogin(username, password);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Unknown error");
+
+      if (!isRetryable(lastError) || attempt === MAX_RETRIES) {
+        throw lastError;
+      }
+
+      const delay = RETRY_DELAYS[attempt] || 3000;
+      console.log(`[CICO] Attempt ${attempt + 1} failed (${lastError.message}), retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError || new Error("CICO login failed after retries");
 }
 
 /**

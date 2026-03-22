@@ -97,29 +97,20 @@ export default function Login() {
   return (
     <div className="min-h-screen w-full flex bg-background">
       {/* Left side - Visual/Brand */}
-      <div className="hidden lg:flex flex-col flex-1 relative bg-sidebar justify-start pt-40 px-12 overflow-visible">
+      <div className="hidden lg:flex flex-col flex-1 relative bg-sidebar justify-center items-center px-12 overflow-visible">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 mix-blend-overlay z-10" />
         <img 
           src={`${import.meta.env.BASE_URL}images/login-bg.png`}
           alt="Secure Network Background"
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
-        <div className="relative z-20 flex flex-col items-center justify-center text-center flex-1 w-full">
-          {/* Rajawali Logo */}
-          <div className="mb-6 flex justify-center w-full">
-            <img 
-              src={`${import.meta.env.BASE_URL}logo-rajawali.png`}
-              alt="Rajawali Logo"
-              className="h-20 w-auto drop-shadow-lg"
-            />
-          </div>
-          
+        <div className="relative z-20 flex flex-col items-center justify-center text-center w-full max-w-md">
           {/* CurCol Logo with White Text - Logo + Text as One Unit - Centered */}
-          <div className="flex justify-center w-full mb-8">
+          <div className="mb-8">
             <img 
               src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
               alt="Curcol Logo"
-              className="h-40 w-auto drop-shadow-lg"
+              className="h-48 w-auto drop-shadow-lg mx-auto"
             />
           </div>
           <h1 className="text-5xl font-display font-bold text-white mb-6 leading-tight">
@@ -135,21 +126,12 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 sm:p-12 relative">
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="text-center lg:text-left">
-            <div className="lg:hidden flex flex-col items-center justify-center mb-8 gap-3 w-full">
-              <div className="flex justify-center w-full">
-                <img 
-                  src={`${import.meta.env.BASE_URL}logo-rajawali.png`}
-                  alt="Rajawali Logo"
-                  className="h-14 w-auto"
-                />
-              </div>
-              <div className="flex justify-center w-full">
-                <img 
-                  src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
-                  alt="Curcol Logo"
-                  className="h-24 w-auto"
-                />
-              </div>
+            <div className="lg:hidden flex flex-col items-center justify-center mb-8">
+              <img 
+                src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
+                alt="Curcol Logo"
+                className="h-24 w-auto"
+              />
             </div>
             <p className="mt-2 text-muted-foreground text-center lg:text-left">Login menggunakan akun CICO Anda.</p>
           </div>

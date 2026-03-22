@@ -115,7 +115,14 @@ router.post("/group-call/:conversationId", requireAuth as any, async (req, res) 
 });
 
 router.get("/group-call/:conversationId", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
   const conversationId = Number(req.params.conversationId);
+
+  const isMember = await checkMembership(currentUser.id, conversationId);
+  if (!isMember) {
+    return res.status(403).json({ error: "Not a member of this conversation" });
+  }
+
   const room = activeGroupCalls.get(conversationId);
 
   if (!room) {
@@ -172,6 +179,11 @@ router.delete("/group-call/:conversationId", requireAuth as any, async (req, res
   const currentUser = (req as any).user;
   const conversationId = Number(req.params.conversationId);
 
+  const isMember = await checkMembership(currentUser.id, conversationId);
+  if (!isMember) {
+    return res.status(403).json({ error: "Not a member of this conversation" });
+  }
+
   const room = activeGroupCalls.get(conversationId);
   if (!room) {
     return res.json({ success: true });
@@ -198,6 +210,11 @@ router.delete("/group-call/:conversationId", requireAuth as any, async (req, res
 router.post("/group-call/:conversationId/leave", requireAuth as any, async (req, res) => {
   const currentUser = (req as any).user;
   const conversationId = Number(req.params.conversationId);
+
+  const isMember = await checkMembership(currentUser.id, conversationId);
+  if (!isMember) {
+    return res.status(403).json({ error: "Not a member of this conversation" });
+  }
 
   const room = activeGroupCalls.get(conversationId);
   if (!room) {

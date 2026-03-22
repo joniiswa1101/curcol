@@ -111,7 +111,7 @@ export default function Login() {
               src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
               alt="Curcol Logo"
               className="w-auto drop-shadow-lg mx-auto"
-              style={{ height: '202px' }}
+              style={{ height: '222px' }}
             />
           </div>
           <h1 className="text-5xl font-display font-bold text-white mb-6 leading-tight max-w-2xl">

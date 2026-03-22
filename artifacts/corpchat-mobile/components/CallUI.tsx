@@ -4,14 +4,21 @@ import { Feather } from "@expo/vector-icons";
 import { useCall } from "@/contexts/CallContext";
 import Colors from "@/constants/colors";
 
+let RTCView: any = null;
+if (Platform.OS !== "web") {
+  try {
+    RTCView = require("react-native-webrtc").RTCView;
+  } catch (e) {}
+}
+
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
   const s = (seconds % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
 }
 
-function WebVideoElement({ stream, muted = false, mirror = false, style }: {
-  stream: MediaStream | null;
+function VideoView({ stream, muted = false, mirror = false, style }: {
+  stream: any;
   muted?: boolean;
   mirror?: boolean;
   style?: any;
@@ -19,13 +26,35 @@ function WebVideoElement({ stream, muted = false, mirror = false, style }: {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
+    if (Platform.OS === "web" && videoRef.current && stream) {
       videoRef.current.srcObject = stream;
       videoRef.current.play().catch(() => {});
     }
   }, [stream]);
 
   if (!stream) return null;
+
+  if (Platform.OS !== "web") {
+    if (RTCView) {
+      const streamURL = typeof stream.toURL === "function" ? stream.toURL() : "";
+      if (!streamURL) return null;
+      return (
+        <RTCView
+          streamURL={streamURL}
+          style={[StyleSheet.absoluteFill, style]}
+          objectFit="cover"
+          mirror={mirror}
+          zOrder={mirror ? 1 : 0}
+        />
+      );
+    }
+    console.warn("[CallUI] RTCView not available on native platform");
+    return (
+      <View style={[StyleSheet.absoluteFill, style, { backgroundColor: "#0f0f23", justifyContent: "center", alignItems: "center" }]}>
+        <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>Video tidak tersedia</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[StyleSheet.absoluteFill, style]}>
@@ -103,7 +132,7 @@ export function ActiveCallOverlay() {
 
   const handleToggleVideo = useCallback(() => {
     if (localStream) {
-      localStream.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
+      localStream.getVideoTracks().forEach((t: any) => { t.enabled = !t.enabled; });
     }
     setIsVideoOff(v => !v);
   }, [localStream]);
@@ -113,7 +142,7 @@ export function ActiveCallOverlay() {
       <Modal visible transparent animationType="slide">
         <View style={videoStyles.container}>
           {remoteStream ? (
-            <WebVideoElement stream={remoteStream} style={StyleSheet.absoluteFill} />
+            <VideoView stream={remoteStream} style={StyleSheet.absoluteFill} />
           ) : (
             <View style={videoStyles.remoteVideoPlaceholder}>
               <View style={[styles.avatar, styles.avatarLarge, { backgroundColor: colors.primary }]}>
@@ -127,7 +156,7 @@ export function ActiveCallOverlay() {
 
           {localStream && !isVideoOff && (
             <View style={videoStyles.localVideoContainer}>
-              <WebVideoElement stream={localStream} muted mirror />
+              <VideoView stream={localStream} muted mirror />
             </View>
           )}
 

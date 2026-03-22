@@ -1,6 +1,37 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Platform, Alert } from "react-native";
+import { Platform, Alert, PermissionsAndroid } from "react-native";
+
+let WebRTCModule: any = null;
+if (Platform.OS !== "web") {
+  try {
+    WebRTCModule = require("react-native-webrtc");
+  } catch (e) {
+    console.warn("[Call] react-native-webrtc not available");
+  }
+}
+
+function getRTC() {
+  if (Platform.OS === "web") {
+    return {
+      RTCPeerConnection: (window as any).RTCPeerConnection,
+      RTCSessionDescription: (window as any).RTCSessionDescription,
+      RTCIceCandidate: (window as any).RTCIceCandidate,
+      MediaStream: (window as any).MediaStream,
+      getUserMedia: (constraints: any) => navigator.mediaDevices.getUserMedia(constraints),
+    };
+  }
+  if (WebRTCModule) {
+    return {
+      RTCPeerConnection: WebRTCModule.RTCPeerConnection,
+      RTCSessionDescription: WebRTCModule.RTCSessionDescription,
+      RTCIceCandidate: WebRTCModule.RTCIceCandidate,
+      MediaStream: WebRTCModule.MediaStream,
+      getUserMedia: (constraints: any) => WebRTCModule.mediaDevices.getUserMedia(constraints),
+    };
+  }
+  return null;
+}
 
 type CallType = "voice" | "video";
 type CallStatus = "idle" | "ringing" | "outgoing" | "connected" | "ended";
@@ -28,8 +59,8 @@ interface CallContextType extends CallState {
   rejectCall: () => void;
   endCall: () => void;
   toggleMute: () => void;
-  localStream: MediaStream | null;
-  remoteStream: MediaStream | null;
+  localStream: any;
+  remoteStream: any;
 }
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -54,6 +85,23 @@ const ICE_SERVERS = [
   },
 ];
 
+async function requestMediaPermissions(): Promise<boolean> {
+  if (Platform.OS !== "android") return true;
+  try {
+    const grants = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.CAMERA,
+      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+    ]);
+    return (
+      grants[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED &&
+      grants[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED
+    );
+  } catch (err) {
+    console.error("[Call] Permission request failed:", err);
+    return false;
+  }
+}
+
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user, token } = useAuth();
   const [state, setState] = useState<CallState>({
@@ -72,11 +120,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const callStateRef = useRef(state);
   callStateRef.current = state;
 
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const iceCandidateQueue = useRef<RTCIceCandidateInit[]>([]);
+  const pcRef = useRef<any>(null);
+  const localStreamRef = useRef<any>(null);
+  const [localStream, setLocalStream] = useState<any>(null);
+  const [remoteStream, setRemoteStream] = useState<any>(null);
+  const iceCandidateQueue = useRef<any[]>([]);
 
   const cleanup = useCallback(() => {
     console.log("[Call] Cleanup");
@@ -85,7 +133,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       durationIntervalRef.current = null;
     }
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current.getTracks().forEach((t: any) => t.stop());
       localStreamRef.current = null;
       setLocalStream(null);
     }
@@ -120,29 +168,39 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const makePeerConnection = useCallback((targetUserId: number) => {
-    console.log("[Call] Creating PeerConnection for user:", targetUserId);
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const rtc = getRTC();
+    if (!rtc) {
+      console.error("[Call] WebRTC not available on this platform");
+      return null;
+    }
 
-    pc.onicecandidate = (e) => {
+    console.log("[Call] Creating PeerConnection for user:", targetUserId);
+    const pc = new rtc.RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    pc.onicecandidate = (e: any) => {
       if (e.candidate) {
         sendWs({
           type: "call_ice_candidate",
           targetUserId,
-          candidate: e.candidate.toJSON(),
+          candidate: Platform.OS === "web" ? e.candidate.toJSON() : {
+            candidate: e.candidate.candidate,
+            sdpMid: e.candidate.sdpMid,
+            sdpMLineIndex: e.candidate.sdpMLineIndex,
+          },
         });
       }
     };
 
-    pc.ontrack = (e) => {
-      console.log("[Call] Remote track received:", e.track.kind);
+    pc.ontrack = (e: any) => {
+      console.log("[Call] Remote track received");
       if (e.streams && e.streams[0]) {
         setRemoteStream(e.streams[0]);
-      } else {
-        const stream = new MediaStream([e.track]);
-        setRemoteStream(prev => {
+      } else if (rtc.MediaStream) {
+        const stream = new rtc.MediaStream([e.track]);
+        setRemoteStream((prev: any) => {
           if (prev) {
             prev.addTrack(e.track);
-            return new MediaStream(prev.getTracks());
+            return Platform.OS === "web" ? new rtc.MediaStream(prev.getTracks()) : prev;
           }
           return stream;
         });
@@ -152,10 +210,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     pc.oniceconnectionstatechange = () => {
       console.log("[Call] ICE state:", pc.iceConnectionState);
       if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
-        const receivers = pc.getReceivers();
-        const tracks = receivers.map(r => r.track).filter(Boolean);
-        if (tracks.length > 0) {
-          setRemoteStream(new MediaStream(tracks));
+        const receivers = pc.getReceivers?.();
+        if (receivers) {
+          const tracks = receivers.map((r: any) => r.track).filter(Boolean);
+          if (tracks.length > 0 && rtc.MediaStream) {
+            setRemoteStream(new rtc.MediaStream(tracks));
+          }
         }
       }
       if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
@@ -176,9 +236,23 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     conversationId: number;
     type: CallType;
   }) => {
+    const rtc = getRTC();
+    if (!rtc) {
+      Alert.alert("Tidak Tersedia", "Fitur panggilan tidak tersedia di platform ini.");
+      return;
+    }
+
     console.log("[Call] Initiating call to user:", params.userId, "type:", params.type);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      if (Platform.OS === "android") {
+        const granted = await requestMediaPermissions();
+        if (!granted) {
+          Alert.alert("Izin Ditolak", "Izinkan akses kamera dan mikrofon untuk melakukan panggilan.");
+          return;
+        }
+      }
+
+      const stream = await rtc.getUserMedia({
         audio: true,
         video: params.type === "video",
       });
@@ -197,7 +271,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       });
 
       const pc = makePeerConnection(params.userId);
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      if (!pc) {
+        cleanup();
+        return;
+      }
+      stream.getTracks().forEach((t: any) => pc.addTrack(t, stream));
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -215,11 +293,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       console.log("[Call] WebRTC offer sent");
     } catch (err) {
       console.error("[Call] initiateCall failed:", err);
+      Alert.alert("Gagal", "Tidak bisa memulai panggilan. Pastikan izin kamera dan mikrofon diberikan.");
       cleanup();
     }
   }, [makePeerConnection, sendWs, cleanup, user]);
 
   const acceptCall = useCallback(async () => {
+    const rtc = getRTC();
     const { callType, remoteUserId } = callStateRef.current;
     if (!remoteUserId) return;
     console.log("[Call] Accepting call from user:", remoteUserId);
@@ -237,14 +317,26 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      if (Platform.OS === "android") {
+        const granted = await requestMediaPermissions();
+        if (!granted) {
+          Alert.alert("Izin Ditolak", "Izinkan akses kamera dan mikrofon untuk menerima panggilan.");
+          sendWs({ type: "call_reject", targetUserId: remoteUserId });
+          cleanup();
+          return;
+        }
+      }
+
+      const stream = rtc ? await rtc.getUserMedia({
         audio: true,
         video: callType === "video",
-      });
-      localStreamRef.current = stream;
-      setLocalStream(stream);
+      }) : null;
 
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      if (stream) {
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+        stream.getTracks().forEach((t: any) => pc.addTrack(t, stream));
+      }
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -255,8 +347,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         sdp: answer.sdp,
       });
 
-      for (const c of iceCandidateQueue.current) {
-        await pc.addIceCandidate(new RTCIceCandidate(c));
+      const RtcIceCandidate = rtc?.RTCIceCandidate;
+      if (RtcIceCandidate) {
+        for (const c of iceCandidateQueue.current) {
+          await pc.addIceCandidate(new RtcIceCandidate(c));
+        }
       }
       iceCandidateQueue.current = [];
 
@@ -286,7 +381,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [sendWs, cleanup]);
 
   const toggleMute = useCallback(() => {
-    localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
+    localStreamRef.current?.getAudioTracks().forEach((t: any) => { t.enabled = !t.enabled; });
     setState(prev => ({ ...prev, isMuted: !prev.isMuted }));
   }, []);
 
@@ -314,9 +409,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         console.log("[Call] WS connected");
       };
 
-      ws.onmessage = async (event) => {
+      ws.onmessage = async (event: any) => {
         try {
           const msg = JSON.parse(event.data);
+          const rtc = getRTC();
 
           switch (msg.type) {
             case "call_offer": {
@@ -327,13 +423,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
               console.log("[Call] Incoming call from:", msg.callerName);
               const isSimpleCall = !msg.sdp || msg.sdp === "mobile-call-offer";
 
-              if (!isSimpleCall) {
+              if (!isSimpleCall && rtc) {
                 try {
                   const pc = makePeerConnection(msg.callerId);
-                  await pc.setRemoteDescription(new RTCSessionDescription({
-                    type: "offer",
-                    sdp: msg.sdp,
-                  }));
+                  if (pc) {
+                    await pc.setRemoteDescription(new rtc.RTCSessionDescription({
+                      type: "offer",
+                      sdp: msg.sdp,
+                    }));
+                  }
                 } catch (err) {
                   console.warn("[Call] WebRTC setup failed:", err);
                 }
@@ -357,12 +455,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
               const pc = pcRef.current;
               const isSimpleAnswer = !msg.sdp || msg.sdp === "mobile-call-answer" || msg.sdp === "web-call-answer";
 
-              if (isSimpleAnswer || !pc) {
+              if (isSimpleAnswer || !pc || !rtc) {
                 setState(prev => ({ ...prev, status: "connected" }));
                 startDurationTimer();
               } else {
                 try {
-                  await pc.setRemoteDescription(new RTCSessionDescription({
+                  await pc.setRemoteDescription(new rtc.RTCSessionDescription({
                     type: "answer",
                     sdp: msg.sdp,
                   }));
@@ -380,8 +478,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
             case "call_ice_candidate": {
               const pc = pcRef.current;
-              if (pc?.remoteDescription) {
-                await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+              if (pc?.remoteDescription && rtc) {
+                await pc.addIceCandidate(new rtc.RTCIceCandidate(msg.candidate));
               } else {
                 iceCandidateQueue.current.push(msg.candidate);
               }
@@ -391,11 +489,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             case "call_failed":
               cleanup();
               if (msg.reason === "user_offline") {
-                if (Platform.OS === "web") {
-                  window.alert("Panggilan Gagal: Pengguna tidak sedang online.");
-                } else {
-                  Alert.alert("Panggilan Gagal", "Pengguna tidak sedang online.");
-                }
+                Alert.alert("Panggilan Gagal", "Pengguna tidak sedang online.");
               }
               break;
 
@@ -409,7 +503,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
-      ws.onerror = (err) => {
+      ws.onerror = (err: any) => {
         console.error("[Call] WS error:", err);
       };
 

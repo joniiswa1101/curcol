@@ -14,10 +14,21 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Izinkan CurCol menggunakan kamera untuk video call",
+        "NSMicrophoneUsageDescription": "Izinkan CurCol menggunakan mikrofon untuk panggilan suara"
+      }
     },
     "android": {
-      "package": "com.joniiswa1101.corpchatmobile"
+      "package": "com.joniiswa1101.corpchatmobile",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -35,6 +46,14 @@
         "expo-camera",
         {
           "cameraPermission": "Izinkan CurCol menggunakan kamera untuk video call"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
         }
       ]
     ],

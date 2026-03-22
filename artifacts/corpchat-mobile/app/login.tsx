@@ -70,9 +70,8 @@ export default function LoginScreen() {
     >
       <View style={[styles.container, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}>
         {/* Logo */}
-        <View style={styles.logoRow}>
-          <Image source={require("../assets/logo.png")} style={styles.logo} />
-          <Text style={[styles.appName, { color: colors.text }]}>CurCol</Text>
+        <View style={styles.logoContainer}>
+          <Image source={require("../assets/logo-2.svg")} style={styles.logo} />
         </View>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Platform komunikasi resmi karyawan
@@ -243,9 +242,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 28, justifyContent: "center", gap: 8 },
-  logoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
-  logo: { width: 52, height: 52 },
-  appName: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  logoContainer: { alignItems: "center", marginBottom: 8 },
+  logo: { width: 180, height: 54 },
   subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 12 },
   tabs: {
     flexDirection: "row", gap: 0, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB",

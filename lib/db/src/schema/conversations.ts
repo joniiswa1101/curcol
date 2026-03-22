@@ -31,6 +31,7 @@ export const conversationMembersTable = pgTable("conversation_members", {
   role: memberRoleEnum("role").notNull().default("member"),
   isPinned: boolean("is_pinned").notNull().default(false),
   isMuted: boolean("is_muted").notNull().default(false),
+  clearedAt: timestamp("cleared_at"),
   lastReadAt: timestamp("last_read_at"),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
 }, (table) => ({

@@ -445,6 +445,12 @@ export default function ChatScreen() {
   const [teachingLang, setTeachingLang] = useState<string | null>(null);
   const [teaching, setTeaching] = useState(false);
   
+  // Header menu states
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showConvInfo, setShowConvInfo] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [menuActionLoading, setMenuActionLoading] = useState(false);
+  
   const QUICK_LANGUAGES = [
     { code: "id", name: "🇮🇩 Indonesia" },
     { code: "en", name: "🇺🇸 English" },
@@ -614,6 +620,52 @@ export default function ChatScreen() {
       setTeachingLang(null);
     }
   }, [teaching]);
+
+  const handleTogglePin = useCallback(async () => {
+    setMenuActionLoading(true);
+    try {
+      await api.post(`/conversations/${id}/pin`, {});
+      queryClient.invalidateQueries({ queryKey: ["conversation-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      setShowHeaderMenu(false);
+    } catch {
+      Alert.alert("Gagal", "Tidak dapat mengubah status pin.");
+    } finally {
+      setMenuActionLoading(false);
+    }
+  }, [id, queryClient]);
+
+  const handleToggleMute = useCallback(async () => {
+    setMenuActionLoading(true);
+    try {
+      await api.post(`/conversations/${id}/mute`, {});
+      queryClient.invalidateQueries({ queryKey: ["conversation-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      setShowHeaderMenu(false);
+    } catch {
+      Alert.alert("Gagal", "Tidak dapat mengubah status notifikasi.");
+    } finally {
+      setMenuActionLoading(false);
+    }
+  }, [id, queryClient]);
+
+  const handleClearChat = useCallback(async () => {
+    setMenuActionLoading(true);
+    try {
+      await api.post(`/conversations/${id}/clear`, {});
+      queryClient.invalidateQueries({ queryKey: ["messages", id] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["conversation-detail", id] });
+      setSearchQuery("");
+      setSearchResults([]);
+      setShowClearConfirm(false);
+      setShowHeaderMenu(false);
+    } catch {
+      Alert.alert("Gagal", "Tidak dapat menghapus riwayat chat.");
+    } finally {
+      setMenuActionLoading(false);
+    }
+  }, [id, queryClient]);
 
   const sendMutation = useMutation({
     mutationFn: (payload: { content: string; replyToId?: number }) =>
@@ -1027,7 +1079,7 @@ export default function ChatScreen() {
         >
           <Text style={{ fontSize: 18, opacity: summarizing ? 0.5 : 1 }}>✨</Text>
         </Pressable>
-        <Pressable style={styles.headerAction} hitSlop={8}>
+        <Pressable style={styles.headerAction} hitSlop={8} onPress={() => setShowHeaderMenu(true)}>
           <Feather name="more-vertical" size={22} color={isWhatsapp ? "#fff" : colors.textSecondary} />
         </Pressable>
       </View>
@@ -1736,6 +1788,213 @@ export default function ChatScreen() {
         </View>
       </Pressable>
     </Modal>
+
+    {/* Header Menu Modal */}
+    <Modal
+      visible={showHeaderMenu}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowHeaderMenu(false)}
+    >
+      <Pressable
+        style={styles.contextOverlay}
+        onPress={() => setShowHeaderMenu(false)}
+      >
+        <View style={[styles.contextSheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 12 }]}>
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => { setShowHeaderMenu(false); setShowConvInfo(true); }}
+          >
+            <Feather name="info" size={18} color={colors.text} />
+            <Text selectable={false} style={[styles.contextItemText, { color: colors.text }]}>
+              Lihat Info
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.contextItem}
+            onPress={handleToggleMute}
+            disabled={menuActionLoading}
+          >
+            <Feather name={convDetail?.isMuted ? "bell" : "bell-off"} size={18} color={colors.text} />
+            <Text selectable={false} style={[styles.contextItemText, { color: colors.text }]}>
+              {convDetail?.isMuted ? "Aktifkan Notifikasi" : "Bisukan Notifikasi"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => {
+              setShowHeaderMenu(false);
+              setShowSearch(true);
+              setTimeout(() => searchInputRef.current?.focus(), 100);
+            }}
+          >
+            <Feather name="search" size={18} color={colors.text} />
+            <Text selectable={false} style={[styles.contextItemText, { color: colors.text }]}>
+              Cari di Chat
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.contextItem}
+            onPress={handleTogglePin}
+            disabled={menuActionLoading}
+          >
+            <Feather name="bookmark" size={18} color={convDetail?.isPinned ? "#f59e0b" : colors.text} />
+            <Text selectable={false} style={[styles.contextItemText, { color: colors.text }]}>
+              {convDetail?.isPinned ? "Lepas Pin Chat" : "Pin Chat"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => { setShowHeaderMenu(false); setShowClearConfirm(true); }}
+          >
+            <Feather name="trash-2" size={18} color="#ef4444" />
+            <Text selectable={false} style={[styles.contextItemText, { color: "#ef4444" }]}>
+              Hapus Riwayat Chat
+            </Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+
+    {/* Conversation Info Modal */}
+    <Modal
+      visible={showConvInfo}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowConvInfo(false)}
+    >
+      <View style={[styles.infoModalContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.infoModalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: insets.top + 8 }]}>
+          <Pressable style={styles.backBtn} onPress={() => setShowConvInfo(false)}>
+            <Feather name="x" size={22} color={colors.text} />
+          </Pressable>
+          <Text selectable={false} style={[styles.headerName, { color: colors.text, flex: 1 }]}>
+            Info {type === "group" ? "Grup" : type === "direct" ? "Kontak" : "Chat"}
+          </Text>
+        </View>
+
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+          <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
+            <View style={styles.infoAvatarRow}>
+              <View style={[styles.infoAvatarCircle, { backgroundColor: colors.primary }]}>
+                <Feather name={type === "group" ? "users" : "user"} size={32} color="#fff" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                <Text selectable={false} style={[styles.infoName, { color: colors.text }]}>
+                  {convDetail?.name || paramName || "Chat"}
+                </Text>
+                <Text selectable={false} style={[styles.infoSub, { color: colors.textSecondary }]}>
+                  {type === "group" ? `${convDetail?.members?.length || 0} anggota` : type === "whatsapp" ? "WhatsApp" : "Percakapan langsung"}
+                </Text>
+              </View>
+            </View>
+
+            {convDetail?.description && (
+              <View style={[styles.infoSection, { borderTopColor: colors.border }]}>
+                <Text selectable={false} style={[styles.infoSectionTitle, { color: colors.textSecondary }]}>Deskripsi</Text>
+                <Text selectable={false} style={[styles.infoSectionValue, { color: colors.text }]}>{convDetail.description}</Text>
+              </View>
+            )}
+
+            <View style={[styles.infoSection, { borderTopColor: colors.border }]}>
+              <Text selectable={false} style={[styles.infoSectionTitle, { color: colors.textSecondary }]}>Status</Text>
+              <View style={styles.infoStatusRow}>
+                <Feather name={convDetail?.isPinned ? "bookmark" : "bookmark"} size={14} color={convDetail?.isPinned ? "#f59e0b" : colors.textSecondary} />
+                <Text selectable={false} style={[styles.infoStatusText, { color: colors.text }]}>
+                  {convDetail?.isPinned ? "Di-pin" : "Tidak di-pin"}
+                </Text>
+              </View>
+              <View style={styles.infoStatusRow}>
+                <Feather name={convDetail?.isMuted ? "bell-off" : "bell"} size={14} color={convDetail?.isMuted ? "#ef4444" : colors.textSecondary} />
+                <Text selectable={false} style={[styles.infoStatusText, { color: colors.text }]}>
+                  {convDetail?.isMuted ? "Dibisukan" : "Notifikasi aktif"}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.infoSection, { borderTopColor: colors.border }]}>
+              <Text selectable={false} style={[styles.infoSectionTitle, { color: colors.textSecondary }]}>Dibuat pada</Text>
+              <Text selectable={false} style={[styles.infoSectionValue, { color: colors.text }]}>
+                {convDetail?.createdAt ? new Date(convDetail.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
+              </Text>
+            </View>
+          </View>
+
+          {convDetail?.members && convDetail.members.length > 0 && (
+            <View style={[styles.infoCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
+              <Text selectable={false} style={[styles.infoSectionTitle, { color: colors.textSecondary, padding: 16, paddingBottom: 8 }]}>
+                Anggota ({convDetail.members.length})
+              </Text>
+              {convDetail.members.map((m: any) => (
+                <View key={m.userId} style={styles.infoMemberRow}>
+                  <UserAvatar name={m.user?.name || "?"} size={36} avatarUrl={m.user?.avatarUrl} />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text selectable={false} style={[styles.infoMemberName, { color: colors.text }]}>
+                      {m.user?.name || `User #${m.userId}`}
+                      {m.userId === user?.id ? " (Anda)" : ""}
+                    </Text>
+                    <Text selectable={false} style={[styles.infoMemberRole, { color: colors.textSecondary }]}>
+                      {m.role === "admin" ? "Admin" : "Anggota"}
+                    </Text>
+                  </View>
+                  {m.role === "admin" && (
+                    <View style={[styles.adminBadge, { backgroundColor: colors.primary + "20" }]}>
+                      <Text selectable={false} style={[styles.adminBadgeText, { color: colors.primary }]}>Admin</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
+
+    {/* Clear Chat Confirmation Modal */}
+    <Modal
+      visible={showClearConfirm}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowClearConfirm(false)}
+    >
+      <Pressable
+        style={[styles.contextOverlay, { justifyContent: "center" }]}
+        onPress={() => setShowClearConfirm(false)}
+      >
+        <View style={[styles.clearConfirmBox, { backgroundColor: colors.surface }]}>
+          <Feather name="alert-triangle" size={32} color="#f59e0b" style={{ alignSelf: "center", marginBottom: 12 }} />
+          <Text selectable={false} style={[styles.clearConfirmTitle, { color: colors.text }]}>
+            Hapus Riwayat Chat?
+          </Text>
+          <Text selectable={false} style={[styles.clearConfirmDesc, { color: colors.textSecondary }]}>
+            Semua pesan di chat ini akan dihapus dari tampilan Anda. Pesan tetap tersimpan untuk anggota lain.
+          </Text>
+          <View style={styles.clearConfirmButtons}>
+            <Pressable
+              style={[styles.clearConfirmBtn, { backgroundColor: colors.surfaceSecondary }]}
+              onPress={() => setShowClearConfirm(false)}
+            >
+              <Text selectable={false} style={[styles.clearConfirmBtnText, { color: colors.text }]}>Batal</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.clearConfirmBtn, { backgroundColor: "#ef4444" }]}
+              onPress={handleClearChat}
+              disabled={menuActionLoading}
+            >
+              {menuActionLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text selectable={false} style={[styles.clearConfirmBtnText, { color: "#fff" }]}>Hapus</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    </Modal>
     </>
   );
 }
@@ -1883,4 +2142,27 @@ const styles = StyleSheet.create({
   summarySubtitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 8 },
   summaryBullet: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
   summaryButton: { paddingVertical: 12, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  infoModalContainer: { flex: 1 },
+  infoModalHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingBottom: 12, borderBottomWidth: 0.5 },
+  infoCard: { borderRadius: 12, overflow: "hidden" },
+  infoAvatarRow: { flexDirection: "row", alignItems: "center", padding: 16 },
+  infoAvatarCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
+  infoName: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
+  infoSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  infoSection: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 0.5 },
+  infoSectionTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 },
+  infoSectionValue: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  infoStatusRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  infoStatusText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  infoMemberRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10 },
+  infoMemberName: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  infoMemberRole: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  adminBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  adminBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  clearConfirmBox: { borderRadius: 16, padding: 24, marginHorizontal: 32, alignSelf: "center", width: "85%", maxWidth: 360 },
+  clearConfirmTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", textAlign: "center", marginBottom: 8 },
+  clearConfirmDesc: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 19, marginBottom: 20 },
+  clearConfirmButtons: { flexDirection: "row", gap: 12 },
+  clearConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  clearConfirmBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });

@@ -135,6 +135,9 @@ router.get("/:conversationId/messages", requireAuth as any, async (req, res) => 
 
   const conditions: any[] = [eq(messagesTable.conversationId, convId)];
   if (before) conditions.push(lt(messagesTable.id, before));
+  if (membership.clearedAt) {
+    conditions.push(sql`${messagesTable.createdAt} > ${membership.clearedAt}`);
+  }
 
   const messages = await db.select().from(messagesTable)
     .where(and(...conditions))
@@ -660,6 +663,9 @@ router.get("/:conversationId/search", requireAuth as any, async (req, res) => {
     sql`${messagesTable.content} ILIKE ${`%${query}%`}`
   ];
 
+  if (membership.clearedAt) {
+    conditions.push(sql`${messagesTable.createdAt} > ${membership.clearedAt}`);
+  }
   if (senderId) conditions.push(eq(messagesTable.senderId, senderId));
   if (beforeDate) conditions.push(sql`${messagesTable.createdAt} < ${beforeDate}`);
   if (afterDate) conditions.push(sql`${messagesTable.createdAt} > ${afterDate}`);

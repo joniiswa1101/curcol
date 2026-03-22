@@ -90,7 +90,9 @@ router.get("/", requireAuth as any, async (req, res) => {
     const myMembership = membershipMap.get(conv.id);
     const convMembers = allMembers.filter(m => m.conversationId === conv.id);
     const memberCount = convMembers.length;
-    const lastMsg = lastMsgMap.get(conv.id);
+    const rawLastMsg = lastMsgMap.get(conv.id);
+    const clearedAt = myMembership?.clearedAt;
+    const lastMsg = rawLastMsg && clearedAt && new Date(rawLastMsg.createdAt).getTime() <= new Date(clearedAt).getTime() ? null : rawLastMsg;
 
     const lastReadAt = myMembership?.lastReadAt;
     let unreadCount = 0;
@@ -643,6 +645,18 @@ router.post("/:conversationId/mute", requireAuth as any, async (req, res) => {
   await db.update(conversationMembersTable).set({ isMuted: !member.isMuted })
     .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
   res.json({ success: true, muted: !member.isMuted, message: `Notifications ${member.isMuted ? "unmuted" : "muted"}` });
+});
+
+router.post("/:conversationId/clear", requireAuth as any, async (req, res) => {
+  const convId = parseInt(req.params.conversationId);
+  const currentUser = (req as any).user;
+  const [member] = await db.select().from(conversationMembersTable)
+    .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
+  if (!member) { res.status(403).json({ error: "forbidden" }); return; }
+  await db.update(conversationMembersTable).set({ clearedAt: new Date() })
+    .where(and(eq(conversationMembersTable.conversationId, convId), eq(conversationMembersTable.userId, currentUser.id)));
+  await logAudit({ userId: currentUser.id, action: "clear_chat", entityType: "conversation", entityId: convId, req });
+  res.json({ success: true, message: "Chat cleared" });
 });
 
 export default router;

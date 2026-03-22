@@ -241,14 +241,22 @@
 
 ---
 
-### GAP-14: Word-by-Word Breakdown (Analisis Kata) ⬜ BELUM
+### GAP-14: Word-by-Word Breakdown (Analisis Kata) ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-14.1 | Opsi "Analisis Kata" di long-press context menu | MEDIUM | 0.5d | ⬜ |
-| GAP-14.2 | Tampilkan breakdown inline (kata, pelafalan, arti, kelas kata) | MEDIUM | 1-2d | ⬜ |
-| GAP-14.3 | Catatan grammar di akhir breakdown | LOW | 0.5d | ⬜ |
+| GAP-14.1 | Opsi "Analisis Kata" di long-press context menu | MEDIUM | 0.5d | ✅ |
+| GAP-14.2 | Tampilkan breakdown inline (kata, pelafalan, arti, kelas kata) | MEDIUM | 1-2d | ✅ |
+| GAP-14.3 | Catatan grammar di akhir breakdown | LOW | 0.5d | ✅ |
 
-**Catatan**: Di Web, klik kanan pesan → "Analisis Kata" → panel hijau inline di bawah bubble. Setiap kata ditampilkan dengan: kata asli, romanisasi (untuk non-Latin), arti dalam bahasa Indonesia, dan kelas kata. Ditambah catatan tata bahasa. API: `POST /api/translate/breakdown` dengan body `{ text, sourceLang? }`. Response JSON: `{ breakdown: { words: [{word, pronunciation, meaning, pos}], grammar: "..." } }`.
+**Selesai** (22 Maret 2026):
+- ✅ Opsi "Analisis Kata" di long-press context menu (book-open icon 📖)
+- ✅ Inline breakdown display di bawah message bubble (breakdownBox dengan styling hijau)
+- ✅ Word grid dengan kartu per kata menampilkan: kata, romanisasi, arti, POS
+- ✅ Catatan tata bahasa (grammar) di bawah word grid
+- ✅ Loading state saat API processing
+- ✅ API integration: `POST /api/translate/breakdown` dengan `{ text, sourceLang? }`
+- ✅ Green color scheme (#22c55e) untuk visual distinction dari translation (blue)
+- ✅ Full dark/light mode support
 
 ---
 
@@ -269,24 +277,24 @@
 | Metrik | Nilai |
 |--------|-------|
 | Total GAP items | 15 (GAP-01 s/d GAP-15) |
-| ✅ Selesai | 13 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13) |
-| ⬜ Belum | 2 (GAP-03, 14, 15) |
-| Progress | **87%** (13/15) |
+| ✅ Selesai | 14 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14) |
+| ⬜ Belum | 1 (GAP-03, 15) |
+| Progress | **93%** (14/15) |
 
 ### Status per Task
 | Metrik | Nilai |
 |--------|-------|
 | Total sub-tasks | 58 |
-| ✅ Selesai | 48 |
-| ⬜ Belum | 10 |
-| Progress | **83%** (48/58) |
+| ✅ Selesai | 51 |
+| ⬜ Belum | 7 |
+| Progress | **88%** (51/58) |
 
 ### Gap Tersisa per Prioritas
 | Priority | Tasks Belum | Gap IDs |
 |----------|-------------|---------|
 | HIGH | 6 | GAP-03 (6) |
-| MEDIUM | 3 | GAP-03 (2), GAP-14 (1) |
-| LOW | 1 | GAP-15 (1) |
+| MEDIUM | 1 | GAP-03 (2) |
+| LOW | 0 | — |
 
 ---
 
@@ -322,8 +330,8 @@
 ### Gelombang 5 — Language Learning (opsional)
 | ID | Gap | Effort Total | Status |
 |----|-----|-------------|--------|
-| GAP-14 | Word-by-Word Breakdown | 2-3d | ⬜ **NEXT** |
-| GAP-15 | Mini Language Lesson | 2-3d | ⬜ |
+| ~~GAP-14~~ | ~~Word-by-Word Breakdown~~ | ~~2-3d~~ | ✅ |
+| GAP-15 | Mini Language Lesson | 2-3d | ⬜ **NEXT** |
 | ~~GAP-04~~ | ~~Admin Features di Mobile~~ | ~~13-19d~~ | ✅ |
 
 ---

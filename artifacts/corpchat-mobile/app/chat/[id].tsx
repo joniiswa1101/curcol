@@ -169,9 +169,10 @@ interface BubbleProps {
 
 interface BubblePropsExtended extends BubbleProps {
   translation?: { text: string; lang: string };
+  breakdown?: { words: Array<{ word: string; pronunciation: string; meaning: string; pos: string }>; grammar: string };
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlighted, onLongPress, onRetry, onDiscard, translation }: BubblePropsExtended) {
+function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlighted, onLongPress, onRetry, onDiscard, translation, breakdown }: BubblePropsExtended) {
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
 
@@ -254,6 +255,41 @@ function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlig
               }]}>
                 {translation.text}
               </Text>
+            </View>
+          )}
+          {breakdown && breakdown.words.length > 0 && (
+            <View style={[styles.breakdownBox, { backgroundColor: isMine ? "rgba(255,255,255,0.08)" : "rgba(34,197,94,0.08)" }]}>
+              <Text style={[styles.breakdownLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#22c55e" }]}>
+                📖 Analisis Kata
+              </Text>
+              <View style={styles.wordGrid}>
+                {breakdown.words.map((w, idx) => (
+                  <View key={idx} style={[styles.wordBox, { backgroundColor: isMine ? "rgba(255,255,255,0.05)" : "rgba(34,197,94,0.1)" }]}>
+                    <Text style={[styles.wordMain, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
+                      {w.word}
+                    </Text>
+                    <Text style={[styles.wordPronunciation, { color: isMine ? "rgba(255,255,255,0.6)" : "rgba(34,197,94,0.8)" }]}>
+                      {w.pronunciation}
+                    </Text>
+                    <Text style={[styles.wordMeaning, { color: isMine ? "rgba(255,255,255,0.7)" : colors.text }]}>
+                      {w.meaning}
+                    </Text>
+                    <Text style={[styles.wordPos, { color: isMine ? "rgba(255,255,255,0.5)" : colors.tabIconDefault }]}>
+                      {w.pos}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              {breakdown.grammar && (
+                <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: isMine ? "rgba(255,255,255,0.2)" : "rgba(34,197,94,0.3)" }}>
+                  <Text style={[styles.grammarLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#22c55e" }]}>
+                    📚 Catatan Tata Bahasa:
+                  </Text>
+                  <Text style={[styles.grammarText, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
+                    {breakdown.grammar}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
           {!msg.isDeleted && detectUrls(content).slice(0, 1).map(url => (
@@ -351,6 +387,11 @@ export default function ChatScreen() {
   const [translatingMsgId, setTranslatingMsgId] = useState<number | null>(null);
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState<string | null>(null);
+  
+  // Breakdown states
+  const [breakdowns, setBreakdowns] = useState<Record<number, { words: Array<{ word: string; pronunciation: string; meaning: string; pos: string }>; grammar: string }>>({});
+  const [analyzingMsgId, setAnalyzingMsgId] = useState<number | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
   
   const QUICK_LANGUAGES = [
     { code: "id", name: "🇮🇩 Indonesia" },
@@ -474,6 +515,28 @@ export default function ChatScreen() {
       setTranslating(false);
     }
   }, [translating]);
+
+  const handleBreakdown = useCallback(async (msgId: number, content: string) => {
+    if (analyzing) return;
+    
+    setAnalyzing(true);
+    setAnalyzingMsgId(msgId);
+    
+    try {
+      const result = await api.post("/translate/breakdown", { text: content });
+      setBreakdowns(prev => ({
+        ...prev,
+        [msgId]: result.breakdown || { words: [], grammar: "" }
+      }));
+      setContextMenuMsg(null);
+    } catch (err) {
+      const errorMsg = err instanceof APIError ? err.message : "Gagal menganalisis pesan";
+      Alert.alert("Analisis Gagal", errorMsg);
+    } finally {
+      setAnalyzing(false);
+      setAnalyzingMsgId(null);
+    }
+  }, [analyzing]);
 
   const sendMutation = useMutation({
     mutationFn: (payload: { content: string; replyToId?: number }) =>
@@ -1114,6 +1177,7 @@ export default function ChatScreen() {
                 onRetry={qId ? () => offlineQueue.retryMessage(qId) : undefined}
                 onDiscard={qId ? () => offlineQueue.discardMessage(qId) : undefined}
                 translation={translations[item.id]}
+                breakdown={breakdowns[item.id]}
               />
             );
           }}
@@ -1424,6 +1488,21 @@ export default function ChatScreen() {
             <Text style={[styles.contextItemText, { color: colors.text }]}>Terjemahkan</Text>
           </Pressable>
 
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => {
+              if (contextMenuMsg) {
+                handleBreakdown(contextMenuMsg.id, contextMenuMsg.content || "");
+              }
+            }}
+            disabled={analyzing}
+          >
+            <Feather name="book-open" size={18} color={colors.text} />
+            <Text style={[styles.contextItemText, { color: colors.text }]}>
+              {analyzing && analyzingMsgId === contextMenuMsg?.id ? "Menganalisis..." : "Analisis Kata"}
+            </Text>
+          </Pressable>
+
           {contextMenuMsg?.senderId === user?.id && (
             <>
               <View style={[styles.contextSeparator, { backgroundColor: colors.border }]} />
@@ -1550,6 +1629,16 @@ const styles = StyleSheet.create({
   translationBox: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 4 },
   translationLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
   translationText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  breakdownBox: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 4 },
+  breakdownLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginBottom: 8 },
+  wordGrid: { gap: 6 },
+  wordBox: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 6, borderLeftWidth: 3, borderLeftColor: "#22c55e" },
+  wordMain: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  wordPronunciation: { fontSize: 11, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 2 },
+  wordMeaning: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 1 },
+  wordPos: { fontSize: 10, fontFamily: "Inter_500Medium" },
+  grammarLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
+  grammarText: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
   msgMeta: { flexDirection: "row", alignItems: "center", gap: 4, justifyContent: "flex-end" },
   msgTime: { fontSize: 10, fontFamily: "Inter_400Regular" },
   edited: { fontSize: 10, fontFamily: "Inter_400Regular" },

@@ -106,7 +106,7 @@ export default function Login() {
         />
         {/* Centered Logo - Absolutely positioned to center of full page width */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center justify-center text-center w-full px-12">
-          <div className="mb-8 max-w-md">
+          <div className="mb-8 max-w-md" style={{ marginLeft: '30px' }}>
             <img 
               src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
               alt="Curcol Logo"

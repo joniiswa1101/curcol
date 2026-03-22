@@ -181,61 +181,60 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="w-full h-px bg-white/10 flex-shrink-0" />
 
-          <div className="flex flex-col lg:flex-row items-center justify-between w-full lg:px-2 gap-1 flex-shrink-0">
+          <button
+            onClick={openProfile}
+            className="w-full flex flex-col lg:flex-row lg:items-center gap-3 hover:opacity-80 transition-opacity text-left px-2"
+          >
+            <Avatar
+              src={user?.avatarUrl}
+              fallback={user?.name || "User"}
+              status={user?.cicoStatus?.status as any}
+              className="ring-2 ring-white/10"
+            />
+            <div className="hidden lg:flex flex-col">
+              <span className="text-sm font-semibold text-white truncate max-w-[100px]">
+                {user?.name}
+              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-sidebar-foreground/60 capitalize">
+                  {user?.role}
+                </span>
+                {(user as any)?.whatsappNumber && (
+                  <Phone
+                    className="w-3 h-3 text-green-400"
+                    title="WhatsApp terdaftar"
+                  />
+                )}
+              </div>
+            </div>
+          </button>
+
+          <div className="flex items-center justify-center lg:justify-start gap-2 w-full flex-shrink-0">
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors shrink-0"
+              title={theme === "dark" ? "Light Mode" : "Dark Mode"}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
             <button
               onClick={openProfile}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"
+              className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors shrink-0"
+              title="Pengaturan Profil"
             >
-              <Avatar
-                src={user?.avatarUrl}
-                fallback={user?.name || "User"}
-                status={user?.cicoStatus?.status as any}
-                className="ring-2 ring-white/10"
-              />
-              <div className="hidden lg:flex flex-col">
-                <span className="text-sm font-semibold text-white truncate max-w-[100px]">
-                  {user?.name}
-                </span>
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-sidebar-foreground/60 capitalize">
-                    {user?.role}
-                  </span>
-                  {(user as any)?.whatsappNumber && (
-                    <Phone
-                      className="w-3 h-3 text-green-400"
-                      title="WhatsApp terdaftar"
-                    />
-                  )}
-                </div>
-              </div>
+              <Settings className="h-4 w-4" />
             </button>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={toggleTheme}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors shrink-0"
-                title={theme === "dark" ? "Light Mode" : "Dark Mode"}
-              >
-                {theme === "dark" ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-              </button>
-              <button
-                onClick={openProfile}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors shrink-0"
-                title="Pengaturan Profil"
-              >
-                <Settings className="h-4 w-4" />
-              </button>
-              <button
-                onClick={logout}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-destructive transition-colors shrink-0"
-                title="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-destructive transition-colors shrink-0"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </nav>

@@ -104,18 +104,18 @@ export default function Login() {
           alt="Secure Network Background"
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
-        <div className="relative z-20 flex flex-col items-center text-center mx-auto max-w-2xl">
-          {/* Rajawali Logo in White Box */}
-          <div className="mb-6 bg-white rounded-lg p-3 shadow-lg">
+        <div className="relative z-20 flex flex-col items-center justify-center text-center flex-1">
+          {/* Rajawali Logo - White, No Box */}
+          <div className="mb-4">
             <img 
-              src={`${import.meta.env.BASE_URL}logo-rajawali.svg`}
+              src={`${import.meta.env.BASE_URL}logo-rajawali-white.svg`}
               alt="Rajawali Logo"
-              className="h-16 w-auto"
+              className="h-20 w-auto drop-shadow-lg"
             />
           </div>
           
-          {/* CurCol Logo with White Text */}
-          <div className="mb-8" style={{ transform: 'translateY(-40px)' }}>
+          {/* CurCol Logo with White Text - Centered */}
+          <div>
             <img 
               src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
               alt="Curcol Logo"
@@ -135,14 +135,12 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 sm:p-12 relative">
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="text-center lg:text-left">
-            <div className="lg:hidden flex flex-col items-center justify-center mb-8 gap-3">
-              <div className="bg-white rounded-lg p-2">
-                <img 
-                  src={`${import.meta.env.BASE_URL}logo-rajawali.svg`}
-                  alt="Rajawali Logo"
-                  className="h-12 w-auto"
-                />
-              </div>
+            <div className="lg:hidden flex flex-col items-center justify-center mb-8 gap-2">
+              <img 
+                src={`${import.meta.env.BASE_URL}logo-rajawali-white.svg`}
+                alt="Rajawali Logo"
+                className="h-14 w-auto"
+              />
               <img 
                 src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
                 alt="Curcol Logo"

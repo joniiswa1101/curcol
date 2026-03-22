@@ -97,15 +97,15 @@ export default function Login() {
   return (
     <div className="min-h-screen w-full flex bg-background">
       {/* Left side - Visual/Brand */}
-      <div className="hidden lg:flex flex-1 relative bg-sidebar items-center justify-center overflow-hidden">
+      <div className="hidden lg:flex flex-col flex-1 relative bg-sidebar justify-start pt-20 px-12 overflow-visible">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 mix-blend-overlay z-10" />
         <img 
           src={`${import.meta.env.BASE_URL}images/login-bg.png`}
           alt="Secure Network Background"
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
-        <div className="relative z-20 flex flex-col items-center text-center p-12 max-w-2xl">
-          <div className="mb-8 mt-16">
+        <div className="relative z-20 flex flex-col items-center text-center mx-auto max-w-2xl">
+          <div className="mb-8">
             <img 
               src={`${import.meta.env.BASE_URL}logo-2.svg`}
               alt="Curcol Logo"

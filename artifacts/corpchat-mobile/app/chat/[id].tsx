@@ -199,7 +199,9 @@ function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlig
 
       <Pressable onLongPress={() => !msg.isDeleted && !queueStatus && onLongPress?.(msg)} style={[styles.bubbleWrap, isMine && styles.bubbleWrapMine]}>
         {!isMine && showAvatar && (
-          <Text style={[styles.senderName, { color: colors.textSecondary }]}>
+          <Text
+            selectable={false}
+            style={[styles.senderName, { color: colors.textSecondary }]}>
             {isFromWa ? `📱 ${msg.sender?.name || "WhatsApp"}` : (msg.sender?.name || "")}
           </Text>
         )}
@@ -238,44 +240,60 @@ function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlig
             </Pressable>
           ))}
           {(!msg.attachments?.some(a => a.mimeType?.startsWith("audio/")) || content) && (
-            <Text style={[styles.msgText, {
-              color: isMine ? colors.bubble.mineText : colors.bubble.otherText,
-              fontStyle: msg.isDeleted ? "italic" : "normal",
-              opacity: msg.isDeleted ? 0.6 : 1,
-            }]}>
+            <Text
+              selectable={false}
+              style={[styles.msgText, {
+                color: isMine ? colors.bubble.mineText : colors.bubble.otherText,
+                fontStyle: msg.isDeleted ? "italic" : "normal",
+                opacity: msg.isDeleted ? 0.6 : 1,
+              }]}>
               {content}
             </Text>
           )}
           {translation && (
             <View style={[styles.translationBox, { backgroundColor: isMine ? "rgba(255,255,255,0.1)" : "rgba(59,130,246,0.1)" }]}>
-              <Text style={[styles.translationLabel, { color: isMine ? "rgba(255,255,255,0.7)" : colors.primary }]}>
+              <Text
+                selectable={false}
+                style={[styles.translationLabel, { color: isMine ? "rgba(255,255,255,0.7)" : colors.primary }]}>
                 🌐 {translation.lang.toUpperCase()}
               </Text>
-              <Text style={[styles.translationText, {
-                color: isMine ? colors.bubble.mineText : colors.bubble.otherText,
-              }]}>
+              <Text
+                selectable={false}
+                style={[styles.translationText, {
+                  color: isMine ? colors.bubble.mineText : colors.bubble.otherText,
+                }]}>
                 {translation.text}
               </Text>
             </View>
           )}
           {breakdown && breakdown.words.length > 0 && (
             <View style={[styles.breakdownBox, { backgroundColor: isMine ? "rgba(255,255,255,0.08)" : "rgba(34,197,94,0.08)" }]}>
-              <Text style={[styles.breakdownLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#22c55e" }]}>
+              <Text
+                selectable={false}
+                style={[styles.breakdownLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#22c55e" }]}>
                 📖 Analisis Kata
               </Text>
               <View style={styles.wordGrid}>
                 {breakdown.words.map((w, idx) => (
                   <View key={idx} style={[styles.wordBox, { backgroundColor: isMine ? "rgba(255,255,255,0.05)" : "rgba(34,197,94,0.1)" }]}>
-                    <Text style={[styles.wordMain, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
+                    <Text
+                      selectable={false}
+                      style={[styles.wordMain, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
                       {w.word}
                     </Text>
-                    <Text style={[styles.wordPronunciation, { color: isMine ? "rgba(255,255,255,0.6)" : "rgba(34,197,94,0.8)" }]}>
+                    <Text
+                      selectable={false}
+                      style={[styles.wordPronunciation, { color: isMine ? "rgba(255,255,255,0.6)" : "rgba(34,197,94,0.8)" }]}>
                       {w.pronunciation}
                     </Text>
-                    <Text style={[styles.wordMeaning, { color: isMine ? "rgba(255,255,255,0.7)" : colors.text }]}>
+                    <Text
+                      selectable={false}
+                      style={[styles.wordMeaning, { color: isMine ? "rgba(255,255,255,0.7)" : colors.text }]}>
                       {w.meaning}
                     </Text>
-                    <Text style={[styles.wordPos, { color: isMine ? "rgba(255,255,255,0.5)" : colors.tabIconDefault }]}>
+                    <Text
+                      selectable={false}
+                      style={[styles.wordPos, { color: isMine ? "rgba(255,255,255,0.5)" : colors.tabIconDefault }]}>
                       {w.pos}
                     </Text>
                   </View>
@@ -283,10 +301,14 @@ function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlig
               </View>
               {breakdown.grammar && (
                 <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: isMine ? "rgba(255,255,255,0.2)" : "rgba(34,197,94,0.3)" }}>
-                  <Text style={[styles.grammarLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#22c55e" }]}>
+                  <Text
+                    selectable={false}
+                    style={[styles.grammarLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#22c55e" }]}>
                     📚 Catatan Tata Bahasa:
                   </Text>
-                  <Text style={[styles.grammarText, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
+                  <Text
+                    selectable={false}
+                    style={[styles.grammarText, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
                     {breakdown.grammar}
                   </Text>
                 </View>
@@ -295,10 +317,14 @@ function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlig
           )}
           {lesson && (
             <View style={[styles.lessonBox, { backgroundColor: isMine ? "rgba(255,255,255,0.08)" : "rgba(217,119,6,0.08)" }]}>
-              <Text style={[styles.lessonLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#d97706" }]}>
+              <Text
+                selectable={false}
+                style={[styles.lessonLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#d97706" }]}>
                 🎓 Pelajaran Mini
               </Text>
-              <Text style={[styles.lessonText, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
+              <Text
+                selectable={false}
+                style={[styles.lessonText, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
                 {lesson}
               </Text>
             </View>
@@ -307,19 +333,27 @@ function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlig
             <LinkPreviewCard key={url} url={url} isMine={isMine} colors={colors} />
           ))}
           <View style={styles.msgMeta}>
-            <Text style={[styles.msgTime, { color: isMine ? "rgba(255,255,255,0.6)" : colors.textSecondary }]}>
+            <Text
+              selectable={false}
+              style={[styles.msgTime, { color: isMine ? "rgba(255,255,255,0.6)" : colors.textSecondary }]}>
               {formatMsgTime(msg.createdAt)}
             </Text>
             {msg.isEdited && !msg.isDeleted && (
-              <Text style={[styles.edited, { color: isMine ? "rgba(255,255,255,0.6)" : colors.textSecondary }]}>diedit</Text>
+              <Text
+                selectable={false}
+                style={[styles.edited, { color: isMine ? "rgba(255,255,255,0.6)" : colors.textSecondary }]}>diedit</Text>
             )}
             {(() => {
               if (!isMine || queueStatus || msg.isDeleted || typeof msg.id !== "number" || msg.id <= 0) return null;
               const othersRead = (msg.reads || []).filter(r => r.userId !== msg.senderId);
               if (othersRead.length > 0) {
-                return <Text style={[styles.readCheck, { color: "#3b82f6" }]}>✓✓</Text>;
+                return <Text
+                  selectable={false}
+                  style={[styles.readCheck, { color: "#3b82f6" }]}>✓✓</Text>;
               }
-              return <Text style={[styles.readCheck, { color: "rgba(255,255,255,0.5)" }]}>✓</Text>;
+              return <Text
+                selectable={false}
+                style={[styles.readCheck, { color: "rgba(255,255,255,0.5)" }]}>✓</Text>;
             })()}
             {queueStatus === "pending" && (
               <Feather name="clock" size={11} color={isMine ? "rgba(255,255,255,0.5)" : colors.textSecondary} />

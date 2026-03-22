@@ -224,10 +224,21 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     console.log("[Call] Accepting call from user:", remoteUserId);
 
     try {
+      // ALWAYS capture media stream for audio transmission
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: callType === "video",
+      });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      console.log("[Call] Media stream captured:", stream.getTracks().map(t => `${t.kind}:${t.enabled}`).join(", "));
+
       const pc = pcRef.current;
       const isSimpleCall = !pc || !pc.remoteDescription;
 
       if (isSimpleCall) {
+        // Simple call mode - no WebRTC SDP negotiation
+        console.log("[Call] Simple call mode: sending basic answer without SDP");
         send({
           type: "call_answer",
           targetUserId: remoteUserId,
@@ -240,14 +251,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: callType === "video",
+      // Full WebRTC mode - add tracks and send SDP answer
+      stream.getTracks().forEach(t => {
+        console.log("[Call] Adding track to PC:", t.kind);
+        pc.addTrack(t, stream);
       });
-      localStreamRef.current = stream;
-      setLocalStream(stream);
-
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);

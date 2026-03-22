@@ -125,7 +125,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* Sidebar Nav */}
-      <nav className="w-20 lg:w-64 flex flex-col bg-sidebar border-r border-sidebar-border text-sidebar-foreground pt-0 pb-6 flex-shrink-0 transition-all duration-300">
+      <nav className="w-20 lg:w-64 flex flex-col bg-sidebar border-r border-sidebar-border text-sidebar-foreground pt-6 pb-6 flex-shrink-0 transition-all duration-300">
         <div className="flex flex-col items-center lg:items-start px-4 overflow-y-auto flex-1">
           <div className="flex flex-col items-center gap-0 mb-4 lg:px-2">
             <img

@@ -105,7 +105,7 @@ export default function Login() {
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
         <div className="relative z-20 flex flex-col items-center text-center p-12 max-w-2xl">
-          <div className="mb-8">
+          <div className="mb-8 mt-8">
             <img 
               src={`${import.meta.env.BASE_URL}logo-2.svg`}
               alt="Curcol Logo"

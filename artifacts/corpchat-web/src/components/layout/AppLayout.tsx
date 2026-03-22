@@ -136,7 +136,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="text-xs text-sidebar-foreground/50">v1.9.5</span>
           </div>
 
-          <div className="flex flex-col w-full gap-2">
+          <div className="flex flex-col w-full gap-1">
             {navItems.map((item) => {
               const isActive = location.startsWith(item.path);
               return (
@@ -163,7 +163,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-center lg:items-start px-4 gap-3 flex-shrink-0">
+        <div className="flex flex-col items-center lg:items-start px-4 gap-2 flex-shrink-0">
           {/* CICO Quick Action */}
           <button
             onClick={handleCicoToggle}
@@ -181,7 +181,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="w-full h-px bg-white/10 flex-shrink-0" />
 
-          <div className="flex flex-col lg:flex-row items-center justify-between w-full lg:px-2 gap-2 flex-shrink-0">
+          <div className="flex flex-col lg:flex-row items-center justify-between w-full lg:px-2 gap-1 flex-shrink-0">
             <button
               onClick={openProfile}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"

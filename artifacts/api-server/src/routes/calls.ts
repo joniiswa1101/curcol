@@ -2,8 +2,21 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
+import { broadcastToUser } from "../lib/websocket.js";
 
 const router = Router();
+
+interface GroupCallRoom {
+  roomName: string;
+  conversationId: number;
+  callType: "voice" | "video";
+  startedBy: number;
+  startedByName: string;
+  startedAt: string;
+  participants: Array<{ userId: number; userName: string; joinedAt: string }>;
+}
+
+const activeGroupCalls = new Map<number, GroupCallRoom>();
 
 router.get("/", requireAuth as any, async (req, res) => {
   const currentUser = (req as any).user;
@@ -34,6 +47,198 @@ router.post("/:callId/end", requireAuth as any, async (req, res) => {
     WHERE id = ${Number(callId)}
   `);
   
+  res.json({ success: true });
+});
+
+async function checkMembership(userId: number, conversationId: number): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM conversation_members WHERE user_id = ${userId} AND conversation_id = ${conversationId} LIMIT 1
+  `);
+  return (result.rows?.length ?? 0) > 0;
+}
+
+router.post("/group-call/:conversationId", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const conversationId = Number(req.params.conversationId);
+  const { callType } = req.body;
+
+  const isMember = await checkMembership(currentUser.id, conversationId);
+  if (!isMember) {
+    return res.status(403).json({ error: "Not a member of this conversation" });
+  }
+
+  const existing = activeGroupCalls.get(conversationId);
+  if (existing) {
+    return res.json({ room: existing, isNew: false });
+  }
+
+  const members = await db.execute(sql`
+    SELECT cm.user_id, u.display_name 
+    FROM conversation_members cm 
+    JOIN users u ON cm.user_id = u.id 
+    WHERE cm.conversation_id = ${conversationId}
+  `);
+
+  const timestamp = Date.now();
+  const roomName = `corpchat-${conversationId}-${timestamp}`;
+
+  const room: GroupCallRoom = {
+    roomName,
+    conversationId,
+    callType: callType || "video",
+    startedBy: currentUser.id,
+    startedByName: currentUser.displayName || currentUser.name || "Unknown",
+    startedAt: new Date().toISOString(),
+    participants: [{
+      userId: currentUser.id,
+      userName: currentUser.displayName || currentUser.name || "Unknown",
+      joinedAt: new Date().toISOString(),
+    }],
+  };
+
+  activeGroupCalls.set(conversationId, room);
+
+  for (const row of members.rows as any[]) {
+    if (row.user_id !== currentUser.id) {
+      broadcastToUser(row.user_id, {
+        type: "group_call_started",
+        conversationId,
+        roomName,
+        callType: room.callType,
+        startedBy: currentUser.id,
+        startedByName: room.startedByName,
+      });
+    }
+  }
+
+  res.json({ room, isNew: true });
+});
+
+router.get("/group-call/:conversationId", requireAuth as any, async (req, res) => {
+  const conversationId = Number(req.params.conversationId);
+  const room = activeGroupCalls.get(conversationId);
+
+  if (!room) {
+    return res.json({ room: null, active: false });
+  }
+
+  res.json({ room, active: true });
+});
+
+router.post("/group-call/:conversationId/join", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const conversationId = Number(req.params.conversationId);
+
+  const isMember = await checkMembership(currentUser.id, conversationId);
+  if (!isMember) {
+    return res.status(403).json({ error: "Not a member of this conversation" });
+  }
+
+  const room = activeGroupCalls.get(conversationId);
+  if (!room) {
+    return res.status(404).json({ error: "No active group call" });
+  }
+
+  const alreadyJoined = room.participants.some(p => p.userId === currentUser.id);
+  if (!alreadyJoined) {
+    room.participants.push({
+      userId: currentUser.id,
+      userName: currentUser.displayName || currentUser.name || "Unknown",
+      joinedAt: new Date().toISOString(),
+    });
+  }
+
+  const members = await db.execute(sql`
+    SELECT cm.user_id FROM conversation_members cm WHERE cm.conversation_id = ${conversationId}
+  `);
+
+  for (const row of members.rows as any[]) {
+    if (row.user_id !== currentUser.id) {
+      broadcastToUser(row.user_id, {
+        type: "group_call_joined",
+        conversationId,
+        roomName: room.roomName,
+        userId: currentUser.id,
+        userName: currentUser.displayName || currentUser.name || "Unknown",
+        participants: room.participants,
+      });
+    }
+  }
+
+  res.json({ room });
+});
+
+router.delete("/group-call/:conversationId", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const conversationId = Number(req.params.conversationId);
+
+  const room = activeGroupCalls.get(conversationId);
+  if (!room) {
+    return res.json({ success: true });
+  }
+
+  activeGroupCalls.delete(conversationId);
+
+  const members = await db.execute(sql`
+    SELECT cm.user_id FROM conversation_members cm WHERE cm.conversation_id = ${conversationId}
+  `);
+
+  for (const row of members.rows as any[]) {
+    broadcastToUser(row.user_id, {
+      type: "group_call_ended",
+      conversationId,
+      roomName: room.roomName,
+      endedBy: currentUser.id,
+    });
+  }
+
+  res.json({ success: true });
+});
+
+router.post("/group-call/:conversationId/leave", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const conversationId = Number(req.params.conversationId);
+
+  const room = activeGroupCalls.get(conversationId);
+  if (!room) {
+    return res.json({ success: true });
+  }
+
+  room.participants = room.participants.filter(p => p.userId !== currentUser.id);
+
+  if (room.participants.length === 0) {
+    activeGroupCalls.delete(conversationId);
+
+    const members = await db.execute(sql`
+      SELECT cm.user_id FROM conversation_members cm WHERE cm.conversation_id = ${conversationId}
+    `);
+
+    for (const row of members.rows as any[]) {
+      broadcastToUser(row.user_id, {
+        type: "group_call_ended",
+        conversationId,
+        roomName: room.roomName,
+        endedBy: currentUser.id,
+      });
+    }
+  } else {
+    const members = await db.execute(sql`
+      SELECT cm.user_id FROM conversation_members cm WHERE cm.conversation_id = ${conversationId}
+    `);
+
+    for (const row of members.rows as any[]) {
+      if (row.user_id !== currentUser.id) {
+        broadcastToUser(row.user_id, {
+          type: "group_call_left",
+          conversationId,
+          roomName: room.roomName,
+          userId: currentUser.id,
+          participants: room.participants,
+        });
+      }
+    }
+  }
+
   res.json({ success: true });
 });
 

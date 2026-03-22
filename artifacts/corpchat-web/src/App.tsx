@@ -7,6 +7,7 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { useEffect } from "react";
 import { CallProvider } from "@/contexts/CallContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
+import { GroupCallProvider } from "@/contexts/GroupCallContext";
 import { IncomingCallModal } from "@/components/call/IncomingCallModal";
 import { ActiveCallOverlay } from "@/components/call/ActiveCallOverlay";
 
@@ -126,11 +127,13 @@ function App() {
       <TooltipProvider>
         <PresenceProvider>
           <CallProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <MainRouter />
-            </WouterRouter>
-            <IncomingCallModal />
-            <ActiveCallOverlay />
+            <GroupCallProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <MainRouter />
+              </WouterRouter>
+              <IncomingCallModal />
+              <ActiveCallOverlay />
+            </GroupCallProvider>
           </CallProvider>
         </PresenceProvider>
         <Toaster />

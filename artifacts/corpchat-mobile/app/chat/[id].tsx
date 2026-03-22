@@ -1070,6 +1070,33 @@ export default function ChatScreen() {
             </Pressable>
           </>
         )}
+        <Pressable
+          style={styles.headerAction}
+          hitSlop={8}
+          onPress={async () => {
+            try {
+              const token = user?.token || "";
+              const domain = process.env.EXPO_PUBLIC_DOMAIN;
+              const baseUrl = domain ? `https://${domain}` : "";
+              const res = await fetch(`${baseUrl}/api/calls/group-call/${id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ callType: "video" }),
+              });
+              const data = await res.json();
+              if (data.room) {
+                router.push({
+                  pathname: "/jitsi-call",
+                  params: { roomName: data.room.roomName, callType: "video", conversationId: id as string },
+                });
+              }
+            } catch (e) {
+              Alert.alert("Error", "Gagal memulai group video call");
+            }
+          }}
+        >
+          <Feather name="users" size={20} color={colors.textSecondary} />
+        </Pressable>
         {type === "group" && (
           <Pressable
             style={styles.headerAction}

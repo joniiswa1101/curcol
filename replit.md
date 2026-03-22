@@ -132,6 +132,15 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
   - **Server**: `WebSocketServer({ server, path: "/api/ws" })` in `artifacts/api-server/src/lib/websocket.ts`. Handles `call_offer`, `call_answer`, `call_ice_candidate`, `call_reject`, `call_end` with logging.
   - **Vite Proxy**: `"/api/ws": { target: "ws://localhost:8080", ws: true }` in vite.config.ts.
   - **Components**: `IncomingCallModal.tsx` (incoming popup), `ActiveCallOverlay.tsx` (active call UI).
+- **Jitsi Group Calls (March 22, 2026)**: Multi-point video and voice calls using Jitsi Meet (public meet.jit.si server, no infrastructure needed).
+  - **Architecture**: In-memory room tracking on API server. Jitsi IFrame API on web, WebView on mobile.
+  - **Room Names**: Format `corpchat-{conversationId}-{timestamp}` for uniqueness.
+  - **API Endpoints**: `POST /api/calls/group-call/:conversationId` (start/get existing), `GET /api/calls/group-call/:conversationId` (check active), `POST .../join`, `POST .../leave`, `DELETE` (end call). All routes enforce conversation membership.
+  - **WebSocket Events**: `group_call_started`, `group_call_ended`, `group_call_joined`, `group_call_left` — broadcast to conversation members.
+  - **Web**: `JitsiGroupCall.tsx` (full-screen Jitsi IFrame embed with participant count, leave button), `GroupCallBanner.tsx` (incoming call notification), `GroupCallContext.tsx` (state management + provider), `group-call-bus.ts` (event bus). Chat header has group call buttons (Users icon for voice, Video icon for video). `GroupCallProvider` wraps App.
+  - **Mobile**: `app/jitsi-call.tsx` (WebView-based Jitsi screen with leave button, loading overlay). Chat header has Users icon button. Incoming call via Alert dialog from WebSocket. Requires `react-native-webview`.
+  - **Call Types**: `"voice"` (video muted by default) and `"video"` (both audio+video enabled).
+  - **Important**: 1-on-1 P2P WebRTC calls remain unchanged — group calls are separate Jitsi-based system.
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

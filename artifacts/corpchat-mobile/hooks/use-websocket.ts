@@ -139,7 +139,38 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
             // Handle typing indicators
             if (data.type === 'typing_indicator') {
               console.log('[WebSocket] Typing indicator:', data.data?.userName);
-              // Emit to parent via callback if needed
+            }
+
+            if (data.type === 'group_call_started') {
+              console.log('[WebSocket] Group call started:', data.roomName, 'by', data.startedByName);
+              const { Alert } = require('react-native');
+              const { router } = require('expo-router');
+              Alert.alert(
+                "Group Call",
+                `${data.startedByName} memulai ${data.callType === 'video' ? 'video' : 'voice'} call`,
+                [
+                  { text: "Nanti", style: "cancel" },
+                  {
+                    text: "Gabung",
+                    onPress: () => {
+                      router.push({
+                        pathname: "/jitsi-call",
+                        params: {
+                          roomName: data.roomName,
+                          callType: data.callType,
+                          conversationId: data.conversationId?.toString(),
+                        },
+                      });
+                    },
+                  },
+                ]
+              );
+            }
+
+            if (data.type === 'group_call_ended') {
+              console.log('[WebSocket] Group call ended:', data.roomName);
+              const { Alert } = require('react-native');
+              Alert.alert("Group Call", "Group call telah berakhir");
             }
           } catch (err) {
             console.error('[WebSocket] Message parse error:', err);

@@ -3,9 +3,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from './use-auth';
 import { getListMessagesQueryKey, getListConversationsQueryKey } from '@workspace/api-client-react';
 import { emitCallSignal, registerWsSend } from '@/lib/call-signal-bus';
+import { emitGroupCallSignal } from '@/lib/group-call-bus';
 
 const CALL_TYPES = new Set([
   'call_offer', 'call_answer', 'call_ice_candidate', 'call_reject', 'call_end', 'call_failed'
+]);
+
+const GROUP_CALL_TYPES = new Set([
+  'group_call_started', 'group_call_ended', 'group_call_joined', 'group_call_left'
 ]);
 
 export function useWebSocket() {
@@ -69,6 +74,11 @@ export function useWebSocket() {
 
           if (CALL_TYPES.has(data.type)) {
             emitCallSignal(data);
+            return;
+          }
+
+          if (GROUP_CALL_TYPES.has(data.type)) {
+            emitGroupCallSignal(data);
             return;
           }
 

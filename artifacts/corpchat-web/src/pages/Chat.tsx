@@ -34,6 +34,8 @@ import { useQueueSync } from "@/hooks/use-queue-sync"
 import { useTypingIndicators } from "@/hooks/use-typing-indicators"
 import { useCall } from "@/contexts/CallContext"
 import { usePresenceContext, formatLastSeen } from "@/contexts/PresenceContext"
+import { useGroupCall } from "@/contexts/GroupCallContext"
+import { GroupCallBanner } from "@/components/call/JitsiGroupCall"
 
 // ─── Client-side PII Detection ────────────────────────────────────────────────
 
@@ -946,6 +948,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const { isOnline, queuedCount, enqueue, getQueuedMessages } = useOfflineQueue(conversationId)
   const { typingUsers, sendTyping } = useTypingIndicators(conversationId)
   const callCtx = useCall()
+  const groupCallCtx = useGroupCall()
   useQueueSync()
 
   const handleSummarize = async (messageCount = 50) => {
@@ -1563,6 +1566,24 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           <Button
             variant="ghost"
             size="icon"
+            className="text-muted-foreground hover:text-primary"
+            title="Group Voice Call (Jitsi)"
+            onClick={() => groupCallCtx.startGroupCall(conversationId, "voice")}
+          >
+            <Users className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-primary"
+            title="Group Video Call (Jitsi)"
+            onClick={() => groupCallCtx.startGroupCall(conversationId, "video")}
+          >
+            <Video className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             className={cn("text-muted-foreground hover:text-primary", showSummary && "text-primary bg-primary/10")}
             onClick={() => showSummary ? setShowSummary(false) : handleSummarize(50)}
             title="TL;DR - Ringkasan Chat"
@@ -1704,6 +1725,19 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
             </div>
           )}
         </div>
+      )}
+
+      {/* Incoming Group Call Banner */}
+      {groupCallCtx.incomingCall && groupCallCtx.incomingCall.conversationId === conversationId && (
+        <GroupCallBanner
+          conversationId={groupCallCtx.incomingCall.conversationId}
+          roomName={groupCallCtx.incomingCall.roomName}
+          callType={groupCallCtx.incomingCall.callType}
+          startedByName={groupCallCtx.incomingCall.startedByName}
+          participants={groupCallCtx.activeCall?.participants || []}
+          onJoin={() => groupCallCtx.joinGroupCall(conversationId)}
+          onDismiss={() => groupCallCtx.dismissIncoming(conversationId)}
+        />
       )}
 
       {/* Messages */}

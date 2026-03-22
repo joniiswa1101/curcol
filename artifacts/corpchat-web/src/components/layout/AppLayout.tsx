@@ -209,10 +209,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             </button>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors shrink-0"
                 title={theme === "dark" ? "Light Mode" : "Dark Mode"}
               >
                 {theme === "dark" ? (
@@ -223,14 +223,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
               <button
                 onClick={openProfile}
-                className="p-2 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors shrink-0"
                 title="Pengaturan Profil"
               >
                 <Settings className="h-4 w-4" />
               </button>
               <button
                 onClick={logout}
-                className="p-2 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-destructive transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-destructive transition-colors shrink-0"
                 title="Logout"
               >
                 <LogOut className="h-4 w-4" />

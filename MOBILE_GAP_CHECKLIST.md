@@ -202,15 +202,23 @@
 
 ---
 
-### GAP-12: AI Digest (Harian/Mingguan) ⬜ BELUM
+### GAP-12: AI Digest (Harian/Mingguan) ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-12.1 | Screen Digest baru (`app/digest.tsx`) | HIGH | 2-3d | ⬜ |
-| GAP-12.2 | Toggle Harian vs Mingguan | MEDIUM | 0.5d | ⬜ |
-| GAP-12.3 | Tampilkan daftar percakapan aktif + jumlah pesan | MEDIUM | 1d | ⬜ |
-| GAP-12.4 | Navigasi dari Profile tab atau bottom navigation | MEDIUM | 0.5d | ⬜ |
+| GAP-12.1 | Screen Digest baru (`app/digest.tsx`) | HIGH | 2-3d | ✅ |
+| GAP-12.2 | Toggle Harian vs Mingguan | MEDIUM | 0.5d | ✅ |
+| GAP-12.3 | Tampilkan daftar percakapan aktif + jumlah pesan | MEDIUM | 1d | ✅ |
+| GAP-12.4 | Navigasi dari Profile tab atau bottom navigation | MEDIUM | 0.5d | ✅ |
 
-**Catatan**: Di Web ada halaman `/digest` yang accessible dari sidebar "AI Digest". Memanggil `POST /api/summarize/digest` dengan body `{ period: "daily" | "weekly" }`. Menampilkan ringkasan AI + daftar percakapan aktif dengan jumlah pesan dan preview. API backend sudah siap, perlu screen baru di mobile.
+**Selesai** (22 Maret 2026):
+- ✅ Screen digest baru di `app/(tabs)/digest.tsx`
+- ✅ Toggle button untuk Harian/Mingguan dengan real-time fetch
+- ✅ Summary header yang collapsible (📌 Ringkasan AI)
+- ✅ Daftar percakapan aktif dengan pesan count & preview
+- ✅ Integrasi dengan bottom navigation (tab "Ringkasan" dengan icon bar-chart)
+- ✅ API integration: `POST /api/summarize/digest` dengan `{ period }`
+- ✅ Loading, error, dan empty states dengan UI yang proper
+- ✅ Pull-to-refresh untuk reload digest
 
 ---
 
@@ -254,24 +262,24 @@
 | Metrik | Nilai |
 |--------|-------|
 | Total GAP items | 15 (GAP-01 s/d GAP-15) |
-| ✅ Selesai | 11 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10, 11) |
-| ⬜ Belum | 4 (GAP-03, 12, 13, 14, 15) |
-| Progress | **73%** (11/15) |
+| ✅ Selesai | 12 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10, 11, 12) |
+| ⬜ Belum | 3 (GAP-03, 13, 14, 15) |
+| Progress | **80%** (12/15) |
 
 ### Status per Task
 | Metrik | Nilai |
 |--------|-------|
 | Total sub-tasks | 58 |
-| ✅ Selesai | 40 |
-| ⬜ Belum | 18 |
-| Progress | **69%** (40/58) |
+| ✅ Selesai | 44 |
+| ⬜ Belum | 14 |
+| Progress | **76%** (44/58) |
 
 ### Gap Tersisa per Prioritas
 | Priority | Tasks Belum | Gap IDs |
 |----------|-------------|---------|
-| HIGH | 9 | GAP-03 (6), GAP-12 (1), GAP-13 (2) |
-| MEDIUM | 7 | GAP-03 (2), GAP-12 (2), GAP-13 (1), GAP-14 (1), GAP-15 (1) |
-| LOW | 2 | GAP-14 (1), GAP-15 (1) |
+| HIGH | 8 | GAP-03 (6), GAP-13 (2) |
+| MEDIUM | 5 | GAP-03 (2), GAP-13 (1), GAP-14 (1), GAP-15 (1) |
+| LOW | 1 | GAP-14 (1) |
 
 ---
 
@@ -301,8 +309,8 @@
 | ID | Gap | Effort Total | Status |
 |----|-----|-------------|--------|
 | ~~GAP-11~~ | ~~AI Summarization (TL;DR)~~ | ~~2-4d~~ | ✅ |
-| GAP-12 | AI Digest (Harian/Mingguan) | 3-5d | ⬜ **NEXT** |
-| GAP-13 | Translation | 2-4d | ⬜ |
+| ~~GAP-12~~ | ~~AI Digest (Harian/Mingguan)~~ | ~~3-5d~~ | ✅ |
+| GAP-13 | Translation (Terjemahan) | 2-4d | ⬜ **NEXT** |
 
 ### Gelombang 5 — Language Learning (opsional)
 | ID | Gap | Effort Total | Status |

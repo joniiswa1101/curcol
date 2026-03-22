@@ -65,6 +65,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="digest"
+        options={{
+          title: "Ringkasan",
+          tabBarIcon: ({ color, size }) => <Feather name="bar-chart-2" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profil",

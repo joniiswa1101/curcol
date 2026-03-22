@@ -141,6 +141,9 @@ All packages extend a base `tsconfig.base.json` with `composite: true`, and the 
   - **Mobile**: `app/jitsi-call.tsx` (WebView-based Jitsi screen with leave button, loading overlay). Chat header has Users icon button. Incoming call via Alert dialog from WebSocket. Requires `react-native-webview`.
   - **Call Types**: `"voice"` (video muted by default) and `"video"` (both audio+video enabled).
   - **Important**: 1-on-1 P2P WebRTC calls remain unchanged — group calls are separate Jitsi-based system.
+- **Message Notification Sound & Browser Notifications (March 22, 2026)**: Audio + visual notification for incoming messages.
+  - **Web**: Plays `notification.wav` (two-tone chime) via `HTMLAudioElement` when a new message arrives from another user. Shows native browser notification (via Notification API) when browser tab is not focused. Permission requested on login. Files: `lib/notifications.ts`, `public/sounds/notification.wav`, integrated in `use-websocket.ts`.
+  - **Mobile**: Plays notification sound via `expo-av` (`Audio.Sound`) on incoming WebSocket messages from other users (both same and different conversations). Push notifications (Expo Push) already configured with `shouldPlaySound: true` and `sound: "default"` for background messages. Files: `lib/notification-sound.ts`, `assets/sounds/notification.wav`, integrated in `hooks/use-websocket.ts`.
 - **Current Version**: v1.1.0 (displayed in web sidebar + mobile profile page)
 
 # External Dependencies

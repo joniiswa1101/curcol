@@ -4,6 +4,7 @@ import { useAuthStore } from './use-auth';
 import { getListMessagesQueryKey, getListConversationsQueryKey } from '@workspace/api-client-react';
 import { emitCallSignal, registerWsSend } from '@/lib/call-signal-bus';
 import { emitGroupCallSignal } from '@/lib/group-call-bus';
+import { playNotificationSound, showBrowserNotification } from '@/lib/notifications';
 
 const CALL_TYPES = new Set([
   'call_offer', 'call_answer', 'call_ice_candidate', 'call_reject', 'call_end', 'call_failed'
@@ -97,6 +98,17 @@ export function useWebSocket() {
             });
 
             queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+
+            const currentUser = useAuthStore.getState().user;
+            if (currentUser && newMsg.senderId !== currentUser.id) {
+              playNotificationSound();
+
+              const senderName = newMsg.senderName || newMsg.sender?.name || newMsg.sender?.displayName || "Seseorang";
+              const preview = newMsg.content
+                ? newMsg.content.substring(0, 100)
+                : newMsg.attachmentUrl ? "📎 File" : "Pesan baru";
+              showBrowserNotification(senderName, preview);
+            }
           }
 
           if (data.type === 'message_updated' && data.conversationId && data.data) {

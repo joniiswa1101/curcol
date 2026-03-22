@@ -10,6 +10,7 @@ import { PresenceProvider } from "@/contexts/PresenceContext";
 import { GroupCallProvider } from "@/contexts/GroupCallContext";
 import { IncomingCallModal } from "@/components/call/IncomingCallModal";
 import { ActiveCallOverlay } from "@/components/call/ActiveCallOverlay";
+import { initNotificationSound, requestNotificationPermission } from "@/lib/notifications";
 
 // Pages
 import Login from "@/pages/Login";
@@ -82,7 +83,13 @@ function MainRouter() {
   useAuthInit();
   useWebSocket();
 
-  // Root redirect logic
+  useEffect(() => {
+    if (isAuthenticated) {
+      initNotificationSound();
+      requestNotificationPermission();
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (location === "/") {
       if (!isLoading) {

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
+import { playNotificationSound } from '@/lib/notification-sound';
 
 export function useWebSocket(conversationId: string | string[] | undefined) {
   const ws = useRef<WebSocket | null>(null);
@@ -9,13 +10,10 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const pingTimerRef = useRef<NodeJS.Timeout>();
   const appStateRef = useRef(AppState.currentState);
-  const [appState, setAppState] = useState(AppState.currentState);
 
-  // Adaptive heartbeat based on app state
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       appStateRef.current = state;
-      setAppState(state);
       console.log('[WebSocket] App state changed:', state);
     });
 
@@ -27,6 +25,11 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
 
     const setupWebSocket = async () => {
       const token = await AsyncStorage.getItem('auth_token');
+      const userDataStr = await AsyncStorage.getItem('auth_user');
+      let currentUserId: number | null = null;
+      if (userDataStr) {
+        try { currentUserId = JSON.parse(userDataStr).id; } catch {}
+      }
       if (!token || !conversationId) return;
 
       // Convert array to string if needed
@@ -82,18 +85,27 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
 
               queryClient.setQueryData(qKey, (old: any) => {
                 if (!old) return { messages: [newMsg] };
-                // Avoid duplicates
                 const exists = old.messages?.some((m: any) => m.id === newMsg.id);
                 if (exists) return old;
-                // Remove optimistic message with same content
                 const cleaned = old.messages?.filter((m: any) =>
                   !(m.id < 0 && m.senderId === newMsg.senderId && m.content === newMsg.content)
                 ) || [];
                 return { ...old, messages: [...cleaned, newMsg] };
               });
 
-              // Invalidate conversations list to update preview
               queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
+              if (currentUserId && newMsg.senderId !== currentUserId) {
+                playNotificationSound();
+              }
+            }
+
+            if (data.type === 'new_message' && data.conversationId?.toString() !== convId?.toString()) {
+              queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
+              if (currentUserId && data.data?.senderId !== currentUserId) {
+                playNotificationSound();
+              }
             }
 
             // Handle message edit
@@ -203,7 +215,7 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
       if (pingTimerRef.current) clearInterval(pingTimerRef.current as any);
       ws.current?.close();
     };
-  }, [conversationId, queryClient, appState]);
+  }, [conversationId, queryClient]);
 
   return ws.current;
 }

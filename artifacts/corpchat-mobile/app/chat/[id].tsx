@@ -1187,6 +1187,7 @@ export default function ChatScreen() {
           keyExtractor={(item) => `${item.id}_${item.type === 'date_separator' ? 'sep' : item.createdAt}`}
           inverted
           contentContainerStyle={{ paddingVertical: 12, paddingHorizontal: 16 }}
+          extraData={{ translations, breakdowns, lessons, highlightedMsgId, colors }}
           renderItem={({ item, index }) => {
             // Render date separator
             if (item.type === "date_separator") {

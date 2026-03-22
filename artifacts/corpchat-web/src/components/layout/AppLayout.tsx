@@ -163,12 +163,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-center lg:items-start px-4 gap-4">
+        <div className="flex flex-col items-center lg:items-start px-4 gap-3 flex-shrink-0">
           {/* CICO Quick Action */}
           <button
             onClick={handleCicoToggle}
             disabled={checkInMutation.isPending || checkOutMutation.isPending}
-            className="w-full flex items-center justify-center lg:justify-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sidebar-foreground/80 group disabled:opacity-50"
+            className="w-full flex items-center justify-center lg:justify-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sidebar-foreground/80 group disabled:opacity-50 flex-shrink-0"
           >
             <Clock className="h-5 w-5 shrink-0 group-hover:text-accent transition-colors" />
             <span className="hidden lg:block text-sm">
@@ -179,9 +179,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </span>
           </button>
 
-          <div className="w-full h-px bg-white/10" />
+          <div className="w-full h-px bg-white/10 flex-shrink-0" />
 
-          <div className="flex items-center justify-between w-full lg:px-2">
+          <div className="flex flex-col lg:flex-row items-center justify-between w-full lg:px-2 gap-2 flex-shrink-0">
             <button
               onClick={openProfile}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"
@@ -209,7 +209,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             </button>
-            <div className="hidden lg:flex items-center gap-1">
+            <div className="flex items-center gap-1">
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg hover:bg-white/10 text-sidebar-foreground/60 hover:text-white transition-colors"

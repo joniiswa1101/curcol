@@ -22,18 +22,25 @@ export default function LoginScreen() {
   const [showPass, setShowPass] = useState(false);
   const [showCICOPass, setShowCICOPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const showError = (message: string) => {
+    setError(message);
+    setTimeout(() => setError(""), 5000);
+  };
 
   async function handleLocalLogin() {
     if (!employeeId.trim() || !password.trim()) {
-      Alert.alert("Perhatian", "Isi Employee ID / Email dan Password");
+      showError("Isi Employee ID / Email dan Password");
       return;
     }
     setLoading(true);
+    setError("");
     try {
       await login(employeeId.trim(), password);
       router.replace("/(tabs)");
     } catch (e: any) {
-      Alert.alert("Login Gagal", e.message || "Cek kembali kredensial Anda");
+      showError(e.message || "Cek kembali kredensial Anda");
     } finally {
       setLoading(false);
     }
@@ -41,15 +48,16 @@ export default function LoginScreen() {
 
   async function handleCICOLogin() {
     if (!cicoUsername.trim() || !cicoPassword.trim()) {
-      Alert.alert("Perhatian", "Isi Username/Email dan Password CICO");
+      showError("Isi Username/Email dan Password CICO");
       return;
     }
     setLoading(true);
+    setError("");
     try {
       await loginViaCICO(cicoUsername.trim(), cicoPassword);
       router.replace("/(tabs)");
     } catch (e: any) {
-      Alert.alert("CICO Login Gagal", e.message || "Cek kembali kredensial CICO Anda");
+      showError(e.message || "Cek kembali kredensial CICO Anda");
     } finally {
       setLoading(false);
     }
@@ -93,6 +101,13 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          {error && (
+            <View style={[styles.errorBanner, { backgroundColor: "#FEE2E2", borderColor: "#FECACA" }]}>
+              <Feather name="alert-circle" size={14} color="#DC2626" />
+              <Text style={[styles.errorText, { color: "#991B1B" }]}>{error}</Text>
+            </View>
+          )}
+
           {mode === "cico" ? (
             <>
               {/* CICO SSO Form */}
@@ -239,6 +254,12 @@ const styles = StyleSheet.create({
   },
   tab: { flex: 1, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   tabText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  errorBanner: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+    marginBottom: 12,
+  },
+  errorText: { fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   infoBanner: {
     flexDirection: "row", alignItems: "center", gap: 10,
     borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,

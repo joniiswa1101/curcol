@@ -513,6 +513,30 @@ export default function ChatScreen() {
   const presenceColor = presenceStatus === "online" ? "#22c55e" : presenceStatus === "idle" ? "#eab308" : "#9ca3af";
   const presenceLabel = presenceStatus === "online" ? "Online" : presenceStatus === "idle" ? "Idle" : formatLastSeen(otherPresence?.lastSeenAt || null);
 
+  const startGroupCall = useCallback(async (callType: "voice" | "video") => {
+    try {
+      const token = user?.token || "";
+      const domain = process.env.EXPO_PUBLIC_DOMAIN;
+      const baseUrl = domain ? `https://${domain}` : "";
+      const res = await fetch(`${baseUrl}/api/calls/group-call/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ callType }),
+      });
+      const data = await res.json();
+      if (data.room) {
+        router.push({
+          pathname: "/jitsi-call",
+          params: { roomName: data.room.roomName, callType, conversationId: id as string },
+        });
+      } else if (data.error) {
+        Alert.alert("Error", data.error);
+      }
+    } catch (e) {
+      Alert.alert("Error", `Gagal memulai group ${callType} call`);
+    }
+  }, [id, user?.token]);
+
   const handleMessageSearch = useCallback(async () => {
     const q = searchQuery.trim();
     if (!q) return;
@@ -1073,26 +1097,22 @@ export default function ChatScreen() {
         <Pressable
           style={styles.headerAction}
           hitSlop={8}
-          onPress={async () => {
-            try {
-              const token = user?.token || "";
-              const domain = process.env.EXPO_PUBLIC_DOMAIN;
-              const baseUrl = domain ? `https://${domain}` : "";
-              const res = await fetch(`${baseUrl}/api/calls/group-call/${id}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ callType: "video" }),
-              });
-              const data = await res.json();
-              if (data.room) {
-                router.push({
-                  pathname: "/jitsi-call",
-                  params: { roomName: data.room.roomName, callType: "video", conversationId: id as string },
-                });
-              }
-            } catch (e) {
-              Alert.alert("Error", "Gagal memulai group video call");
-            }
+          onPress={() => {
+            Alert.alert(
+              "Group Call",
+              "Pilih jenis panggilan grup (multi-point)",
+              [
+                {
+                  text: "Voice Call",
+                  onPress: () => startGroupCall("voice"),
+                },
+                {
+                  text: "Video Call",
+                  onPress: () => startGroupCall("video"),
+                },
+                { text: "Batal", style: "cancel" },
+              ]
+            );
           }}
         >
           <Feather name="users" size={20} color={colors.textSecondary} />

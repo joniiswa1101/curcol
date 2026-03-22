@@ -184,15 +184,21 @@
 
 ## 🆕 Gap Baru (Fitur Web Terbaru yang Belum Ada di Mobile)
 
-### GAP-11: AI Summarization (TL;DR) ⬜ BELUM
+### GAP-11: AI Summarization (TL;DR) ✅ SELESAI
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| GAP-11.1 | Tombol ✨ (Sparkles) di chat header untuk ringkasan | HIGH | 1d | ⬜ |
-| GAP-11.2 | Panel ringkasan inline (loading state + formatted output) | HIGH | 1-2d | ⬜ |
-| GAP-11.3 | Pilihan jumlah pesan (50/100/200) | MEDIUM | 0.5d | ⬜ |
-| GAP-11.4 | Handle error state + non-member guard | MEDIUM | 0.5d | ⬜ |
+| GAP-11.1 | Tombol ✨ (Sparkles) di chat header untuk ringkasan | HIGH | 1d | ✅ |
+| GAP-11.2 | Panel ringkasan inline (loading state + formatted output) | HIGH | 1-2d | ✅ |
+| GAP-11.3 | Pilihan jumlah pesan (50/100/200) | MEDIUM | 0.5d | ✅ |
+| GAP-11.4 | Handle error state + non-member guard | MEDIUM | 0.5d | ✅ |
 
-**Catatan**: Di Web, tombol Sparkles (✨) di header chat memanggil `POST /api/summarize/conversation/:id` untuk meringkas pesan terakhir. Hasilnya ditampilkan dalam panel inline dengan format terstruktur (Ringkasan, Poin Penting, Action Items). API backend sudah siap, hanya perlu UI di mobile. Endpoint: `POST /api/summarize/conversation/:conversationId` dengan body `{ messageCount: 50 }`.
+**Selesai** (21 Maret 2026): 
+- ✅ Sparkles (✨) button di chat header yang tap untuk summarize percakapan
+- ✅ Modal panel inline dengan 3 section: Ringkasan (📌), Poin Penting (⭐), Action Items (✅)
+- ✅ Message count selector buttons (50/100/200 pesan)
+- ✅ Loading spinner saat API processing, error handling dengan alert
+- ✅ API integration: `POST /api/summarize/conversation/:id` dengan `{ messageCount }`
+- Endpoint di backend: `/api/summarize/conversation/:conversationId`
 
 ---
 
@@ -248,23 +254,23 @@
 | Metrik | Nilai |
 |--------|-------|
 | Total GAP items | 15 (GAP-01 s/d GAP-15) |
-| ✅ Selesai | 10 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10) |
-| ⬜ Belum | 5 (GAP-03, 11, 12, 13, 14, 15) |
-| Progress | **67%** (10/15) |
+| ✅ Selesai | 11 (GAP-01, 02, 04, 05, 06, 07, 08, 09, 10, 11) |
+| ⬜ Belum | 4 (GAP-03, 12, 13, 14, 15) |
+| Progress | **73%** (11/15) |
 
 ### Status per Task
 | Metrik | Nilai |
 |--------|-------|
 | Total sub-tasks | 58 |
-| ✅ Selesai | 36 |
-| ⬜ Belum | 22 |
-| Progress | **62%** (36/58) |
+| ✅ Selesai | 40 |
+| ⬜ Belum | 18 |
+| Progress | **69%** (40/58) |
 
 ### Gap Tersisa per Prioritas
 | Priority | Tasks Belum | Gap IDs |
 |----------|-------------|---------|
-| HIGH | 11 | GAP-03 (6), GAP-11 (2), GAP-12 (1), GAP-13 (2) |
-| MEDIUM | 9 | GAP-03 (2), GAP-11 (2), GAP-12 (2), GAP-13 (1), GAP-14 (1), GAP-15 (1) |
+| HIGH | 9 | GAP-03 (6), GAP-12 (1), GAP-13 (2) |
+| MEDIUM | 7 | GAP-03 (2), GAP-12 (2), GAP-13 (1), GAP-14 (1), GAP-15 (1) |
 | LOW | 2 | GAP-14 (1), GAP-15 (1) |
 
 ---
@@ -294,9 +300,9 @@
 ### Gelombang 4 — AI Features (minggu keempat)
 | ID | Gap | Effort Total | Status |
 |----|-----|-------------|--------|
-| GAP-11 | AI Summarization (TL;DR) | 2-4d | ⬜ |
+| ~~GAP-11~~ | ~~AI Summarization (TL;DR)~~ | ~~2-4d~~ | ✅ |
+| GAP-12 | AI Digest (Harian/Mingguan) | 3-5d | ⬜ **NEXT** |
 | GAP-13 | Translation | 2-4d | ⬜ |
-| GAP-12 | AI Digest | 3-5d | ⬜ |
 
 ### Gelombang 5 — Language Learning (opsional)
 | ID | Gap | Effort Total | Status |

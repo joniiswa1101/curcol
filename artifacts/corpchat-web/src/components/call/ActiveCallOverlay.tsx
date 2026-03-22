@@ -20,11 +20,13 @@ export function ActiveCallOverlay() {
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
-  const attachStream = useCallback((el: HTMLVideoElement | null, stream: MediaStream | null) => {
+  const attachStream = useCallback((el: HTMLVideoElement | HTMLAudioElement | null, stream: MediaStream | null) => {
     if (!el || !stream) return;
     if (el.srcObject !== stream) {
-      console.log("[CallUI] Attaching stream to video, tracks:", stream.getTracks().map(t => `${t.kind}:${t.readyState}`).join(", "));
+      const type = el instanceof HTMLAudioElement ? "audio" : "video";
+      console.log("[CallUI] Attaching stream to " + type + ", tracks:", stream.getTracks().map(t => `${t.kind}:${t.readyState}`).join(", "));
       el.srcObject = stream;
     }
     el.play().catch(err => {
@@ -43,17 +45,24 @@ export function ActiveCallOverlay() {
 
   useEffect(() => {
     attachStream(remoteVideoRef.current, remoteStream);
-  }, [remoteStream, attachStream, status]);
+    // For voice calls, attach remote stream to audio element
+    if (callType === "voice") {
+      attachStream(remoteAudioRef.current, remoteStream);
+    }
+  }, [remoteStream, attachStream, status, callType]);
 
   useEffect(() => {
     if (status === "connected") {
       const timer = setTimeout(() => {
         attachStream(remoteVideoRef.current, remoteStream);
         attachStream(localVideoRef.current, localStream);
+        if (callType === "voice") {
+          attachStream(remoteAudioRef.current, remoteStream);
+        }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [status, remoteStream, localStream, attachStream]);
+  }, [status, remoteStream, localStream, callType, attachStream]);
 
   if (status !== "outgoing" && status !== "connected") return null;
 
@@ -61,6 +70,9 @@ export function ActiveCallOverlay() {
 
   return (
     <div className="fixed inset-0 z-[100] bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-between">
+      {/* Hidden audio element for voice calls */}
+      {!isVideo && <audio ref={remoteAudioRef} autoPlay playsInline />}
+
       {isVideo ? (
         <video
           ref={remoteVideoRef}

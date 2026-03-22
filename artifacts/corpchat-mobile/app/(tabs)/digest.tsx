@@ -44,7 +44,7 @@ export default function DigestScreen() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Not authenticated");
       const res = await api.post("/summarize/digest", { period });
-      return res.data as DigestData;
+      return res as DigestData;
     },
     enabled: !!user?.id,
   });

@@ -1,5 +1,5 @@
-const primary = "#00C39A";
-const primaryDark = "#00A882";
+const primary = "#A855F7";
+const primaryDark = "#9333EA";
 
 export default {
   light: {

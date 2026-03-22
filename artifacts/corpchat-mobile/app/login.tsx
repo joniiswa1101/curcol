@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  View, Text, TextInput, Pressable, StyleSheet,
+  View, Text, TextInput, Pressable, StyleSheet, Image,
   useColorScheme, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from "react-native";
 import { router } from "expo-router";
@@ -71,9 +71,7 @@ export default function LoginScreen() {
       <View style={[styles.container, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}>
         {/* Logo */}
         <View style={styles.logoRow}>
-          <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
-            <Feather name="message-square" size={28} color="#fff" />
-          </View>
+          <Image source={require("../assets/logo.png")} style={styles.logo} />
           <Text style={[styles.appName, { color: colors.text }]}>CurCol</Text>
         </View>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -246,7 +244,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 28, justifyContent: "center", gap: 8 },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
-  logoBox: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  logo: { width: 52, height: 52 },
   appName: { fontSize: 28, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 12 },
   tabs: {

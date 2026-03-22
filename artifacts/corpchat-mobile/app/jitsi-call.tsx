@@ -34,6 +34,8 @@ export default function JitsiCallScreen() {
   const displayName = user?.name || "User";
   const isVoiceOnly = callType === "voice";
 
+  const isAdhoc = conversationId === "adhoc";
+
   useEffect(() => {
     const joinRoom = async () => {
       try {
@@ -41,16 +43,25 @@ export default function JitsiCallScreen() {
         const domain = process.env.EXPO_PUBLIC_DOMAIN;
         const baseUrl = domain ? `https://${domain}` : "";
         if (token && conversationId) {
-          await fetch(`${baseUrl}/api/calls/group-call/${conversationId}/join`, {
+          const joinUrl = isAdhoc
+            ? `${baseUrl}/api/calls/adhoc-call/${roomName}/join`
+            : `${baseUrl}/api/calls/group-call/${conversationId}/join`;
+          const resp = await fetch(joinUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
           });
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            setError(errData.error || "Tidak bisa bergabung ke panggilan");
+            return;
+          }
         }
       } catch (e) {
         console.error("[Jitsi] Join error:", e);
+        setError("Gagal menghubungkan ke panggilan");
       }
     };
     joinRoom();
@@ -70,7 +81,10 @@ export default function JitsiCallScreen() {
       const domain = process.env.EXPO_PUBLIC_DOMAIN;
       const baseUrl = domain ? `https://${domain}` : "";
       if (token && conversationId) {
-        await fetch(`${baseUrl}/api/calls/group-call/${conversationId}/leave`, {
+        const leaveUrl = isAdhoc
+          ? `${baseUrl}/api/calls/adhoc-call/${roomName}/leave`
+          : `${baseUrl}/api/calls/group-call/${conversationId}/leave`;
+        await fetch(leaveUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

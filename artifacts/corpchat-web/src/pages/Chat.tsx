@@ -36,6 +36,7 @@ import { useCall } from "@/contexts/CallContext"
 import { usePresenceContext, formatLastSeen } from "@/contexts/PresenceContext"
 import { useGroupCall } from "@/contexts/GroupCallContext"
 import { GroupCallBanner } from "@/components/call/JitsiGroupCall"
+import { AdHocCallModal } from "@/components/call/AdHocCallModal"
 
 // ─── Client-side PII Detection ────────────────────────────────────────────────
 
@@ -927,6 +928,7 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
   const [translations, setTranslations] = useState<Record<number, { text: string; lang: string; loading: boolean }>>({})
   const [wordBreakdown, setWordBreakdown] = useState<{ msgId: number; data: any; loading: boolean } | null>(null)
   const [miniLesson, setMiniLesson] = useState<{ msgId: number; text: string; loading: boolean } | null>(null)
+  const [showAdHocCallModal, setShowAdHocCallModal] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryText, setSummaryText] = useState("")
@@ -1572,6 +1574,15 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           <Button
             variant="ghost"
             size="icon"
+            className="text-muted-foreground hover:text-primary"
+            title="Multi-point Call (Pilih peserta)"
+            onClick={() => setShowAdHocCallModal(true)}
+          >
+            <UserPlus className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             className={cn("text-muted-foreground hover:text-primary", showSummary && "text-primary bg-primary/10")}
             onClick={() => showSummary ? setShowSummary(false) : handleSummarize(50)}
             title="TL;DR - Ringkasan Chat"
@@ -1716,9 +1727,9 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
       )}
 
       {/* Incoming Group Call Banner */}
-      {groupCallCtx.incomingCall && groupCallCtx.incomingCall.conversationId === conversationId && (
+      {groupCallCtx.incomingCall && groupCallCtx.incomingCall.conversationId === conversationId && !groupCallCtx.incomingCall.isAdhoc && (
         <GroupCallBanner
-          conversationId={groupCallCtx.incomingCall.conversationId}
+          conversationId={groupCallCtx.incomingCall.conversationId || 0}
           roomName={groupCallCtx.incomingCall.roomName}
           callType={groupCallCtx.incomingCall.callType}
           startedByName={groupCallCtx.incomingCall.startedByName}
@@ -1727,6 +1738,19 @@ function ChatThread({ conversationId, conversation, getUserPresence }: { convers
           onDismiss={() => groupCallCtx.dismissIncoming(conversationId)}
         />
       )}
+      {/* Incoming Ad-hoc Call Banner */}
+      {groupCallCtx.incomingCall && groupCallCtx.incomingCall.isAdhoc && (
+        <GroupCallBanner
+          conversationId={0}
+          roomName={groupCallCtx.incomingCall.roomName}
+          callType={groupCallCtx.incomingCall.callType}
+          startedByName={groupCallCtx.incomingCall.startedByName}
+          participants={groupCallCtx.activeAdhocCall?.participants || []}
+          onJoin={() => groupCallCtx.joinAdhocCall(groupCallCtx.incomingCall!.roomName)}
+          onDismiss={() => groupCallCtx.dismissIncoming(undefined, groupCallCtx.incomingCall?.roomName)}
+        />
+      )}
+      <AdHocCallModal isOpen={showAdHocCallModal} onClose={() => setShowAdHocCallModal(false)} />
 
       {/* Messages */}
       <div 

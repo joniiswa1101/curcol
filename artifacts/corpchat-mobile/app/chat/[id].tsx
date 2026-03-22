@@ -445,6 +445,13 @@ export default function ChatScreen() {
   const [teachingLang, setTeachingLang] = useState<string | null>(null);
   const [teaching, setTeaching] = useState(false);
   
+  // Ad-hoc multi-point call states
+  const [showAdhocCallModal, setShowAdhocCallModal] = useState(false);
+  const [adhocUsers, setAdhocUsers] = useState<any[]>([]);
+  const [adhocSelected, setAdhocSelected] = useState<Map<number, any>>(new Map());
+  const [adhocSearch, setAdhocSearch] = useState("");
+  const [adhocLoading, setAdhocLoading] = useState(false);
+
   // Header menu states
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [showConvInfo, setShowConvInfo] = useState(false);
@@ -536,6 +543,52 @@ export default function ChatScreen() {
       Alert.alert("Error", `Gagal memulai group ${callType} call`);
     }
   }, [id, user?.token]);
+
+  const fetchAdhocUsers = useCallback(async (query: string) => {
+    const token = user?.token || "";
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    const baseUrl = domain ? `https://${domain}` : "";
+    setAdhocLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: "50" });
+      if (query) params.set("search", query);
+      const res = await fetch(`${baseUrl}/api/users?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      const userList = (data.users || data || []).filter((u: any) => u.id !== user?.id);
+      setAdhocUsers(userList);
+    } catch {
+      setAdhocUsers([]);
+    }
+    setAdhocLoading(false);
+  }, [user?.token, user?.id]);
+
+  const startAdhocCall = useCallback(async (callType: "voice" | "video") => {
+    if (adhocSelected.size === 0) return;
+    try {
+      const token = user?.token || "";
+      const domain = process.env.EXPO_PUBLIC_DOMAIN;
+      const baseUrl = domain ? `https://${domain}` : "";
+      const userIds = Array.from(adhocSelected.keys());
+      const res = await fetch(`${baseUrl}/api/calls/adhoc-call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userIds, callType }),
+      });
+      const data = await res.json();
+      if (data.room) {
+        setShowAdhocCallModal(false);
+        setAdhocSelected(new Map());
+        router.push({
+          pathname: "/jitsi-call",
+          params: { roomName: data.room.roomName, callType, conversationId: "adhoc" },
+        });
+      }
+    } catch (e) {
+      Alert.alert("Error", "Gagal memulai multi-point call");
+    }
+  }, [adhocSelected, user?.token]);
 
   const handleMessageSearch = useCallback(async () => {
     const q = searchQuery.trim();
@@ -1099,6 +1152,16 @@ export default function ChatScreen() {
               }}
             >
               <Feather name="video" size={20} color={colors.textSecondary} />
+            </Pressable>
+            <Pressable
+              style={styles.headerAction}
+              hitSlop={8}
+              onPress={() => {
+                setShowAdhocCallModal(true);
+                fetchAdhocUsers("");
+              }}
+            >
+              <Feather name="user-plus" size={20} color={colors.textSecondary} />
             </Pressable>
           </>
         )}
@@ -2046,6 +2109,123 @@ export default function ChatScreen() {
         </View>
       </Pressable>
     </Modal>
+
+    {/* Ad-hoc Multi-point Call Modal */}
+    <Modal
+      visible={showAdhocCallModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => { setShowAdhocCallModal(false); setAdhocSelected(new Map()); }}
+    >
+      <View style={[styles.adhocModalContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.adhocHeader, { borderBottomColor: colors.border }]}>
+          <Pressable onPress={() => { setShowAdhocCallModal(false); setAdhocSelected(new Map()); }}>
+            <Feather name="x" size={24} color={colors.text} />
+          </Pressable>
+          <Text style={[styles.adhocTitle, { color: colors.text }]}>Multi-point Call</Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <View style={[styles.adhocSearchBox, { borderBottomColor: colors.border }]}>
+          <Feather name="search" size={18} color={colors.textSecondary} />
+          <TextInput
+            style={[styles.adhocSearchInput, { color: colors.text }]}
+            placeholder="Cari nama atau department..."
+            placeholderTextColor={colors.textSecondary}
+            value={adhocSearch}
+            onChangeText={(t) => { setAdhocSearch(t); fetchAdhocUsers(t); }}
+            autoFocus
+          />
+        </View>
+
+        {adhocSelected.size > 0 && (
+          <View style={[styles.adhocSelectedBar, { borderBottomColor: colors.border, backgroundColor: colors.primary + "08" }]}>
+            <Text style={[styles.adhocSelectedLabel, { color: colors.textSecondary }]}>
+              {adhocSelected.size} orang dipilih:
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
+              {Array.from(adhocSelected.values()).map((u) => (
+                <Pressable
+                  key={u.id}
+                  style={[styles.adhocChip, { backgroundColor: colors.primary + "15" }]}
+                  onPress={() => {
+                    setAdhocSelected(prev => { const next = new Map(prev); next.delete(u.id); return next; });
+                  }}
+                >
+                  <Text style={[styles.adhocChipText, { color: colors.primary }]}>
+                    {u.name || u.displayName || "Unknown"}
+                  </Text>
+                  <Feather name="x" size={12} color={colors.primary} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <FlatList
+          data={adhocUsers}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => {
+            const isSelected = adhocSelected.has(item.id);
+            const uName = item.name || item.displayName || "Unknown";
+            return (
+              <Pressable
+                style={[styles.adhocUserRow, isSelected && { backgroundColor: colors.primary + "08" }]}
+                onPress={() => {
+                  setAdhocSelected(prev => {
+                    const next = new Map(prev);
+                    if (next.has(item.id)) next.delete(item.id);
+                    else next.set(item.id, item);
+                    return next;
+                  });
+                }}
+              >
+                <View style={[styles.adhocAvatar, { backgroundColor: colors.primary + "15" }]}>
+                  <Text style={[styles.adhocAvatarText, { color: colors.primary }]}>
+                    {uName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.adhocUserInfo}>
+                  <Text style={[styles.adhocUserName, { color: colors.text }]}>{uName}</Text>
+                  {item.department && (
+                    <Text style={[styles.adhocUserDept, { color: colors.textSecondary }]}>{item.department}</Text>
+                  )}
+                </View>
+                <View style={[styles.adhocCheck, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                  {isSelected && <Feather name="check" size={14} color="#fff" />}
+                </View>
+              </Pressable>
+            );
+          }}
+          ListEmptyComponent={
+            adhocLoading ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 32 }} />
+            ) : (
+              <Text style={[styles.adhocEmpty, { color: colors.textSecondary }]}>Tidak ada user ditemukan</Text>
+            )
+          }
+        />
+
+        <View style={[styles.adhocFooter, { borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
+          <Pressable
+            style={[styles.adhocCallBtn, { backgroundColor: colors.surfaceSecondary, opacity: adhocSelected.size === 0 ? 0.5 : 1 }]}
+            onPress={() => startAdhocCall("voice")}
+            disabled={adhocSelected.size === 0}
+          >
+            <Feather name="phone" size={18} color={colors.text} />
+            <Text style={[styles.adhocCallBtnText, { color: colors.text }]}>Voice Call</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.adhocCallBtn, { backgroundColor: colors.primary, opacity: adhocSelected.size === 0 ? 0.5 : 1 }]}
+            onPress={() => startAdhocCall("video")}
+            disabled={adhocSelected.size === 0}
+          >
+            <Feather name="video" size={18} color="#fff" />
+            <Text style={[styles.adhocCallBtnText, { color: "#fff" }]}>Video Call</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
     </>
   );
 }
@@ -2216,4 +2396,24 @@ const styles = StyleSheet.create({
   clearConfirmButtons: { flexDirection: "row", gap: 12 },
   clearConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   clearConfirmBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  adhocModalContainer: { flex: 1, paddingTop: 50 },
+  adhocHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 0.5 },
+  adhocTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
+  adhocSearchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 0.5 },
+  adhocSearchInput: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", paddingVertical: 4 },
+  adhocSelectedBar: { paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 0.5 },
+  adhocSelectedLabel: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  adhocChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, marginRight: 6 },
+  adhocChipText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  adhocUserRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
+  adhocAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  adhocAvatarText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  adhocUserInfo: { flex: 1 },
+  adhocUserName: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  adhocUserDept: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  adhocCheck: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: "#ccc", alignItems: "center", justifyContent: "center" },
+  adhocEmpty: { textAlign: "center", marginTop: 32, fontSize: 14, fontFamily: "Inter_400Regular" },
+  adhocFooter: { flexDirection: "row", gap: 12, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 0.5 },
+  adhocCallBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12 },
+  adhocCallBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });

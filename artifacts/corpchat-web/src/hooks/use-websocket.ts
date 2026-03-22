@@ -11,7 +11,8 @@ const CALL_TYPES = new Set([
 ]);
 
 const GROUP_CALL_TYPES = new Set([
-  'group_call_started', 'group_call_ended', 'group_call_joined', 'group_call_left'
+  'group_call_started', 'group_call_ended', 'group_call_joined', 'group_call_left',
+  'adhoc_call_started', 'adhoc_call_ended', 'adhoc_call_joined', 'adhoc_call_left'
 ]);
 
 export function useWebSocket() {

@@ -13,22 +13,36 @@ interface GroupCallRoom {
   participants: Array<{ userId: number; userName: string; joinedAt: string }>;
 }
 
-interface IncomingGroupCall {
-  conversationId: number;
+interface AdhocCallRoom {
   roomName: string;
   callType: "voice" | "video";
   startedBy: number;
   startedByName: string;
+  startedAt: string;
+  invitedUserIds: number[];
+  participants: Array<{ userId: number; userName: string; joinedAt: string }>;
+}
+
+interface IncomingGroupCall {
+  conversationId?: number;
+  roomName: string;
+  callType: "voice" | "video";
+  startedBy: number;
+  startedByName: string;
+  isAdhoc?: boolean;
 }
 
 interface GroupCallContextType {
   activeCall: GroupCallRoom | null;
+  activeAdhocCall: AdhocCallRoom | null;
   incomingCall: IncomingGroupCall | null;
   isInCall: boolean;
   startGroupCall: (conversationId: number, callType: "voice" | "video") => Promise<void>;
+  startAdhocCall: (room: AdhocCallRoom) => void;
   joinGroupCall: (conversationId: number) => Promise<void>;
+  joinAdhocCall: (roomName: string) => Promise<void>;
   leaveGroupCall: () => void;
-  dismissIncoming: (conversationId: number) => void;
+  dismissIncoming: (conversationId?: number, roomName?: string) => void;
   checkActiveCall: (conversationId: number) => Promise<GroupCallRoom | null>;
 }
 
@@ -44,6 +58,7 @@ export function GroupCallProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
   const token = useAuthStore(state => state.token);
   const [activeCall, setActiveCall] = useState<GroupCallRoom | null>(null);
+  const [activeAdhocCall, setActiveAdhocCall] = useState<AdhocCallRoom | null>(null);
   const [isInCall, setIsInCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState<IncomingGroupCall | null>(null);
 
@@ -58,26 +73,45 @@ export function GroupCallProvider({ children }: { children: React.ReactNode }) {
           startedBy: data.startedBy,
           startedByName: data.startedByName,
         });
-      } else if (data.type === "group_call_ended") {
+      } else if (data.type === "adhoc_call_started") {
+        if (isInCall) return;
+        setIncomingCall({
+          roomName: data.roomName,
+          callType: data.callType,
+          startedBy: data.startedBy,
+          startedByName: data.startedByName,
+          isAdhoc: true,
+        });
+      } else if (data.type === "group_call_ended" || data.type === "adhoc_call_ended") {
         if (activeCall?.roomName === data.roomName) {
           setActiveCall(null);
+          setIsInCall(false);
+        }
+        if (activeAdhocCall?.roomName === data.roomName) {
+          setActiveAdhocCall(null);
           setIsInCall(false);
         }
         if (incomingCall?.roomName === data.roomName) {
           setIncomingCall(null);
         }
-      } else if (data.type === "group_call_joined") {
-        if (activeCall?.conversationId === data.conversationId) {
+      } else if (data.type === "group_call_joined" || data.type === "adhoc_call_joined") {
+        if (activeCall?.conversationId === data.conversationId && data.conversationId) {
           setActiveCall(prev => prev ? { ...prev, participants: data.participants } : prev);
         }
-      } else if (data.type === "group_call_left") {
-        if (activeCall?.conversationId === data.conversationId) {
+        if (activeAdhocCall?.roomName === data.roomName) {
+          setActiveAdhocCall(prev => prev ? { ...prev, participants: data.participants } : prev);
+        }
+      } else if (data.type === "group_call_left" || data.type === "adhoc_call_left") {
+        if (activeCall?.conversationId === data.conversationId && data.conversationId) {
           setActiveCall(prev => prev ? { ...prev, participants: data.participants } : prev);
+        }
+        if (activeAdhocCall?.roomName === data.roomName) {
+          setActiveAdhocCall(prev => prev ? { ...prev, participants: data.participants } : prev);
         }
       }
     });
     return unsubscribe;
-  }, [isInCall, activeCall, incomingCall]);
+  }, [isInCall, activeCall, activeAdhocCall, incomingCall]);
 
   const startGroupCall = useCallback(async (conversationId: number, callType: "voice" | "video") => {
     if (!token) return;
@@ -104,6 +138,12 @@ export function GroupCallProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token]);
 
+  const startAdhocCall = useCallback((room: AdhocCallRoom) => {
+    setActiveAdhocCall(room);
+    setIsInCall(true);
+    setIncomingCall(null);
+  }, []);
+
   const joinGroupCall = useCallback(async (conversationId: number) => {
     if (!token) return;
     try {
@@ -122,13 +162,34 @@ export function GroupCallProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token]);
 
+  const joinAdhocCall = useCallback(async (roomName: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/calls/adhoc-call/${roomName}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.room) {
+        setActiveAdhocCall(data.room);
+        setIsInCall(true);
+        setIncomingCall(null);
+      }
+    } catch (err) {
+      console.error("[AdhocCall] Join error:", err);
+    }
+  }, [token]);
+
   const leaveGroupCall = useCallback(() => {
     setActiveCall(null);
+    setActiveAdhocCall(null);
     setIsInCall(false);
   }, []);
 
-  const dismissIncoming = useCallback((conversationId: number) => {
-    if (incomingCall?.conversationId === conversationId) {
+  const dismissIncoming = useCallback((conversationId?: number, roomName?: string) => {
+    if (roomName && incomingCall?.roomName === roomName) {
+      setIncomingCall(null);
+    } else if (conversationId && incomingCall?.conversationId === conversationId) {
       setIncomingCall(null);
     }
   }, [incomingCall]);
@@ -148,25 +209,47 @@ export function GroupCallProvider({ children }: { children: React.ReactNode }) {
 
   const displayName = user?.name || user?.displayName || "User";
 
+  const currentCall = activeCall || activeAdhocCall;
+  const currentRoomName = currentCall?.roomName || "";
+  const currentCallType = currentCall?.callType || "video";
+  const currentConversationId = activeCall?.conversationId || 0;
+  const isAdhoc = !!activeAdhocCall;
+
+  const handleLeaveCall = useCallback(async () => {
+    if (isAdhoc && activeAdhocCall && token) {
+      try {
+        await fetch(`/api/calls/adhoc-call/${activeAdhocCall.roomName}/leave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        });
+      } catch {}
+    }
+    leaveGroupCall();
+  }, [isAdhoc, activeAdhocCall, token, leaveGroupCall]);
+
   return (
     <GroupCallContext.Provider value={{
       activeCall,
+      activeAdhocCall,
       incomingCall,
       isInCall,
       startGroupCall,
+      startAdhocCall,
       joinGroupCall,
+      joinAdhocCall,
       leaveGroupCall,
       dismissIncoming,
       checkActiveCall,
     }}>
       {children}
-      {isInCall && activeCall && (
+      {isInCall && currentCall && (
         <JitsiGroupCall
-          roomName={activeCall.roomName}
-          conversationId={activeCall.conversationId}
-          callType={activeCall.callType}
+          roomName={currentRoomName}
+          conversationId={currentConversationId}
+          callType={currentCallType}
           displayName={displayName}
-          onClose={leaveGroupCall}
+          onClose={isAdhoc ? handleLeaveCall : leaveGroupCall}
+          isAdhoc={isAdhoc}
         />
       )}
     </GroupCallContext.Provider>

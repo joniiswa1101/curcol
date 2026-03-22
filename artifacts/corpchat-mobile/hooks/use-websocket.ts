@@ -184,6 +184,38 @@ export function useWebSocket(conversationId: string | string[] | undefined) {
               const { Alert } = require('react-native');
               Alert.alert("Group Call", "Group call telah berakhir");
             }
+
+            if (data.type === 'adhoc_call_started') {
+              console.log('[WebSocket] Adhoc call started:', data.roomName, 'by', data.startedByName);
+              const { Alert } = require('react-native');
+              const { router } = require('expo-router');
+              Alert.alert(
+                "Multi-point Call",
+                `${data.startedByName} mengundang Anda ke ${data.callType === 'video' ? 'video' : 'voice'} call`,
+                [
+                  { text: "Tolak", style: "cancel" },
+                  {
+                    text: "Gabung",
+                    onPress: () => {
+                      router.push({
+                        pathname: "/jitsi-call",
+                        params: {
+                          roomName: data.roomName,
+                          callType: data.callType,
+                          conversationId: "adhoc",
+                        },
+                      });
+                    },
+                  },
+                ]
+              );
+            }
+
+            if (data.type === 'adhoc_call_ended') {
+              console.log('[WebSocket] Adhoc call ended:', data.roomName);
+              const { Alert } = require('react-native');
+              Alert.alert("Multi-point Call", "Multi-point call telah berakhir");
+            }
           } catch (err) {
             console.error('[WebSocket] Message parse error:', err);
           }

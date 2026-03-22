@@ -9,6 +9,7 @@ interface JitsiGroupCallProps {
   callType: "voice" | "video";
   displayName: string;
   onClose: () => void;
+  isAdhoc?: boolean;
 }
 
 declare global {
@@ -32,7 +33,7 @@ function loadJitsiScript(): Promise<void> {
   });
 }
 
-export function JitsiGroupCall({ roomName, conversationId, callType, displayName, onClose }: JitsiGroupCallProps) {
+export function JitsiGroupCall({ roomName, conversationId, callType, displayName, onClose, isAdhoc }: JitsiGroupCallProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
@@ -44,7 +45,10 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
     try {
       const token = user?.token;
       if (token) {
-        await fetch(`/api/calls/group-call/${conversationId}/leave`, {
+        const leaveUrl = isAdhoc
+          ? `/api/calls/adhoc-call/${roomName}/leave`
+          : `/api/calls/group-call/${conversationId}/leave`;
+        await fetch(leaveUrl, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
@@ -60,7 +64,7 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
       apiRef.current = null;
     }
     onClose();
-  }, [conversationId, user?.token, onClose]);
+  }, [conversationId, roomName, isAdhoc, user?.token, onClose]);
 
   useEffect(() => {
     let disposed = false;

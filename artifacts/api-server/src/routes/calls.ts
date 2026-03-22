@@ -16,7 +16,18 @@ interface GroupCallRoom {
   participants: Array<{ userId: number; userName: string; joinedAt: string }>;
 }
 
+interface AdhocCallRoom {
+  roomName: string;
+  callType: "voice" | "video";
+  startedBy: number;
+  startedByName: string;
+  startedAt: string;
+  invitedUserIds: number[];
+  participants: Array<{ userId: number; userName: string; joinedAt: string }>;
+}
+
 const activeGroupCalls = new Map<number, GroupCallRoom>();
+const activeAdhocCalls = new Map<string, AdhocCallRoom>();
 
 router.get("/", requireAuth as any, async (req, res) => {
   const currentUser = (req as any).user;
@@ -249,6 +260,133 @@ router.post("/group-call/:conversationId/leave", requireAuth as any, async (req,
           type: "group_call_left",
           conversationId,
           roomName: room.roomName,
+          userId: currentUser.id,
+          participants: room.participants,
+        });
+      }
+    }
+  }
+
+  res.json({ success: true });
+});
+
+router.post("/adhoc-call", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const { userIds, callType } = req.body;
+
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: "userIds array is required" });
+  }
+
+  const allUserIds = [currentUser.id, ...userIds.filter((uid: number) => uid !== currentUser.id)];
+
+  const users = await db.execute(sql`
+    SELECT id, display_name FROM users WHERE id = ANY(${allUserIds})
+  `);
+  const userMap = new Map((users.rows as any[]).map(u => [u.id, u.display_name]));
+
+  const timestamp = Date.now();
+  const roomName = `corpchat-adhoc-${currentUser.id}-${timestamp}`;
+
+  const room: AdhocCallRoom = {
+    roomName,
+    callType: callType || "video",
+    startedBy: currentUser.id,
+    startedByName: currentUser.displayName || currentUser.name || "Unknown",
+    startedAt: new Date().toISOString(),
+    invitedUserIds: allUserIds,
+    participants: [{
+      userId: currentUser.id,
+      userName: currentUser.displayName || currentUser.name || "Unknown",
+      joinedAt: new Date().toISOString(),
+    }],
+  };
+
+  activeAdhocCalls.set(roomName, room);
+
+  for (const uid of userIds) {
+    if (uid !== currentUser.id) {
+      broadcastToUser(uid, {
+        type: "adhoc_call_started",
+        roomName,
+        callType: room.callType,
+        startedBy: currentUser.id,
+        startedByName: room.startedByName,
+        invitedUsers: allUserIds.map(id => ({ userId: id, userName: userMap.get(id) || "Unknown" })),
+      });
+    }
+  }
+
+  res.json({ room });
+});
+
+router.post("/adhoc-call/:roomName/join", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const { roomName } = req.params;
+
+  const room = activeAdhocCalls.get(roomName);
+  if (!room) {
+    return res.status(404).json({ error: "No active ad-hoc call" });
+  }
+
+  if (!room.invitedUserIds.includes(currentUser.id)) {
+    return res.status(403).json({ error: "Not invited to this call" });
+  }
+
+  const alreadyJoined = room.participants.some(p => p.userId === currentUser.id);
+  if (!alreadyJoined) {
+    room.participants.push({
+      userId: currentUser.id,
+      userName: currentUser.displayName || currentUser.name || "Unknown",
+      joinedAt: new Date().toISOString(),
+    });
+  }
+
+  for (const uid of room.invitedUserIds) {
+    if (uid !== currentUser.id) {
+      broadcastToUser(uid, {
+        type: "adhoc_call_joined",
+        roomName,
+        userId: currentUser.id,
+        userName: currentUser.displayName || currentUser.name || "Unknown",
+        participants: room.participants,
+      });
+    }
+  }
+
+  res.json({ room });
+});
+
+router.post("/adhoc-call/:roomName/leave", requireAuth as any, async (req, res) => {
+  const currentUser = (req as any).user;
+  const { roomName } = req.params;
+
+  const room = activeAdhocCalls.get(roomName);
+  if (!room) {
+    return res.json({ success: true });
+  }
+
+  if (!room.invitedUserIds.includes(currentUser.id)) {
+    return res.status(403).json({ error: "Not authorized for this call" });
+  }
+
+  room.participants = room.participants.filter(p => p.userId !== currentUser.id);
+
+  if (room.participants.length === 0) {
+    activeAdhocCalls.delete(roomName);
+    for (const uid of room.invitedUserIds) {
+      broadcastToUser(uid, {
+        type: "adhoc_call_ended",
+        roomName,
+        endedBy: currentUser.id,
+      });
+    }
+  } else {
+    for (const uid of room.invitedUserIds) {
+      if (uid !== currentUser.id) {
+        broadcastToUser(uid, {
+          type: "adhoc_call_left",
+          roomName,
           userId: currentUser.id,
           participants: room.participants,
         });

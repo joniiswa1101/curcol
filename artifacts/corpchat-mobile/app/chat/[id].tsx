@@ -170,9 +170,10 @@ interface BubbleProps {
 interface BubblePropsExtended extends BubbleProps {
   translation?: { text: string; lang: string };
   breakdown?: { words: Array<{ word: string; pronunciation: string; meaning: string; pos: string }>; grammar: string };
+  lesson?: string;
 }
 
-function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlighted, onLongPress, onRetry, onDiscard, translation, breakdown }: BubblePropsExtended) {
+function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlighted, onLongPress, onRetry, onDiscard, translation, breakdown, lesson }: BubblePropsExtended) {
   const content = msg.isDeleted ? "Pesan telah dihapus" : (msg.content || "");
   const isFromWa = msg.isFromWhatsapp;
 
@@ -292,6 +293,16 @@ function MessageBubble({ msg, isMine, colors, showAvatar, queueStatus, isHighlig
               )}
             </View>
           )}
+          {lesson && (
+            <View style={[styles.lessonBox, { backgroundColor: isMine ? "rgba(255,255,255,0.08)" : "rgba(217,119,6,0.08)" }]}>
+              <Text style={[styles.lessonLabel, { color: isMine ? "rgba(255,255,255,0.7)" : "#d97706" }]}>
+                🎓 Pelajaran Mini
+              </Text>
+              <Text style={[styles.lessonText, { color: isMine ? colors.bubble.mineText : colors.bubble.otherText }]}>
+                {lesson}
+              </Text>
+            </View>
+          )}
           {!msg.isDeleted && detectUrls(content).slice(0, 1).map(url => (
             <LinkPreviewCard key={url} url={url} isMine={isMine} colors={colors} />
           ))}
@@ -392,6 +403,13 @@ export default function ChatScreen() {
   const [breakdowns, setBreakdowns] = useState<Record<number, { words: Array<{ word: string; pronunciation: string; meaning: string; pos: string }>; grammar: string }>>({});
   const [analyzingMsgId, setAnalyzingMsgId] = useState<number | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  
+  // Lesson states
+  const [lessons, setLessons] = useState<Record<number, string>>({});
+  const [lessonMsgId, setLessonMsgId] = useState<number | null>(null);
+  const [showLessonPicker, setShowLessonPicker] = useState(false);
+  const [teachingLang, setTeachingLang] = useState<string | null>(null);
+  const [teaching, setTeaching] = useState(false);
   
   const QUICK_LANGUAGES = [
     { code: "id", name: "🇮🇩 Indonesia" },
@@ -537,6 +555,31 @@ export default function ChatScreen() {
       setAnalyzingMsgId(null);
     }
   }, [analyzing]);
+
+  const handleLesson = useCallback(async (msgId: number, content: string, lang: string) => {
+    if (teaching) return;
+    
+    setTeaching(true);
+    setLessonMsgId(msgId);
+    setTeachingLang(lang);
+    
+    try {
+      const result = await api.post("/translate/lesson", { text: content, targetLang: lang });
+      setLessons(prev => ({
+        ...prev,
+        [msgId]: result.lesson || "Gagal membuat pelajaran."
+      }));
+      setShowLessonPicker(false);
+      setContextMenuMsg(null);
+    } catch (err) {
+      const errorMsg = err instanceof APIError ? err.message : "Gagal membuat pelajaran";
+      Alert.alert("Pelajaran Gagal", errorMsg);
+    } finally {
+      setTeaching(false);
+      setLessonMsgId(null);
+      setTeachingLang(null);
+    }
+  }, [teaching]);
 
   const sendMutation = useMutation({
     mutationFn: (payload: { content: string; replyToId?: number }) =>
@@ -1178,6 +1221,7 @@ export default function ChatScreen() {
                 onDiscard={qId ? () => offlineQueue.discardMessage(qId) : undefined}
                 translation={translations[item.id]}
                 breakdown={breakdowns[item.id]}
+                lesson={lessons[item.id]}
               />
             );
           }}
@@ -1503,6 +1547,19 @@ export default function ChatScreen() {
             </Text>
           </Pressable>
 
+          <Pressable
+            style={styles.contextItem}
+            onPress={() => {
+              if (contextMenuMsg) {
+                setLessonMsgId(contextMenuMsg.id);
+                setShowLessonPicker(true);
+              }
+            }}
+          >
+            <Feather name="award" size={18} color={colors.text} />
+            <Text style={[styles.contextItemText, { color: colors.text }]}>Pelajaran Mini</Text>
+          </Pressable>
+
           {contextMenuMsg?.senderId === user?.id && (
             <>
               <View style={[styles.contextSeparator, { backgroundColor: colors.border }]} />
@@ -1594,6 +1651,56 @@ export default function ChatScreen() {
         </View>
       </Pressable>
     </Modal>
+
+    {/* Lesson Picker Modal */}
+    <Modal
+      visible={showLessonPicker}
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        setShowLessonPicker(false);
+        setContextMenuMsg(null);
+      }}
+    >
+      <Pressable
+        style={styles.contextOverlay}
+        onPress={() => {
+          setShowLessonPicker(false);
+          setContextMenuMsg(null);
+        }}
+      >
+        <View style={[styles.contextSheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 12 }]}>
+          <Text style={[styles.contextPreviewSender, { color: colors.primary, paddingHorizontal: 16, paddingTop: 12, marginBottom: 8 }]}>
+            Pilih Bahasa Pelajaran
+          </Text>
+
+          {teaching ? (
+            <View style={{ paddingVertical: 20, alignItems: "center" }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.contextItemText, { color: colors.tabIconDefault, marginTop: 8 }]}>
+                Membuat pelajaran...
+              </Text>
+            </View>
+          ) : (
+            QUICK_LANGUAGES.map(lang => (
+              <Pressable
+                key={lang.code}
+                style={styles.contextItem}
+                onPress={() => {
+                  if (contextMenuMsg && lessonMsgId) {
+                    handleLesson(lessonMsgId, contextMenuMsg.content || "", lang.code);
+                  }
+                }}
+              >
+                <Text style={[styles.contextItemText, { color: colors.text }]}>
+                  {lang.name}
+                </Text>
+              </Pressable>
+            ))
+          )}
+        </View>
+      </Pressable>
+    </Modal>
     </>
   );
 }
@@ -1639,6 +1746,9 @@ const styles = StyleSheet.create({
   wordPos: { fontSize: 10, fontFamily: "Inter_500Medium" },
   grammarLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
   grammarText: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  lessonBox: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 4 },
+  lessonLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginBottom: 6 },
+  lessonText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   msgMeta: { flexDirection: "row", alignItems: "center", gap: 4, justifyContent: "flex-end" },
   msgTime: { fontSize: 10, fontFamily: "Inter_400Regular" },
   edited: { fontSize: 10, fontFamily: "Inter_400Regular" },

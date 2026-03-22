@@ -97,30 +97,29 @@ export default function Login() {
   return (
     <div className="min-h-screen w-full flex bg-background relative">
       {/* Left side - Visual/Brand Background */}
-      <div className="hidden lg:flex flex-col flex-1 relative bg-sidebar overflow-hidden">
+      <div className="hidden lg:flex flex-col flex-1 relative bg-sidebar overflow-visible">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 mix-blend-overlay z-10" />
         <img 
           src={`${import.meta.env.BASE_URL}images/login-bg.png`}
           alt="Secure Network Background"
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
-      </div>
-
-      {/* Centered Logo - Fixed positioned at true center of screen */}
-      <div className="hidden lg:flex flex-col items-center justify-center fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
-        <div className="mb-8 border-4 border-white rounded-lg p-8 bg-sidebar/50 backdrop-blur-sm pointer-events-auto">
-          <img 
-            src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
-            alt="Curcol Logo"
-            className="h-40 w-auto drop-shadow-lg"
-          />
+        {/* Centered Logo - Absolutely positioned to center of full page width */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center justify-center text-center w-full px-12">
+          <div className="mb-8 max-w-md">
+            <img 
+              src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
+              alt="Curcol Logo"
+              className="h-48 w-auto drop-shadow-lg mx-auto"
+            />
+          </div>
+          <h1 className="text-5xl font-display font-bold text-white mb-6 leading-tight max-w-2xl">
+            Connect. Collaborate. <span className="text-accent">Create.</span>
+          </h1>
+          <p className="text-xl text-white/70 max-w-2xl">
+            The secure internal communication platform for your enterprise, fully integrated with CICO.
+          </p>
         </div>
-        <h1 className="text-5xl font-display font-bold text-white mb-6 leading-tight text-center max-w-2xl mt-8">
-          Connect. Collaborate. <span className="text-accent">Create.</span>
-        </h1>
-        <p className="text-xl text-white/70 text-center max-w-2xl">
-          The secure internal communication platform for your enterprise, fully integrated with CICO.
-        </p>
       </div>
 
       {/* Right side - Form */}

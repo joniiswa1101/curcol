@@ -1885,7 +1885,7 @@ export default function ChatScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: 16 }}>
                 <Text selectable={false} style={[styles.infoName, { color: colors.text }]}>
-                  {convDetail?.name || paramName || "Chat"}
+                  {convDetail?.name || name || "Chat"}
                 </Text>
                 <Text selectable={false} style={[styles.infoSub, { color: colors.textSecondary }]}>
                   {type === "group" ? `${convDetail?.members?.length || 0} anggota` : type === "whatsapp" ? "WhatsApp" : "Percakapan langsung"}

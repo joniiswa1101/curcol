@@ -104,9 +104,9 @@ export default function Login() {
           alt="Secure Network Background"
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
-        <div className="relative z-20 flex flex-col items-center justify-center text-center flex-1">
+        <div className="relative z-20 flex flex-col items-center justify-center text-center flex-1 w-full">
           {/* Rajawali Logo */}
-          <div className="mb-4">
+          <div className="mb-6 flex justify-center w-full">
             <img 
               src={`${import.meta.env.BASE_URL}logo-rajawali.png`}
               alt="Rajawali Logo"
@@ -114,8 +114,8 @@ export default function Login() {
             />
           </div>
           
-          {/* CurCol Logo with White Text - Centered */}
-          <div>
+          {/* CurCol Logo with White Text - Logo + Text as One Unit - Centered */}
+          <div className="flex justify-center w-full mb-8">
             <img 
               src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
               alt="Curcol Logo"
@@ -135,17 +135,21 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 sm:p-12 relative">
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="text-center lg:text-left">
-            <div className="lg:hidden flex flex-col items-center justify-center mb-8 gap-2">
-              <img 
-                src={`${import.meta.env.BASE_URL}logo-rajawali.png`}
-                alt="Rajawali Logo"
-                className="h-14 w-auto"
-              />
-              <img 
-                src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
-                alt="Curcol Logo"
-                className="h-24 w-auto"
-              />
+            <div className="lg:hidden flex flex-col items-center justify-center mb-8 gap-3 w-full">
+              <div className="flex justify-center w-full">
+                <img 
+                  src={`${import.meta.env.BASE_URL}logo-rajawali.png`}
+                  alt="Rajawali Logo"
+                  className="h-14 w-auto"
+                />
+              </div>
+              <div className="flex justify-center w-full">
+                <img 
+                  src={`${import.meta.env.BASE_URL}logo-2-white.svg`}
+                  alt="Curcol Logo"
+                  className="h-24 w-auto"
+                />
+              </div>
             </div>
             <p className="mt-2 text-muted-foreground text-center lg:text-left">Login menggunakan akun CICO Anda.</p>
           </div>

@@ -80,7 +80,14 @@ router.post("/group-call/:conversationId", requireAuth as any, async (req, res) 
 
   const existing = activeGroupCalls.get(conversationId);
   if (existing) {
-    return res.json({ room: existing, isNew: false });
+    const ageMs = Date.now() - new Date(existing.startedAt).getTime();
+    const maxAgeMs = 4 * 60 * 60 * 1000;
+    if (existing.participants.length === 0 || ageMs > maxAgeMs) {
+      console.log(`[GroupCall] Cleaning stale room ${existing.roomName} (participants=${existing.participants.length}, age=${Math.round(ageMs/1000)}s)`);
+      activeGroupCalls.delete(conversationId);
+    } else {
+      return res.json({ room: existing, isNew: false });
+    }
   }
 
   const members = await db.execute(sql`

@@ -297,13 +297,15 @@ router.post("/adhoc-call", requireAuth as any, async (req, res) => {
 
   const allUserIds = [currentUser.id, ...userIds.filter((uid: number) => uid !== currentUser.id)];
 
-  // Build dynamic query for all userIds
-  const placeholders = allUserIds.map((_, i) => `$${i + 1}`).join(',');
-  const users = await db.query(
-    `SELECT id, name FROM users WHERE id IN (${placeholders})`,
-    allUserIds
-  );
-  const userMap = new Map((users.rows as any[]).map(u => [u.id, u.name]));
+  // Fetch user names from database
+  let userMap = new Map<number, string>();
+  for (const userId of allUserIds) {
+    const result = await db.execute(sql`SELECT id, name FROM users WHERE id = ${userId}`);
+    if ((result.rows as any[]).length > 0) {
+      const user = (result.rows as any[])[0];
+      userMap.set(user.id, user.name);
+    }
+  }
 
   const timestamp = Date.now();
   const roomName = `corpchat-adhoc-${currentUser.id}-${timestamp}`;

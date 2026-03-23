@@ -399,7 +399,7 @@ export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -522,7 +522,6 @@ export default function ChatScreen() {
 
   const startGroupCall = useCallback(async (callType: "voice" | "video") => {
     try {
-      const token = user?.token || "";
       const domain = process.env.EXPO_PUBLIC_DOMAIN;
       const baseUrl = domain ? `https://${domain}` : "";
       const res = await fetch(`${baseUrl}/api/calls/group-call/${id}`, {
@@ -542,10 +541,9 @@ export default function ChatScreen() {
     } catch (e) {
       Alert.alert("Error", `Gagal memulai group ${callType} call`);
     }
-  }, [id, user?.token]);
+  }, [id, token]);
 
   const fetchAdhocUsers = useCallback(async (query: string) => {
-    const token = user?.token || "";
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
     const baseUrl = domain ? `https://${domain}` : "";
     setAdhocLoading(true);
@@ -562,12 +560,11 @@ export default function ChatScreen() {
       setAdhocUsers([]);
     }
     setAdhocLoading(false);
-  }, [user?.token, user?.id]);
+  }, [token, user?.id]);
 
   const startAdhocCall = useCallback(async (callType: "voice" | "video") => {
     if (adhocSelected.size === 0) return;
     try {
-      const token = user?.token || "";
       const domain = process.env.EXPO_PUBLIC_DOMAIN;
       const baseUrl = domain ? `https://${domain}` : "";
       const userIds = Array.from(adhocSelected.keys());
@@ -588,7 +585,7 @@ export default function ChatScreen() {
     } catch (e) {
       Alert.alert("Error", "Gagal memulai multi-point call");
     }
-  }, [adhocSelected, user?.token]);
+  }, [adhocSelected, token]);
 
   const handleMessageSearch = useCallback(async () => {
     const q = searchQuery.trim();
@@ -849,7 +846,7 @@ export default function ChatScreen() {
       const response = await fetch(`${getBaseUrl()}/api/files/upload`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${user?.token || (await (await import("@react-native-async-storage/async-storage")).default.getItem("auth_token")) || ""}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
@@ -874,7 +871,7 @@ export default function ChatScreen() {
     } finally {
       setUploading(false);
     }
-  }, [user?.token]);
+  }, [token]);
 
   const getBaseUrl = useCallback(() => {
     if (Platform.OS === "web") return "";
@@ -1037,11 +1034,10 @@ export default function ChatScreen() {
       } as any);
 
       const baseUrl = getBaseUrl();
-      const authToken = user?.token || (await (await import("@react-native-async-storage/async-storage")).default.getItem("auth_token")) || "";
 
       const response = await fetch(`${baseUrl}/api/files/upload`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 

@@ -24,7 +24,7 @@ export default function JitsiCallScreen() {
     callType: string;
     conversationId: string;
   }>();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
   const webViewRef = useRef<WebView>(null);
@@ -39,7 +39,6 @@ export default function JitsiCallScreen() {
   useEffect(() => {
     const joinRoom = async () => {
       try {
-        const token = user?.token;
         const domain = process.env.EXPO_PUBLIC_DOMAIN;
         const baseUrl = domain ? `https://${domain}` : "";
         if (token && conversationId) {
@@ -65,7 +64,7 @@ export default function JitsiCallScreen() {
       }
     };
     joinRoom();
-  }, [conversationId, user?.token]);
+  }, [conversationId, token, roomName, isAdhoc];
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -77,7 +76,6 @@ export default function JitsiCallScreen() {
 
   const handleLeave = async () => {
     try {
-      const token = user?.token;
       const domain = process.env.EXPO_PUBLIC_DOMAIN;
       const baseUrl = domain ? `https://${domain}` : "";
       if (token && conversationId) {

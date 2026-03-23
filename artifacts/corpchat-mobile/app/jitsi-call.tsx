@@ -100,6 +100,13 @@ export default function JitsiCallScreen() {
 
   const jitsiUrl = `https://meet.jit.si/${roomName}#config.startWithAudioMuted=false&config.startWithVideoMuted=${isVoiceOnly}&config.prejoinPageEnabled=false&config.disableDeepLinking=true&userInfo.displayName=${encodeURIComponent(displayName)}`;
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const injectedJS = `
     (function() {
       document.addEventListener('readystatechange', function() {
@@ -130,7 +137,7 @@ export default function JitsiCallScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: "#000" }]}>
       <StatusBar barStyle="light-content" />
       {loading && (
-        <View style={styles.loadingOverlay}>
+        <View style={[styles.loadingOverlay, { pointerEvents: "none" }]}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>
             Menghubungkan ke {isVoiceOnly ? "voice" : "video"} call...

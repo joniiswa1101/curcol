@@ -129,6 +129,14 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
           console.log("[Jitsi] Conference joined");
         });
 
+        api.addListener("browserSupport", () => {
+          setLoading(false);
+        });
+
+        setTimeout(() => {
+          setLoading(false);
+        }, 4000);
+
         api.addListener("participantJoined", () => {
           setParticipantCount(prev => prev + 1);
         });
@@ -180,7 +188,7 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10 pointer-events-none">
           <div className="text-center text-white">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-lg">Menghubungkan ke {callType === "video" ? "video" : "voice"} call...</p>

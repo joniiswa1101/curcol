@@ -109,9 +109,11 @@ router.post("/group-call/:conversationId", requireAuth as any, async (req, res) 
 
   activeGroupCalls.set(conversationId, room);
 
+  console.log(`[GroupCall] Created room ${roomName} for conversation #${conversationId}, ${members.rows.length} members found`);
+
   for (const row of members.rows as any[]) {
     if (row.user_id !== currentUser.id) {
-      broadcastToUser(row.user_id, {
+      const sent = broadcastToUser(row.user_id, {
         type: "group_call_started",
         conversationId,
         roomName,
@@ -119,6 +121,7 @@ router.post("/group-call/:conversationId", requireAuth as any, async (req, res) 
         startedBy: currentUser.id,
         startedByName: room.startedByName,
       });
+      console.log(`[GroupCall] Notified userId=${row.user_id} (${row.name}): sent to ${sent} connection(s)`);
     }
   }
 

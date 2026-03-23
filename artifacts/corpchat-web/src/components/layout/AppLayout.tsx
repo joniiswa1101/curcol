@@ -133,7 +133,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               alt="CurCol Logo"
               className="w-72 h-22 shrink-0 rounded-xl"
             />
-            <span className="text-xs text-sidebar-foreground/50">v1.9.10</span>
+            <span className="text-xs text-sidebar-foreground/50">v1.9.11/span>
           </div>
 
           <div className="flex flex-col w-full gap-1">

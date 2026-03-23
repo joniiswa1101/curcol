@@ -71,6 +71,7 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
       } else {
         next.set(u.id, u);
       }
+      console.log("[AdHoc] User toggled:", u.name, "- now selected count:", next.size);
       return next;
     });
   };
@@ -209,7 +210,10 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
 
         <div className="p-3 border-t flex gap-2">
           <Button
-            onClick={() => startCall("voice")}
+            onClick={() => {
+              console.log("[AdHoc] Voice call clicked, selectedUsers.size:", selectedUsers.size, "starting:", starting);
+              startCall("voice");
+            }}
             disabled={selectedUsers.size === 0 || starting}
             className="flex-1 gap-2"
             variant="outline"
@@ -218,7 +222,10 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
             Voice Call
           </Button>
           <Button
-            onClick={() => startCall("video")}
+            onClick={() => {
+              console.log("[AdHoc] Video call clicked, selectedUsers.size:", selectedUsers.size, "starting:", starting);
+              startCall("video");
+            }}
             disabled={selectedUsers.size === 0 || starting}
             className="flex-1 gap-2 bg-primary hover:bg-primary/90 text-white"
           >

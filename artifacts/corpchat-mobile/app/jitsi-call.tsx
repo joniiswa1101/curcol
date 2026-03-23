@@ -64,7 +64,7 @@ export default function JitsiCallScreen() {
       }
     };
     joinRoom();
-  }, [conversationId, token, roomName, isAdhoc];
+  }, [conversationId, token, roomName, isAdhoc]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {

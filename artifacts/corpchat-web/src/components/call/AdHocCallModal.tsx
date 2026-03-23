@@ -77,10 +77,14 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
   };
 
   const startCall = async (callType: "voice" | "video") => {
-    if (selectedUsers.size === 0 || !token) return;
+    if (selectedUsers.size === 0 || !token) {
+      console.log("[AdHoc] Cannot start call: selectedUsers.size=", selectedUsers.size, "token=", !!token);
+      return;
+    }
     setStarting(true);
     try {
       const userIds = Array.from(selectedUsers.keys());
+      console.log("[AdHoc] Starting", callType, "call with userIds:", userIds);
       const res = await fetch("/api/calls/adhoc-call", {
         method: "POST",
         headers: {
@@ -89,10 +93,21 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
         },
         body: JSON.stringify({ userIds, callType }),
       });
-      const data = await res.json();
-      if (data.room) {
-        groupCallCtx.startAdhocCall(data.room);
-        onClose();
+      console.log("[AdHoc] API response status:", res.status);
+      const text = await res.text();
+      console.log("[AdHoc] API response text:", text.substring(0, 200));
+      if (res.ok) {
+        const data = JSON.parse(text);
+        console.log("[AdHoc] Parsed data:", data);
+        if (data.room) {
+          console.log("[AdHoc] Starting adhoc call with room:", data.room);
+          groupCallCtx.startAdhocCall(data.room);
+          onClose();
+        } else {
+          console.error("[AdHoc] No room in response");
+        }
+      } else {
+        console.error("[AdHoc] API error:", res.status, text.substring(0, 500));
       }
     } catch (err) {
       console.error("[AdHoc] Start call error:", err);

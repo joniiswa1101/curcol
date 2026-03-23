@@ -34,8 +34,8 @@ router.get("/", requireAuth as any, async (req, res) => {
   
   const calls = await db.execute(sql`
     SELECT c.*, 
-      caller.display_name as caller_name, caller.avatar_url as caller_avatar,
-      receiver.display_name as receiver_name, receiver.avatar_url as receiver_avatar
+      caller.name as caller_name, caller.avatar_url as caller_avatar,
+      receiver.name as receiver_name, receiver.avatar_url as receiver_avatar
     FROM calls c
     JOIN users caller ON c.caller_id = caller.id
     JOIN users receiver ON c.receiver_id = receiver.id
@@ -84,7 +84,7 @@ router.post("/group-call/:conversationId", requireAuth as any, async (req, res) 
   }
 
   const members = await db.execute(sql`
-    SELECT cm.user_id, u.display_name 
+    SELECT cm.user_id, u.name 
     FROM conversation_members cm 
     JOIN users u ON cm.user_id = u.id 
     WHERE cm.conversation_id = ${conversationId}
@@ -281,9 +281,9 @@ router.post("/adhoc-call", requireAuth as any, async (req, res) => {
   const allUserIds = [currentUser.id, ...userIds.filter((uid: number) => uid !== currentUser.id)];
 
   const users = await db.execute(sql`
-    SELECT id, display_name FROM users WHERE id = ANY(${allUserIds})
+    SELECT id, name FROM users WHERE id = ANY(${allUserIds})
   `);
-  const userMap = new Map((users.rows as any[]).map(u => [u.id, u.display_name]));
+  const userMap = new Map((users.rows as any[]).map(u => [u.id, u.name]));
 
   const timestamp = Date.now();
   const roomName = `corpchat-adhoc-${currentUser.id}-${timestamp}`;

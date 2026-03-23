@@ -1,8 +1,9 @@
 import { useCall } from "@/contexts/CallContext";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import {
-  Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX,
+  Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, UserPlus,
 } from "lucide-react";
+import { AdHocCallModal } from "./AdHocCallModal";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -17,6 +18,7 @@ export function ActiveCallOverlay() {
     endCall, toggleMute, toggleVideo,
     localStream, remoteStream,
   } = useCall();
+  const [showAddPeople, setShowAddPeople] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -144,6 +146,16 @@ export function ActiveCallOverlay() {
           </button>
         )}
 
+        {status === "connected" && (
+          <button
+            onClick={() => setShowAddPeople(true)}
+            className="w-14 h-14 rounded-full bg-white/20 text-white hover:bg-white/30 flex items-center justify-center transition-all"
+            title="Tambah peserta"
+          >
+            <UserPlus className="w-6 h-6" />
+          </button>
+        )}
+
         <button
           onClick={endCall}
           className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg transition-all hover:scale-105 active:scale-95"
@@ -151,6 +163,7 @@ export function ActiveCallOverlay() {
           <PhoneOff className="w-7 h-7" />
         </button>
       </div>
+      <AdHocCallModal isOpen={showAddPeople} onClose={() => setShowAddPeople(false)} />
     </div>
   );
 }

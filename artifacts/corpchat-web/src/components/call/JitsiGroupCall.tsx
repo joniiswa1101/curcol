@@ -83,6 +83,7 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
             startWithAudioMuted: false,
             startWithVideoMuted: callType === "voice",
             prejoinPageEnabled: false,
+            prejoinConfig: { enabled: false },
             disableDeepLinking: true,
             enableWelcomePage: false,
             enableClosePage: false,
@@ -133,9 +134,27 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
           setLoading(false);
         });
 
+        const tryAutoJoinViaIframe = () => {
+          try {
+            const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement;
+            if (iframe && iframe.contentDocument) {
+              const btns = iframe.contentDocument.querySelectorAll('button');
+              btns.forEach((btn) => {
+                const txt = btn.textContent || '';
+                if (txt.includes('Join') || txt.includes('join')) {
+                  btn.click();
+                }
+              });
+            }
+          } catch {}
+        };
+
         setTimeout(() => {
           setLoading(false);
-        }, 4000);
+          tryAutoJoinViaIframe();
+        }, 3000);
+
+        setTimeout(() => tryAutoJoinViaIframe(), 5000);
 
         api.addListener("participantJoined", () => {
           setParticipantCount(prev => prev + 1);

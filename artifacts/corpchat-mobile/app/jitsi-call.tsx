@@ -98,7 +98,7 @@ export default function JitsiCallScreen() {
     router.back();
   };
 
-  const jitsiUrl = `https://meet.jit.si/${roomName}#config.startWithAudioMuted=false&config.startWithVideoMuted=${isVoiceOnly}&config.prejoinPageEnabled=false&config.disableDeepLinking=true&userInfo.displayName=${encodeURIComponent(displayName)}`;
+  const jitsiUrl = `https://meet.jit.si/${roomName}#config.startWithAudioMuted=false&config.startWithVideoMuted=${isVoiceOnly}&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.enableWelcomePage=false&config.enableClosePage=false&userInfo.displayName=${encodeURIComponent(displayName)}`;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -114,6 +114,25 @@ export default function JitsiCallScreen() {
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'loaded' }));
         }
       });
+      function tryClickJoin() {
+        var btns = document.querySelectorAll('button');
+        for (var i = 0; i < btns.length; i++) {
+          var txt = btns[i].textContent || '';
+          if (txt.indexOf('Join') >= 0 || txt.indexOf('join') >= 0) {
+            btns[i].click();
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'auto_joined' }));
+            return true;
+          }
+        }
+        return false;
+      }
+      var attempts = 0;
+      var joinInterval = setInterval(function() {
+        attempts++;
+        if (tryClickJoin() || attempts > 20) {
+          clearInterval(joinInterval);
+        }
+      }, 1000);
     })();
     true;
   `;

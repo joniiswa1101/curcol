@@ -121,7 +121,7 @@ export default function LoginScreen() {
                   <Feather name="user" size={16} color={colors.textSecondary} />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder="joni@rpk.com atau username CICO"
+                    placeholder="Username atau Email CICO"
                     placeholderTextColor={colors.textSecondary}
                     value={cicoUsername}
                     onChangeText={setCICOUsername}

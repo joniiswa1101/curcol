@@ -1,0 +1,34 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="purpleGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c084fc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Logo: People Network (Collaboration) -->
+  <!-- Background subtle shape -->
+  <circle cx="60" cy="60" r="48" fill="url(#purpleGrad2)" opacity="0.08"/>
+  
+  <!-- Connection lines (network) -->
+  <line x1="40" y1="45" x2="80" y2="45" stroke="url(#purpleGrad2)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="40" y1="45" x2="60" y2="75" stroke="url(#purpleGrad2)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="80" y1="45" x2="60" y2="75" stroke="url(#purpleGrad2)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="60" y1="75" x2="35" y2="80" stroke="url(#purpleGrad2)" stroke-width="1.5" opacity="0.4"/>
+  
+  <!-- Node 1 (top-left) - Person -->
+  <circle cx="40" cy="45" r="7" fill="url(#purpleGrad2)"/>
+  <circle cx="40" cy="35" r="4" fill="url(#purpleGrad2)"/>
+  
+  <!-- Node 2 (top-right) - Person -->
+  <circle cx="80" cy="45" r="7" fill="url(#purpleGrad2)"/>
+  <circle cx="80" cy="33" r="4" fill="url(#purpleGrad2)"/>
+  
+  <!-- Node 3 (bottom-center) - Person (larger, main) -->
+  <circle cx="60" cy="75" r="8" fill="url(#purpleGrad2)"/>
+  <circle cx="60" cy="62" r="5" fill="url(#purpleGrad2)"/>
+  
+  <!-- Node 4 (bottom-left) - smaller person -->
+  <circle cx="35" cy="80" r="6" fill="url(#purpleGrad2)" opacity="0.8"/>
+  <circle cx="35" cy="71" r="3.5" fill="url(#purpleGrad2)" opacity="0.8"/>
+</svg>

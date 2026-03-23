@@ -42,24 +42,18 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
   const { user, token } = useAuthStore();
 
   const handleLeave = useCallback(async () => {
-    console.log("[Jitsi] handleLeave called");
     try {
-      console.log("[Jitsi] Token available:", !!token);
       if (token) {
         const leaveUrl = isAdhoc
           ? `/api/calls/adhoc-call/${roomName}/leave`
           : `/api/calls/group-call/${conversationId}/leave`;
-        console.log("[Jitsi] Calling leave endpoint:", leaveUrl);
-        const resp = await fetch(leaveUrl, {
+        await fetch(leaveUrl, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}` 
           },
         });
-        console.log("[Jitsi] Leave response:", resp.status);
-      } else {
-        console.log("[Jitsi] No token available, skipping leave call");
       }
     } catch (e) {
       console.error("[Jitsi] Leave call error:", e);

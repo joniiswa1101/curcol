@@ -71,20 +71,15 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
       } else {
         next.set(u.id, u);
       }
-      console.log("[AdHoc] User toggled:", u.name, "- now selected count:", next.size);
       return next;
     });
   };
 
   const startCall = async (callType: "voice" | "video") => {
-    if (selectedUsers.size === 0 || !token) {
-      console.log("[AdHoc] Cannot start call: selectedUsers.size=", selectedUsers.size, "token=", !!token);
-      return;
-    }
+    if (selectedUsers.size === 0 || !token) return;
     setStarting(true);
     try {
       const userIds = Array.from(selectedUsers.keys());
-      console.log("[AdHoc] Starting", callType, "call with userIds:", userIds);
       const res = await fetch("/api/calls/adhoc-call", {
         method: "POST",
         headers: {
@@ -93,21 +88,10 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
         },
         body: JSON.stringify({ userIds, callType }),
       });
-      console.log("[AdHoc] API response status:", res.status);
-      const text = await res.text();
-      console.log("[AdHoc] API response text:", text.substring(0, 200));
-      if (res.ok) {
-        const data = JSON.parse(text);
-        console.log("[AdHoc] Parsed data:", data);
-        if (data.room) {
-          console.log("[AdHoc] Starting adhoc call with room:", data.room);
-          groupCallCtx.startAdhocCall(data.room);
-          onClose();
-        } else {
-          console.error("[AdHoc] No room in response");
-        }
-      } else {
-        console.error("[AdHoc] API error:", res.status, text.substring(0, 500));
+      const data = await res.json();
+      if (data.room) {
+        groupCallCtx.startAdhocCall(data.room);
+        onClose();
       }
     } catch (err) {
       console.error("[AdHoc] Start call error:", err);
@@ -225,10 +209,7 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
 
         <div className="p-3 border-t flex gap-2">
           <Button
-            onClick={() => {
-              console.log("[AdHoc] Voice call clicked, selectedUsers.size:", selectedUsers.size, "starting:", starting);
-              startCall("voice");
-            }}
+            onClick={() => startCall("voice")}
             disabled={selectedUsers.size === 0 || starting}
             className="flex-1 gap-2"
             variant="outline"
@@ -237,10 +218,7 @@ export function AdHocCallModal({ isOpen, onClose }: AdHocCallModalProps) {
             Voice Call
           </Button>
           <Button
-            onClick={() => {
-              console.log("[AdHoc] Video call clicked, selectedUsers.size:", selectedUsers.size, "starting:", starting);
-              startCall("video");
-            }}
+            onClick={() => startCall("video")}
             disabled={selectedUsers.size === 0 || starting}
             className="flex-1 gap-2 bg-primary hover:bg-primary/90 text-white"
           >

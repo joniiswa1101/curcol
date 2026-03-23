@@ -82,10 +82,12 @@ router.post("/group-call/:conversationId", requireAuth as any, async (req, res) 
   if (existing) {
     const ageMs = Date.now() - new Date(existing.startedAt).getTime();
     const maxAgeMs = 4 * 60 * 60 * 1000;
+    console.log(`[GroupCall] Found existing room for #${conversationId}: participants=${existing.participants.length}, age=${Math.round(ageMs/1000)}s`);
     if (existing.participants.length === 0 || ageMs > maxAgeMs) {
       console.log(`[GroupCall] Cleaning stale room ${existing.roomName} (participants=${existing.participants.length}, age=${Math.round(ageMs/1000)}s)`);
       activeGroupCalls.delete(conversationId);
     } else {
+      console.log(`[GroupCall] Reusing existing room ${existing.roomName} with ${existing.participants.length} active participants`);
       return res.json({ room: existing, isNew: false });
     }
   }
@@ -239,12 +241,17 @@ router.post("/group-call/:conversationId/leave", requireAuth as any, async (req,
 
   const room = activeGroupCalls.get(conversationId);
   if (!room) {
+    console.log(`[GroupCall] Leave: no active room for conversation #${conversationId}`);
     return res.json({ success: true });
   }
 
+  const beforeCount = room.participants.length;
   room.participants = room.participants.filter(p => p.userId !== currentUser.id);
+  const afterCount = room.participants.length;
+  console.log(`[GroupCall] User ${currentUser.id} left conversation #${conversationId}: participants ${beforeCount} → ${afterCount}`);
 
-  if (room.participants.length === 0) {
+  if (afterCount === 0) {
+    console.log(`[GroupCall] All participants left, deleting room ${room.roomName}`);
     activeGroupCalls.delete(conversationId);
 
     const members = await db.execute(sql`

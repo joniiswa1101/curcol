@@ -39,12 +39,11 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [participantCount, setParticipantCount] = useState(1);
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
 
   const handleLeave = useCallback(async () => {
-    console.log("[Jitsi] handleLeave called, user:", user);
+    console.log("[Jitsi] handleLeave called");
     try {
-      const token = user?.token;
       console.log("[Jitsi] Token available:", !!token);
       if (token) {
         const leaveUrl = isAdhoc
@@ -70,7 +69,7 @@ export function JitsiGroupCall({ roomName, conversationId, callType, displayName
       apiRef.current = null;
     }
     onClose();
-  }, [conversationId, roomName, isAdhoc, user, onClose]);
+  }, [conversationId, roomName, isAdhoc, token, onClose]);
 
   useEffect(() => {
     let disposed = false;

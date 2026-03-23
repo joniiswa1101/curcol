@@ -181,7 +181,7 @@ export default function LoginScreen() {
                   <Feather name="user" size={16} color={colors.textSecondary} />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder="EMP001 atau joni@rpk.com"
+                    placeholder="Employee ID atau Email"
                     placeholderTextColor={colors.textSecondary}
                     value={employeeId}
                     onChangeText={setEmployeeId}

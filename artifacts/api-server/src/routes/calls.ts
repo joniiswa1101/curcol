@@ -297,9 +297,12 @@ router.post("/adhoc-call", requireAuth as any, async (req, res) => {
 
   const allUserIds = [currentUser.id, ...userIds.filter((uid: number) => uid !== currentUser.id)];
 
-  const users = await db.execute(sql`
-    SELECT id, name FROM users WHERE id = ANY(${allUserIds})
-  `);
+  // Build dynamic query for all userIds
+  const placeholders = allUserIds.map((_, i) => `$${i + 1}`).join(',');
+  const users = await db.query(
+    `SELECT id, name FROM users WHERE id IN (${placeholders})`,
+    allUserIds
+  );
   const userMap = new Map((users.rows as any[]).map(u => [u.id, u.name]));
 
   const timestamp = Date.now();
